@@ -160,6 +160,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine.ixx" />
+    <ClCompile Include="file_io.ixx" />
     <ClCompile Include="logger.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="type_registry.ixx" />

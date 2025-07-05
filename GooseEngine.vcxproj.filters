@@ -27,5 +27,8 @@
     <ClCompile Include="type_registry.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="file_io.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
