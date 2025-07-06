@@ -159,11 +159,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="dependency_injection.ixx" />
     <ClCompile Include="engine.ixx" />
     <ClCompile Include="file_io.ixx" />
     <ClCompile Include="logger.ixx" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="type_registry.ixx" />
+    <ClCompile Include="services.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

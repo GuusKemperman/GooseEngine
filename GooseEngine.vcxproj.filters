@@ -24,10 +24,13 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="type_registry.ixx">
+    <ClCompile Include="file_io.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="file_io.ixx">
+    <ClCompile Include="services.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dependency_injection.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
