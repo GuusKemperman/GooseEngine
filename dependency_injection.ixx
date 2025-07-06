@@ -4,13 +4,22 @@ import std;
 
 namespace ge
 {
+	template<typename target_t, typename test_t>
+	static constexpr bool has_or_is_dependency();
+
+	template<typename target_t, typename test_t>
+	static constexpr target_t& get_or_is_dependency(test_t& a_test) requires (has_or_is_dependency<target_t, test_t>());
+
 	export template<typename... T>
-	class depends_on;
+		class depends_on;
 
 	export template <>
-	class depends_on<>
+		class depends_on<>
 	{
 	public:
+		template<typename... args_t>
+		constexpr depends_on(args_t&&...) {}
+
 		bool operator==(const depends_on&) const { return true; }
 		bool operator!=(const depends_on&) const { return false; }
 
@@ -22,7 +31,7 @@ namespace ge
 	};
 
 	export template<typename this_t, typename... others_t>
-	class depends_on<this_t, others_t...> : public depends_on<others_t...>
+		class depends_on<this_t, others_t...> : public depends_on<others_t...>
 	{
 		using depends_base_t = depends_on<others_t...>;
 
@@ -30,41 +39,102 @@ namespace ge
 		using depends_on_constructor = depends_on;
 
 	public:
-		depends_on(this_t& a_this, others_t&... a_others);
+		depends_on() = delete;
+
+		template<typename... args_t>
+		constexpr depends_on(args_t&... args) requires (has_or_is_dependency<this_t, args_t>() || ...);
+
+		~depends_on() = default;
 
 		using depends_base_t::operator==;
 		using depends_base_t::operator!=;
 
-		bool operator==(const depends_on& other) const;
-		bool operator!=(const depends_on& other) const;
+		constexpr bool operator==(const depends_on& other) const;
+		constexpr bool operator!=(const depends_on& other) const;
 
 		template<typename target_t>
 		static constexpr bool has_dependency();
 
-		template<typename target_t> 
+		template<typename target_t>
 		constexpr target_t& get() requires (has_dependency<target_t>());
+
+		template<typename target_t>
+		constexpr target_t& get() const requires (std::is_const_v<target_t>&& has_dependency<target_t>());
 
 	private:
 		std::reference_wrapper<this_t> m_ref;
 	};
 }
 
-template<typename this_t, typename... others_t>
-ge::depends_on<this_t, others_t...>::depends_on(this_t& a_this, others_t&... a_others) :
-	depends_base_t(a_others...),
-	m_ref(a_this)
+template <typename target_t, typename test_t>
+constexpr bool ge::has_or_is_dependency()
+{
+	if constexpr (std::convertible_to<test_t&, target_t&>)
+	{
+		return true;
+	}
+	else if constexpr (
+		(!std::is_const_v<test_t> || std::is_const_v<target_t>)
+		&&
+		requires
+	{
+		{ test_t::template has_dependency<target_t>() } -> std::same_as<bool>;
+	})
+	{
+		if constexpr (test_t::template has_dependency<target_t>())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+template <typename target_t, typename test_t>
+constexpr target_t& ge::get_or_is_dependency(test_t& a_test) requires (has_or_is_dependency<target_t, test_t>())
+{
+	if constexpr (std::convertible_to<test_t&, target_t&>)
+	{
+		return a_test;
+	}
+	else
+	{
+		return test_t::template get<target_t>();
+	}
+}
+
+template <typename this_t, typename ... others_t>
+template <typename ... args_t>
+constexpr ge::depends_on<this_t, others_t...>::depends_on(args_t&... args) requires (has_or_is_dependency<this_t, args_t>() || ...) :
+	depends_base_t(args...),
+	m_ref(
+		[&]() -> decltype(auto)
+		{
+			this_t* ptr{};
+
+			auto lambda = [&]<typename arg_t>(arg_t& arg)
+			{
+				if constexpr (has_or_is_dependency<this_t, arg_t>())
+				{
+					ptr = &get_or_is_dependency<this_t>(arg);
+				}
+			};
+
+			(lambda.template operator()<args_t>(args), ...);
+
+			return *ptr;
+		}())
 {
 }
 
 template <typename this_t, typename... others_t>
-bool ge::depends_on<this_t, others_t...>::operator==(const depends_on& other) const
+constexpr bool ge::depends_on<this_t, others_t...>::operator==(const depends_on& other) const
 {
 	return &m_ref.get() == &other.m_ref.get()
 		&& depends_base_t::operator==(static_cast<const depends_base_t&>(other));
 }
 
 template <typename this_t, typename... others_t>
-bool ge::depends_on<this_t, others_t...>::operator!=(const depends_on& other) const
+constexpr bool ge::depends_on<this_t, others_t...>::operator!=(const depends_on& other) const
 {
 	return &m_ref.get() != &other.m_ref.get()
 		|| depends_base_t::operator!=(static_cast<const depends_base_t&>(other));
@@ -80,25 +150,10 @@ template<typename this_t, typename ...others_t>
 template<typename target_t>
 constexpr bool ge::depends_on<this_t, others_t...>::has_dependency()
 {
-	if constexpr (std::convertible_to<this_t&, target_t&>)
+	if (has_or_is_dependency<target_t, this_t>())
 	{
 		return true;
 	}
-	else if constexpr (
-		(!std::is_const_v<this_t> || std::is_const_v<target_t>)
-		&&
-		requires
-	{
-		{ this_t::template has_dependency<target_t>() } -> std::same_as<bool>;
-	})
-	{
-		if constexpr (this_t::template has_dependency<target_t>())
-		{
-			return true;
-		}
-	}
-		
-
 
 	return depends_base_t::template has_dependency<target_t>();
 }
@@ -107,28 +162,22 @@ template <typename this_t, typename ... others_t>
 template <typename target_t>
 constexpr target_t& ge::depends_on<this_t, others_t...>::get() requires (has_dependency<target_t>())
 {
-	if constexpr (std::convertible_to<this_t&, target_t&>)
+	if constexpr (has_or_is_dependency<target_t, this_t>())
 	{
-		return m_ref.get();
+		return get_or_is_dependency<target_t>(m_ref);
 	}
 	else
 	{
-		if constexpr (depends_base_t::template has_dependency<target_t>())
-		{
-			return depends_base_t::template get<target_t>();
-		}
-		
-		if constexpr (requires
-		{
-			{ this_t::template has_dependency<target_t>() } -> std::same_as<bool>;
-		})
-		{
-			if constexpr (this_t::template has_dependency<target_t>())
-			{
-				return this_t::template get<target_t>();
-			}
-		}
+		return depends_base_t::template get<target_t>();
 	}
+}
+
+template <typename this_t, typename ... others_t>
+template <typename target_t>
+constexpr target_t& ge::depends_on<this_t, others_t...>::get() const requires (std::is_const_v<target_t>&&
+	has_dependency<target_t>())
+{
+	return const_cast<depends_on&>(*this).get<target_t>();
 }
 
 namespace // static tests
@@ -155,12 +204,40 @@ namespace // static tests
 
 
 	// Any const object will not return any of its mutable dependencies.
+	static_assert(requires (const depend_test& d)
+	{
+		{ d.get<const dependency3>() } -> std::same_as<const dependency3&>;
+	});
+	static_assert(requires (depend_test& d)
+	{
+		{ d.get<const dependency3>() } -> std::same_as<const dependency3&>;
+	});
+	// Does not compile -> no valid candidates for get.
+	//static_assert(!requires (const depend_test& d)
+	//{
+	//	{ d.get<dependency3>() } -> std::same_as<dependency3&>;
+	//});
+	static_assert(requires (depend_test& d)
+	{
+		{ d.get<dependency3>() } -> std::same_as<dependency3&>;
+	});
+
+
+
 
 	// Any const dependency can only be accessed through a const reference
 	static_assert(!depend_test::has_dependency<dependency2>());
 	static_assert(depend_test::has_dependency<const dependency2>());
 	static_assert(!depend_test::has_dependency<dependency1>());
 	static_assert(depend_test::has_dependency<const dependency1>());
+
+
+
+
+	// 
+	static_assert(!std::is_constructible_v<depend_test>);
+	static_assert(std::is_constructible_v<depend_test, depend_test&>);
+	static_assert(std::is_constructible_v<depend_test, const depend_test&>);
 
 
 
