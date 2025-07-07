@@ -88,6 +88,9 @@ namespace ge
 		constexpr target_t& get() requires (has_dependency<target_t>());
 
 		template<typename target_t>
+		constexpr const target_t& get() requires (!has_dependency<target_t>() && has_dependency<const target_t>());
+
+		template<typename target_t>
 		constexpr target_t& get() const requires (std::is_const_v<target_t>&& has_dependency<target_t>());
 
 	private:
@@ -279,6 +282,14 @@ constexpr target_t& ge::depends_on<this_t, others_t...>::get() requires (has_dep
 
 template <typename this_t, typename ... others_t>
 template <typename target_t>
+constexpr const target_t& ge::depends_on<this_t, others_t...>::get()
+	requires (!has_dependency<target_t>() && has_dependency<const target_t>())
+{
+	return get<const target_t>();
+}
+
+template <typename this_t, typename ... others_t>
+template <typename target_t>
 constexpr target_t& ge::depends_on<this_t, others_t...>::get() const requires (std::is_const_v<target_t>&&
 	has_dependency<target_t>())
 {
@@ -353,6 +364,8 @@ namespace // static tests
 
 	static_assert(std::is_same_v<decltype(std::declval<dependency2>().get<dependency1>()), dependency1&>);
 	static_assert(std::is_same_v<decltype(std::declval<depend_test>().get<const dependency1>()), const dependency1&>);
+	static_assert(std::is_same_v<decltype(std::declval<depend_test>().get<dependency1>()), const dependency1&>);
 	static_assert(std::is_same_v<decltype(std::declval<depend_test>().get<const dependency2>()), const dependency2&>);
+	static_assert(std::is_same_v<decltype(std::declval<depend_test>().get<dependency2>()), const dependency2&>);
 	static_assert(std::is_same_v<decltype(std::declval<depend_test>().get<dependency3>()), dependency3&>);
 }
