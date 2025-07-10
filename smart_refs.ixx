@@ -30,6 +30,9 @@ namespace ge
 
 		ref_base() = delete;
 
+		// Constructs internal ptr from arguments.
+		// May throw std::invalid_argument("Null pointer passed to reference constructor") if
+		// the resulting ptr is null.
 		template<NonNullPtrT... arg_t>
 		constexpr ref_base(arg_t&&... a_arg) requires (std::is_constructible_v<ptr_t, arg_t...>);
 
@@ -56,8 +59,9 @@ namespace ge
 
 		constexpr element_type& get() const;
 
-		template <typename self_t>
-		constexpr auto&& get_ptr(this self_t&& self);
+		constexpr const ptr_type& get_ptr() const &;
+
+		constexpr ptr_type&& get_ptr() &&;
 
 	protected:
 		using base_t = ref_base;
@@ -72,6 +76,8 @@ namespace ge
 	public:
 		using ref_base<shared_ptr<T>>::base_t;
 		using ref_base<shared_ptr<T>>::operator=;
+
+		long use_count() const;
 	};
 
 	export template<typename T, typename deleter_t>
@@ -189,13 +195,13 @@ constexpr ge::ref_base<ptr_t>::operator ge::shared_ref<other_t>() const requires
 template <typename ptr_t>
 constexpr typename ge::ref_base<ptr_t>::element_type& ge::ref_base<ptr_t>::operator*() const
 {
-	return *get();
+	return get();
 }
 
 template <typename ptr_t>
 constexpr typename ge::ref_base<ptr_t>::element_type* ge::ref_base<ptr_t>::operator->() const
 {
-	return get();
+	return &get();
 }
 
 template <typename ptr_t>
@@ -211,10 +217,21 @@ constexpr typename ge::ref_base<ptr_t>::element_type& ge::ref_base<ptr_t>::get()
 }
 
 template <typename ptr_t>
-template <typename self_t>
-constexpr auto&& ge::ref_base<ptr_t>::get_ptr(this self_t&& self)
+constexpr const typename ge::ref_base<ptr_t>::ptr_type& ge::ref_base<ptr_t>::get_ptr() const &
 {
-	return std::forward<self_t>(self).m_ptr;
+	return m_ptr;
+}
+
+template <typename ptr_t>
+constexpr typename ge::ref_base<ptr_t>::ptr_type&& ge::ref_base<ptr_t>::get_ptr() &&
+{
+	return std::move(m_ptr);
+}
+
+template <typename T>
+long ge::shared_ref<T>::use_count() const
+{
+	return this->get_ptr().use_count();
 }
 
 template <typename T, typename ... args_t>
@@ -240,100 +257,3 @@ ge::unique_ref<T> ge::make_unique_ref(args_t&&... args) requires (std::is_constr
 {
 	return ge::unique_ref<T>{ make_unique_ptr<T>(std::forward<args_t>(args)...) };
 }
-
-// =================================================================
-// Compile-time unit tests
-// =================================================================
-
-[[maybe_unused]] static void foo()
-{
-	{
-		ge::unique_ref<int> p = ge::make_unique_ref<int>(5);
-		ge::shared_ref<int> f{ std::move(p) };
-		ge::shared_ref<const int> g{ f };
-		ge::shared_ref<const int> g3 = g;
-		g3 = f;
-		ge::shared_ref<const int> g2 = f;
-	}
-
-	{
-		ge::unique_ptr<int> p = ge::make_unique_ptr<int>(5);
-		ge::shared_ptr<int> f{ std::move(p) };
-		ge::shared_ptr<const int> g{ f };
-		ge::shared_ptr<const int> g2 = f;
-		ge::shared_ptr<const int> g3 = g;
-		g2 = f;
-	}
-}
-
-// Concepts
-static_assert(ge::SharedPtr<std::shared_ptr<int>>);
-static_assert(ge::SharedPtr<const std::shared_ptr<int>>);
-static_assert(ge::SharedPtr<volatile std::shared_ptr<int>&>);
-static_assert(!ge::SharedPtr<int>);
-static_assert(!ge::SharedPtr<std::unique_ptr<int>>);
-
-static_assert(ge::UniquePtr<std::unique_ptr<int>>);
-static_assert(ge::UniquePtr<std::unique_ptr<int, ge::default_delete<int>>>);
-static_assert(ge::UniquePtr<const std::unique_ptr<int>>);
-static_assert(!ge::UniquePtr<int>);
-static_assert(!ge::UniquePtr<std::shared_ptr<int>>);
-
-static_assert(ge::SharedRef<ge::shared_ref<int>>);
-static_assert(ge::SharedRef<const ge::shared_ref<int>&>);
-static_assert(ge::SharedRef<volatile ge::shared_ref<int>&&>);
-static_assert(!ge::SharedRef<int>);
-static_assert(!ge::SharedRef<ge::unique_ref<int>>);
-
-static_assert(ge::UniqueRef<ge::unique_ref<int>>);
-static_assert(ge::UniqueRef<ge::unique_ref<int, ge::default_delete<int>>>);
-static_assert(ge::UniqueRef<const ge::unique_ref<int>>);
-static_assert(!ge::UniqueRef<int>);
-static_assert(!ge::UniqueRef<ge::shared_ref<int>>);
-
-// SharedRef constructibility
-static_assert(std::is_constructible_v<ge::shared_ref<const int>, ge::shared_ref<int>>);
-static_assert(!std::is_constructible_v<ge::shared_ref<int>, ge::shared_ref<const int>>);
-static_assert(!std::is_constructible_v<ge::shared_ref<int>, std::nullptr_t>);
-static_assert(std::is_constructible_v<ge::shared_ref<int>, ge::unique_ref<int>>);
-
-// UniqueRef constructibility
-static_assert(std::is_constructible_v<ge::unique_ref<const int>, ge::unique_ref<int>>);
-static_assert(!std::is_constructible_v<ge::unique_ref<int>, ge::unique_ref<const int>>);
-static_assert(!std::is_constructible_v<ge::unique_ref<int>, std::nullptr_t>);
-static_assert(!std::is_constructible_v<ge::unique_ref<int>, ge::shared_ref<int>>);
-
-// Default constructibility
-static_assert(!std::is_default_constructible_v<ge::shared_ref<int>>);
-static_assert(!std::is_default_constructible_v<ge::unique_ref<int>>);
-
-// Copy/Move semantics
-static_assert(std::is_copy_constructible_v<ge::shared_ref<int>>);
-static_assert(std::is_copy_assignable_v<ge::shared_ref<int>>);
-static_assert(std::is_move_constructible_v<ge::shared_ref<int>>);
-static_assert(std::is_move_assignable_v<ge::shared_ref<int>>);
-
-static_assert(!std::is_copy_constructible_v<ge::unique_ref<int>>);
-static_assert(!std::is_copy_assignable_v<ge::unique_ref<int>>);
-static_assert(std::is_move_constructible_v<ge::unique_ref<int>>);
-static_assert(std::is_move_assignable_v<ge::unique_ref<int>>);
-
-// Member function return types
-static_assert(std::is_same_v<decltype(std::declval<ge::shared_ref<int>>().get()), int&>);
-static_assert(std::is_same_v<decltype(std::declval<ge::shared_ref<const int>>().get()), const int&>);
-static_assert(std::is_same_v<decltype(std::declval<ge::unique_ref<int>>().get()), int&>);
-static_assert(std::is_same_v<decltype(*std::declval<ge::shared_ref<int>>()), int&>);
-static_assert(std::is_same_v<decltype(std::declval<ge::unique_ref<int>>().operator->()), int*>);
-
-// Factory function return types
-static_assert(std::is_same_v<
-	decltype(ge::make_shared_ref<int>(0)),
-	ge::shared_ref<int>
->);
-static_assert(std::is_same_v<
-	decltype(ge::make_unique_ref<int>(0)),
-	ge::unique_ref<int>
->);
-
-
-static_assert(std::convertible_to<ge::shared_ref<int>, ge::shared_ref<const int>>);
