@@ -34,3 +34,5 @@
 /Intermediate
 /Build
 *.user
+/UnitTests/Intermediate
+/UnitTests/Build
