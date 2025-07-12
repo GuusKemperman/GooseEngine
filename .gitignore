@@ -31,8 +31,9 @@
 *.out
 *.app
 /.vs
-/Intermediate
-/Build
+
 *.user
-/UnitTests/Intermediate
-/UnitTests/Build
+
+Intermediate/
+Build/
+
