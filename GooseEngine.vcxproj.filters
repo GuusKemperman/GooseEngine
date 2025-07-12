@@ -15,28 +15,25 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="logger.ixx">
+    <ClCompile Include="Source\Modules\Core\logger.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine.ixx">
+    <ClCompile Include="Source\Modules\Core\engine.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="Source\Core\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="file_io.ixx">
+    <ClCompile Include="Source\Modules\Core\file_io.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="services.ixx">
+    <ClCompile Include="Source\Modules\Utils\dependency_injection.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dependency_injection.ixx">
+    <ClCompile Include="Source\Modules\Utils\smart_refs.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="smart_refs.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="utils.ixx">
+    <ClCompile Include="Source\Modules\Utils\utils.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

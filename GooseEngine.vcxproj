@@ -159,14 +159,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="dependency_injection.ixx" />
-    <ClCompile Include="engine.ixx" />
-    <ClCompile Include="file_io.ixx" />
-    <ClCompile Include="logger.ixx" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="services.ixx" />
-    <ClCompile Include="smart_refs.ixx" />
-    <ClCompile Include="utils.ixx" />
+    <ClCompile Include="Source\Modules\Utils\dependency_injection.ixx" />
+    <ClCompile Include="Source\Modules\Core\engine.ixx" />
+    <ClCompile Include="Source\Modules\Core\file_io.ixx" />
+    <ClCompile Include="Source\Modules\Core\logger.ixx" />
+    <ClCompile Include="Source\Core\main.cpp" />
+    <ClCompile Include="Source\Modules\Utils\smart_refs.ixx" />
+    <ClCompile Include="Source\Modules\Utils\utils.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
