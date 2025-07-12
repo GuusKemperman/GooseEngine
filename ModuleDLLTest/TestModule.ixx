@@ -1,6 +1,7 @@
 export module TestModule;
 
 import std;
+import logger;
 
 export __declspec(dllexport) int f() { return 1; }
 
