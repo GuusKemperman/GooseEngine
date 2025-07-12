@@ -123,7 +123,14 @@ endforeach()
 foreach(module_base IN LISTS MODULE_GROUPS)
     # Get all files for this module
     set(module_files ${MODULE_GROUP_${module_base}})
-    
+
+    # Create dummy source file to force .lib generation,
+    # in case nothing else is exported.
+    set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy_${module_base}.cpp")
+    file(WRITE ${dummy_file} 
+        "extern \"C\" __declspec(dllexport) void dummy_export_${module_base}() {}\n"
+    )
+
     # Create shared library target
     add_library(${module_base} SHARED ${module_files})
     
@@ -132,6 +139,8 @@ foreach(module_base IN LISTS MODULE_GROUPS)
         PUBLIC
             FILE_SET cxx_modules TYPE CXX_MODULES FILES ${module_files}
     )
+
+    target_sources(${module_base} PRIVATE ${dummy_file})
 
     # Set common BMI directory
     set_target_properties(${module_base} PROPERTIES
