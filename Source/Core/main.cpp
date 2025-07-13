@@ -1,8 +1,5 @@
-import engine;
-import file_io;
-import logger;
-import dependency_injection;
 
+import std;
 
 #include <windows.h>
 

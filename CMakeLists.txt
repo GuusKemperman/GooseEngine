@@ -126,7 +126,7 @@ foreach(module_base IN LISTS MODULE_GROUPS)
 
     # Create dummy source file to force .lib generation,
     # in case nothing else is exported.
-    set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy_${module_base}.cpp")
+    set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_base}.cpp")
     file(WRITE ${dummy_file} 
         "extern \"C\" __declspec(dllexport) void dummy_export_${module_base}() {}\n"
     )
@@ -211,3 +211,5 @@ foreach(module_base IN LISTS MODULE_GROUPS)
         endif()
     endforeach()
 endforeach()
+
+add_executable(GooseEngine "Source/Core/main.cpp")
