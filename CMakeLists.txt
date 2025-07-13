@@ -212,4 +212,9 @@ foreach(module_base IN LISTS MODULE_GROUPS)
     endforeach()
 endforeach()
 
-add_executable(GooseEngine "Source/Core/main.cpp")
+add_executable(GooseEngine "Source/Core/main.cpp" )
+
+target_sources(GooseEngine
+    PRIVATE
+        FILE_SET cxx_modules TYPE CXX_MODULES FILES "Source/Core/module_loading/module_loading.ixx"
+)
