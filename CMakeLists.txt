@@ -216,5 +216,13 @@ add_executable(GooseEngine "Source/Core/main.cpp" )
 
 target_sources(GooseEngine
     PRIVATE
-        FILE_SET cxx_modules TYPE CXX_MODULES FILES "Source/Core/module_loading/module_loading.ixx"
-)
+        FILE_SET cxx_modules TYPE CXX_MODULES FILES 
+        "Source/Core/module_loading/module_loading.ixx"
+        "Source/Core/meta/meta.ixx"
+        "Source/Core/meta/meta_builder.ixx"
+        "Source/Core/meta/meta_type.ixx"
+
+        "Source/Core/utils/utils.ixx"
+        "Source/Core/utils/utils_dependency_injection.ixx"
+        "Source/Core/utils/utils_memory.ixx"
+ "Source/Core/meta/meta_reflect.ixx")
