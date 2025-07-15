@@ -6,8 +6,19 @@ namespace ge
 	export template<typename T>
 	using shared_ptr = std::shared_ptr<T>;
 
+	template <class T>
+	struct in_place_delete
+	{
+		constexpr in_place_delete() noexcept = default;
+
+		template <typename other_t>
+		constexpr in_place_delete(const in_place_delete<other_t>&) noexcept requires std::convertible_to<other_t, T> {}
+
+		constexpr void operator()(T* a_ptr) const noexcept;
+	};
+
 	export template<typename T>
-	using default_delete = std::default_delete<T>;
+	using default_delete = in_place_delete<T>;
 
 	export template<typename T, typename deleter_t = default_delete<T>>
 	using unique_ptr = std::unique_ptr<T, deleter_t>;
@@ -139,6 +150,20 @@ namespace ge
 	concept UniqueRef = is_unique_ref_v<std::remove_cvref_t<T>>;
 }
 
+template <class T>
+constexpr void ge::in_place_delete<T>::operator()(T* a_ptr) const noexcept
+{
+	static_assert(0 < sizeof(T), "can't delete an incomplete type");
+
+	if (a_ptr == nullptr)
+	{
+		return;
+	}
+
+	a_ptr->~T();
+	delete a_ptr;
+}
+
 template <typename ptr_t>
 template <ge::NonNullPtrT ... arg_t>
 constexpr ge::ref_base<ptr_t>::ref_base(arg_t&&... a_arg) requires (std::is_constructible_v<ptr_t, arg_t...>) :
@@ -243,7 +268,8 @@ ge::shared_ptr<T> ge::make_shared_ptr(args_t&&... args) requires (std::is_constr
 template <typename T, typename ... args_t>
 ge::unique_ptr<T> ge::make_unique_ptr(args_t&&... args) requires (std::is_constructible_v<T, args_t...>)
 {
-	return std::make_unique<T>(std::forward<args_t>(args)...);
+	void* buffer = std::malloc(sizeof(T));
+	return { new (buffer)T(std::forward<args_t>(args)...), in_place_delete<T>{} };
 }
 
 template <typename T, typename ... args_t>
