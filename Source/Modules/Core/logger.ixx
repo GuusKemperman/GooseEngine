@@ -1,6 +1,7 @@
 export module logger;
 
 import std;
+import modules;
 
 namespace ge
 {
@@ -17,6 +18,20 @@ namespace ge
 	{
 	public:
 		void println(std::string_view str) override;
+	};
+}
+
+namespace logger
+{
+	export class module : public ge::modules::module_base
+	{
+	public:
+		module(ge::modules::module_manager&)
+		{
+			//test_engine();
+			//test_utils();
+			//std::println(" helooo {}", /*test_utils(),*/ test_engine());
+		}
 	};
 }
 

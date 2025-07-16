@@ -73,11 +73,6 @@ function(parse_module_imports file_path base_name_var public_imports_var private
     set(${private_imports_var} ${private_imports} PARENT_SCOPE)
 endfunction()
 
-
-
-
-
-
 # Group files by base module name and collect dependencies
 set(MODULE_GROUPS)
 set(MODULE_DEPENDENCIES)
@@ -211,6 +206,7 @@ foreach(module_base IN LISTS MODULE_GROUPS)
     # Set common BMI directory
     set_target_properties(${module_base} PROPERTIES
         CXX_MODULES_DIRECTORY "${MODULE_OUTPUT_DIR}"
+        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
     )
 
     # MSVC-specific settings
@@ -278,24 +274,19 @@ foreach(module_base IN LISTS MODULE_GROUPS)
     endforeach()
 endforeach()
 
-add_executable(GooseEngine "Source/Core/main.cpp"
-        "Source/Core/platform/windows/windows.ixx"
-        "Source/Core/platform/windows/windows_modules.ixx"
-        "Source/Core/modules/modules.ixx"
-        "Source/Core/modules/modules_manager.ixx"
-        "Source/Core/modules/modules_module_base.ixx"
-        "Source/Core/modules/modules_platform.ixx"
+set(exec_files
+    "Source/Core/platform/windows/windows.ixx"
+    "Source/Core/platform/windows/windows_modules.ixx"
+    "Source/Core/modules/modules.ixx"
+    "Source/Core/modules/modules_manager.ixx"
+    "Source/Core/modules/modules_module_base.ixx"
+    "Source/Core/modules/modules_platform.ixx"
 )
+
+add_executable(GooseEngine "Source/Core/main.cpp" ${exec_files})
 
 target_sources(GooseEngine
     PRIVATE
-        FILE_SET cxx_modules TYPE CXX_MODULES FILES 
-        "Source/Core/platform/windows/windows.ixx"
-        "Source/Core/platform/windows/windows_modules.ixx"
-        "Source/Core/modules/modules.ixx"
-        "Source/Core/modules/modules_manager.ixx"
-        "Source/Core/modules/modules_module_base.ixx"
-        "Source/Core/modules/modules_platform.ixx"
-)
+        FILE_SET cxx_modules TYPE CXX_MODULES FILES ${exec_files})
 
 add_dependencies(GooseEngine ${MODULE_GROUPS})

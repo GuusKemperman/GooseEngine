@@ -75,7 +75,14 @@ ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_l
 
 			auto func_address = reinterpret_cast<module_meta_data(*)()>(generated_func->m_address);
 			internal.m_meta_data = std::invoke(func_address);
+
 			std::println("Loaded {} from {}", internal.m_meta_data.m_name, internal.m_file.string());
+
+			if (internal.m_meta_data.m_instance_factory != nullptr)
+			{
+				module_base* base = internal.m_meta_data.m_instance_factory(*this);
+				delete base;
+			}
 		};
 
 	auto check_path = 

@@ -17,9 +17,9 @@ namespace ge
 
 	export class file_io : public ifile_io
 	{
-		virtual std::filesystem::path get_path(project proj, path_name path_name) const override;
+		std::filesystem::path get_path(project proj, path_name path_name) const override;
 
-		virtual std::unique_ptr<std::istream> read_file(const std::filesystem::path& path) const override;
+		std::unique_ptr<std::istream> read_file(const std::filesystem::path& path) const override;
 	};
 }
 
