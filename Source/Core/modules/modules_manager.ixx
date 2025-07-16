@@ -18,10 +18,11 @@ namespace ge::modules
 	struct module_internal
 	{
 		std::filesystem::path m_file{};
-		std::shared_ptr<platform_module> m_platform_module{};
-		std::vector<exported_func> m_exported_funcs{};
+		shared_lib_meta_data m_shared_lib_meta_data{};
 
-		module_meta_data m_meta_data{};
+		std::shared_ptr<platform_module> m_platform_module{};
+
+		module_meta_data m_module_meta_data{};
 
 		std::shared_ptr<module_base> m_module_instance{};
 	};
@@ -39,8 +40,6 @@ namespace ge::modules
 		std::shared_ptr<platform_loader> m_loader{};
 		std::vector<module_internal> m_modules{};
 	};
-
-	static bool is_generated_module_func(const exported_func& func);
 }
 
 ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_loader, const config& a_config) :
@@ -54,6 +53,7 @@ ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_l
 	auto add_module = 
 		[&](const std::filesystem::path& path)
 		{
+			shared_lib_meta_data shared_lib_meta_data = m_loader->get_meta_data(path);
 			std::shared_ptr module = m_loader->load_platform_module(path);
 
 			if (module == nullptr)
@@ -61,26 +61,28 @@ ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_l
 				return;
 			}
 
-			module_internal& internal = m_modules.emplace_back(path, module, module->get_exported_funcs());
+			module_internal& internal = m_modules.emplace_back(path, shared_lib_meta_data, module);
 
-			auto generated_func = std::ranges::find_if(internal.m_exported_funcs, 
-				&is_generated_module_func);
+			module_meta_data(*generated_func)(){};
 
-			if (generated_func == internal.m_exported_funcs.end()
-				|| generated_func->m_address == nullptr)
+			try
+			{
+				generated_func = reinterpret_cast<decltype(generated_func)>(
+					internal.m_platform_module->get_exported_func("generated_module_func"));
+			}
+			catch (...)
 			{
 				m_modules.pop_back();
 				return;
 			}
 
-			auto func_address = reinterpret_cast<module_meta_data(*)()>(generated_func->m_address);
-			internal.m_meta_data = std::invoke(func_address);
+			internal.m_module_meta_data = std::invoke(generated_func);
 
-			std::println("Loaded {} from {}", internal.m_meta_data.m_name, internal.m_file.string());
+			std::println("Loaded {} from {}", internal.m_module_meta_data.m_name, internal.m_file.string());
 
-			if (internal.m_meta_data.m_instance_factory != nullptr)
+			if (internal.m_module_meta_data.m_instance_factory != nullptr)
 			{
-				module_base* base = internal.m_meta_data.m_instance_factory(*this);
+				module_base* base = internal.m_module_meta_data.m_instance_factory(*this);
 				delete base;
 			}
 		};
@@ -107,9 +109,4 @@ ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_l
 	{
 		check_path(check_path, path);
 	}
-}
-
-bool ge::modules::is_generated_module_func(const exported_func& func)
-{
-	return func.m_name == std::string_view{ "generated_module_func" };
 }

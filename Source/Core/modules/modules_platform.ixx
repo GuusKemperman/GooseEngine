@@ -7,18 +7,17 @@ namespace ge::modules
 	class module_base;
 	class module_manager;
 
-	export struct exported_func
-	{
-		void* m_address;
-		std::string_view m_name{};
-	};
-
 	export class platform_module
 	{
 	public:
 		virtual ~platform_module() = default;
 
-		virtual std::vector<exported_func> get_exported_funcs() = 0;
+		virtual void* get_exported_func(std::string_view func_name) = 0;
+	};
+
+	export struct shared_lib_meta_data
+	{
+		std::vector<std::string> m_exported_function_names{};
 	};
 
 	export class platform_loader
@@ -27,6 +26,8 @@ namespace ge::modules
 		virtual ~platform_loader() = default;
 
 		virtual bool is_shared_lib(const std::filesystem::path& path) = 0;
+
+		virtual shared_lib_meta_data get_meta_data(const std::filesystem::path& path) = 0;
 
 		virtual std::shared_ptr<platform_module> load_platform_module(const std::filesystem::path& shared_lib) = 0;
 	};
