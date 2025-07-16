@@ -297,3 +297,5 @@ target_sources(GooseEngine
         "Source/Core/modules/modules_module_base.ixx"
         "Source/Core/modules/modules_platform.ixx"
 )
+
+add_dependencies(GooseEngine ${MODULE_GROUPS})
