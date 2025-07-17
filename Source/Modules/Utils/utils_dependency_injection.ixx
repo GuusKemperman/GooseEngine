@@ -1,4 +1,4 @@
-export module dependency_injection;
+export module utils:dependency_injection;
 
 import std;
 
