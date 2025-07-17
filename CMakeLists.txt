@@ -15,10 +15,10 @@ file(GLOB_RECURSE MODULE_FILES CONFIGURE_DEPENDS
 )
 
 # Function to parse imports from a module file
-function(parse_module_imports file_path base_name_var public_imports_var private_imports_var)
+function(parse_module_imports file_path base_name_var imports_var)
     file(STRINGS ${file_path} lines)
-    set(public_imports)
-    set(private_imports)
+    set(imports)
+
     set(${base_name_var} "no export statement found in ${file_path}" PARENT_SCOPE)
     
     foreach(line IN LISTS lines)
@@ -31,42 +31,13 @@ function(parse_module_imports file_path base_name_var public_imports_var private
             set(${base_name_var} ${CMAKE_MATCH_2} PARENT_SCOPE)
         endif()
         
-        # Match export import statements
-        if(line MATCHES "export[ \t]+import[ \t]+([^;]+);")
-            set(imported_module ${CMAKE_MATCH_1})
-            # Skip relative partitions (e.g., import :partition;)
-            if(NOT imported_module MATCHES "^:")
-                # Extract base module name if partition
-                if(imported_module MATCHES "([^:]+):")
-                    set(imported_module ${CMAKE_MATCH_1})
-                endif()
-                list(APPEND public_imports ${imported_module})
-            endif()
-        
         # Match regular import statements
-        elseif(line MATCHES "import[ \t]+([^;]+);")
-            set(imported_module ${CMAKE_MATCH_1})
-            # Skip relative partitions
-            if(NOT imported_module MATCHES "^:")
-                # Extract base module name if partition
-                if(imported_module MATCHES "([^:]+):")
-                    set(imported_module ${CMAKE_MATCH_1})
-                endif()
-                list(APPEND private_imports ${imported_module})
-            endif()
+        if(line MATCHES "import[ \t]+([^;]+);")
+            list(APPEND imports ${CMAKE_MATCH_1})
         endif()
     endforeach()
     
-    # Remove duplicates and set output variables
-    if(public_imports)
-        list(REMOVE_DUPLICATES public_imports)
-    endif()
-    if(private_imports)
-        list(REMOVE_DUPLICATES private_imports)
-    endif()
-    
-    set(${public_imports_var} ${public_imports} PARENT_SCOPE)
-    set(${private_imports_var} ${private_imports} PARENT_SCOPE)
+    set(${imports_var} ${imports} PARENT_SCOPE)
 endfunction()
 
 # Group files by base module name and collect dependencies
@@ -75,25 +46,18 @@ set(MODULE_DEPENDENCIES)
 foreach(module_file IN LISTS MODULE_FILES)
     # Extract base module name from file content
     # Parse imports for dependency tracking
-    parse_module_imports(${module_file} module_base public_imports private_imports)
+    parse_module_imports(${module_file} module_base imports)
     
     # Add to module group
     if(NOT DEFINED MODULE_GROUP_${module_base})
         set(MODULE_GROUP_${module_base} "")
         list(APPEND MODULE_GROUPS ${module_base})
         
-        set(MODULE_PUBLIC_DEPS_${module_base} "")
-        set(MODULE_PRIVATE_DEPS_${module_base} "")
+        set(MODULE_DEPS_${module_base} "")
     endif()
+
     list(APPEND MODULE_GROUP_${module_base} ${module_file})
-    
-    foreach(import IN LISTS public_imports)
-        list(APPEND MODULE_PUBLIC_DEPS_${module_base} ${import})
-    endforeach()
-    
-    foreach(import IN LISTS private_imports)
-        list(APPEND MODULE_PRIVATE_DEPS_${module_base} ${import})
-    endforeach()
+    list(APPEND MODULE_DEPS_${module_base} ${imports})
 endforeach()
 
 # Create targets for each module group
@@ -181,33 +145,15 @@ endforeach()
 # Process dependencies after all targets are created
 foreach(module_base IN LISTS MODULE_GROUPS)
     # Get dependencies
-    set(public_deps ${MODULE_PUBLIC_DEPS_${module_base}})
-    set(private_deps ${MODULE_PRIVATE_DEPS_${module_base}})
-    
-    # Remove duplicates
-    if(public_deps)
-        list(REMOVE_DUPLICATES public_deps)
-    endif()
-    if(private_deps)
-        list(REMOVE_DUPLICATES private_deps)
-    endif()
-    
-    # Add public dependencies
-    foreach(dep IN LISTS public_deps)
+    set(deps ${MODULE_DEPS_${module_base}})
+
+    list(REMOVE_DUPLICATES deps)
+
+    foreach(dep IN LISTS deps)
         # Skip self-dependencies and non-existent targets
         if(TARGET ${dep} AND NOT dep STREQUAL module_base)
             target_link_libraries(${module_base} PUBLIC ${dep})
             message(STATUS "Linking ${module_base} PUBLIC ${dep}")
-        endif()
-    endforeach()
-    
-    # Add private dependencies (only if not already public)
-    foreach(dep IN LISTS private_deps)
-        if(TARGET ${dep} AND 
-           NOT dep STREQUAL module_base AND 
-           NOT dep IN_LIST public_deps)
-            target_link_libraries(${module_base} PRIVATE ${dep})
-            message(STATUS "Linking ${module_base} PRIVATE ${dep}")
         endif()
     endforeach()
 endforeach()
