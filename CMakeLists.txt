@@ -173,4 +173,8 @@ target_sources(GooseEngine
     PRIVATE
         FILE_SET cxx_modules TYPE CXX_MODULES FILES ${exec_files})
 
+set_target_properties(GooseEngine PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
 add_dependencies(GooseEngine ${MODULE_GROUPS})
