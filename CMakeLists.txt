@@ -8,10 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-# Set up common BMI output directory
-set(MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/bmis")
-file(MAKE_DIRECTORY ${MODULE_OUTPUT_DIR})
-
 # Find all module files
 file(GLOB_RECURSE MODULE_FILES CONFIGURE_DEPENDS
     "Source/Modules/*.ixx"
@@ -80,50 +76,47 @@ foreach(module_file IN LISTS MODULE_FILES)
     # Extract base module name from file content
     # Parse imports for dependency tracking
     parse_module_imports(${module_file} module_base public_imports private_imports)
-
-    # Sanitize module name for CMake target
-    string(REGEX REPLACE "[^a-zA-Z0-9_]" "_" module_base_safe ${module_base})
     
     # Add to module group
-    if(NOT DEFINED MODULE_GROUP_${module_base_safe})
-        set(MODULE_GROUP_${module_base_safe} "")
-        list(APPEND MODULE_GROUPS ${module_base_safe})
+    if(NOT DEFINED MODULE_GROUP_${module_base})
+        set(MODULE_GROUP_${module_base} "")
+        list(APPEND MODULE_GROUPS ${module_base})
         
-        # Initialize dependency tracking
-        set(MODULE_PUBLIC_DEPS_${module_base_safe} "")
-        set(MODULE_PRIVATE_DEPS_${module_base_safe} "")
+        set(MODULE_PUBLIC_DEPS_${module_base} "")
+        set(MODULE_PRIVATE_DEPS_${module_base} "")
     endif()
-    list(APPEND MODULE_GROUP_${module_base_safe} ${module_file})
+    list(APPEND MODULE_GROUP_${module_base} ${module_file})
     
-    # Process public imports
     foreach(import IN LISTS public_imports)
-        string(REGEX REPLACE "[^a-zA-Z0-9_]" "_" import_safe ${import})
-        list(APPEND MODULE_PUBLIC_DEPS_${module_base_safe} ${import_safe})
+        list(APPEND MODULE_PUBLIC_DEPS_${module_base} ${import})
     endforeach()
     
-    # Process private imports
     foreach(import IN LISTS private_imports)
-        string(REGEX REPLACE "[^a-zA-Z0-9_]" "_" import_safe ${import})
-        list(APPEND MODULE_PRIVATE_DEPS_${module_base_safe} ${import_safe})
+        list(APPEND MODULE_PRIVATE_DEPS_${module_base} ${import})
     endforeach()
 endforeach()
 
 # Create targets for each module group
 foreach(module_base IN LISTS MODULE_GROUPS)
-    # Get all files for this module
+    # all .ixx files for this module
     set(module_files ${MODULE_GROUP_${module_base}})
 
-    set(module_all_deps)
-    list(APPEND module_all_deps ${MODULE_PUBLIC_DEPS_${module_base}})
-    list(APPEND module_all_deps ${MODULE_PRIVATE_DEPS_${module_base}})
-    list(REMOVE_DUPLICATES module_all_deps)
+    add_library(${module_base} SHARED ${module_files})
+    
+    target_sources(${module_base}
+        PUBLIC
+            FILE_SET cxx_modules TYPE CXX_MODULES FILES ${module_files}
+    )
 
-    string(REPLACE ";" "\", \"" module_all_deps_str "${module_all_deps}")
-    string(PREPEND module_all_deps_str "\"")
-    string(APPEND module_all_deps_str "\"")
+    set_target_properties(${module_base} PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
 
-    set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_base}.cpp")
-	file(WRITE ${dummy_file} 
+    # some code generation for getting the module-class factory
+    set(generated_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_base}.cpp")
+	file(WRITE ${generated_file} 
         "import ${module_base};\n"
         "import std;\n"
         "\n"
@@ -182,52 +175,7 @@ foreach(module_base IN LISTS MODULE_GROUPS)
         "}\n"
 	)
 
-    # Create shared library target
-    add_library(${module_base} SHARED ${module_files})
-    
-    # Add module sources with FILE_SET
-    target_sources(${module_base}
-        PUBLIC
-            FILE_SET cxx_modules TYPE CXX_MODULES FILES ${module_files}
-    )
-
-    target_sources(${module_base} PRIVATE ${dummy_file})
-
-    # Set common BMI directory
-    set_target_properties(${module_base} PROPERTIES
-        CXX_MODULES_DIRECTORY "${MODULE_OUTPUT_DIR}"
-       # WINDOWS_EXPORT_ALL_SYMBOLS TRUE
-    )
-
-    # MSVC-specific settings
-    if(MSVC)
-        target_compile_options(${module_base} PRIVATE
-            "/interface"
-        )
-        
-        # Set standard library module search path
-        get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
-        get_filename_component(VC_TOOLS_DIR ${COMPILER_DIR} DIRECTORY)
-        set(STD_MODULE_DIR "${VC_TOOLS_DIR}/modules")
-        
-        if(EXISTS "${STD_MODULE_DIR}")
-            target_compile_options(${module_base} PRIVATE
-                "/module:search \"${STD_MODULE_DIR}\""
-            )
-        endif()
-        
-        # DLL export handling
-        target_compile_definitions(${module_base} PRIVATE 
-            "${module_base}_EXPORTS"
-        )
-    endif()
-
-    # Output directory settings
-    set_target_properties(${module_base} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    )
+    target_sources(${module_base} PRIVATE ${generated_file})
 endforeach()
 
 # Process dependencies after all targets are created
