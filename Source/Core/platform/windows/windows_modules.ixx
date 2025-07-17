@@ -211,7 +211,9 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			return ret;
 		}();
 
-	return { std::move(exported_names), std::move(dependencies) };
+	std::string name = path.filename().replace_extension().string();
+
+	return { std::move(name), std::move(exported_names), std::move(dependencies) };
 }
 
 std::shared_ptr<ge::modules::platform_module> ge::windows::modules::loader::load_platform_module(

@@ -17,6 +17,7 @@ namespace ge::modules
 
 	export struct shared_lib_meta_data
 	{
+		std::string m_name{};
 		std::vector<std::string> m_exported_function_names{};
 		std::vector<std::string> m_dependencies{};
 	};
