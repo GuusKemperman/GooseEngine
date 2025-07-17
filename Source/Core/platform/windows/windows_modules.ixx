@@ -150,6 +150,22 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			return (DWORD)-1; // Invalid RVA
 		};
 
+	std::vector<std::string> dependencies{};
+	const _IMAGE_IMPORT_DESCRIPTOR* import_table = reinterpret_cast<const _IMAGE_IMPORT_DESCRIPTOR*>(
+		&dll_content.at(rva_to_pos(import_dir.VirtualAddress)));
+
+	while (true)
+	{
+		if (import_table->Characteristics == 0)
+		{
+			break;
+		}
+
+		std::string_view name = &dll_content.at(rva_to_pos(import_table->Name));
+		dependencies.emplace_back(name);
+		import_table++;
+	}
+
 	auto data_dir_to_strings =
 		[&](const IMAGE_DATA_DIRECTORY& dir)
 		{
@@ -158,12 +174,12 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 				throw std::runtime_error{ "No export directory found" };
 			}
 
-			IMAGE_EXPORT_DIRECTORY exportDirectory = *reinterpret_cast<const IMAGE_EXPORT_DIRECTORY*>(
+			IMAGE_EXPORT_DIRECTORY export_table = *reinterpret_cast<const IMAGE_EXPORT_DIRECTORY*>(
 				&dll_content.at(rva_to_pos(dir.VirtualAddress)));
 
 			const DWORD* name_addresses = reinterpret_cast<const DWORD*>(
-				&dll_content.at(rva_to_pos(exportDirectory.AddressOfNames)));
-			DWORD count = exportDirectory.NumberOfNames;
+				&dll_content.at(rva_to_pos(export_table.AddressOfNames)));
+			DWORD count = export_table.NumberOfNames;
 
 			std::vector<std::string> ret{};
 
@@ -177,7 +193,7 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			return ret;
 		};
 
-	return { data_dir_to_strings(export_dir) };
+	return { data_dir_to_strings(export_dir), dependencies };
 }
 
 std::shared_ptr<ge::modules::platform_module> ge::windows::modules::loader::load_platform_module(
