@@ -8,6 +8,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
+if(MSVC)
+  add_compile_options(/W4 /WX)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+
 # Find all module files
 file(GLOB_RECURSE MODULE_FILES CONFIGURE_DEPENDS
     "Source/Modules/*.ixx"

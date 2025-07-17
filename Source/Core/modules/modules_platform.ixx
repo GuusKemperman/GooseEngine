@@ -4,9 +4,6 @@ export import std;
 
 namespace ge::modules
 {
-	class module_base;
-	class module_manager;
-
 	export class platform_module
 	{
 	public:
