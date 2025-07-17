@@ -76,7 +76,8 @@ bool ge::windows::modules::loader::is_shared_lib(const std::filesystem::path& pa
 
 ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(const std::filesystem::path& path)
 {
-	const std::string dll_content = [&]()
+	const std::string dll_content = 
+		[&]
 		{
 			std::ifstream file_stream{ path, std::ifstream::binary };
 			std::string ret{};
@@ -88,34 +89,42 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			return ret;
 		}();
 
-	DWORD pe_pos = *reinterpret_cast<const DWORD*>(&dll_content.at(0x3c));
+	const auto get_as = 
+		[&dll_content]<typename T>(DWORD file_pos) -> const T&
+		{
+			if (dll_content.size() <= file_pos
+				|| dll_content.size() <= file_pos + sizeof(T))
+			{
+				throw std::out_of_range{ "invalid file position" };
+			}
+			return *reinterpret_cast<const T*>(dll_content.data() + file_pos);
+		};
 
-	DWORD coff_pos = pe_pos + 4;
+	const DWORD pe_pos = get_as.operator()<DWORD>(0x3c);
+	const DWORD coff_pos = pe_pos + 4;
+	const DWORD opt_header_pos = coff_pos + sizeof(_IMAGE_FILE_HEADER);
 
-	_IMAGE_FILE_HEADER file_header = *reinterpret_cast<const _IMAGE_FILE_HEADER*>(&dll_content.at(coff_pos));
+	const _IMAGE_FILE_HEADER& file_header = get_as.operator()<_IMAGE_FILE_HEADER>(coff_pos);
 
-	DWORD opt_header_pos = coff_pos + sizeof(_IMAGE_FILE_HEADER);
-	WORD magic = *reinterpret_cast<const WORD*>(&dll_content.at(opt_header_pos));
+	const auto opt_header = 
+		[&]() -> std::variant<std::reference_wrapper<const IMAGE_OPTIONAL_HEADER32>,
+			std::reference_wrapper<const IMAGE_OPTIONAL_HEADER64>>
+		{
+			const WORD magic = get_as.operator()<WORD>(opt_header_pos);
 
-	std::variant<IMAGE_OPTIONAL_HEADER32, IMAGE_OPTIONAL_HEADER64> opt_header{};
-
-	switch (magic)
-	{
-	case 0x10b:
-	{
-		opt_header = *reinterpret_cast<const IMAGE_OPTIONAL_HEADER32*>(&dll_content.at(opt_header_pos));
-		break;
-	}
-	case 0x20b:
-	{
-		opt_header = *reinterpret_cast<const IMAGE_OPTIONAL_HEADER64*>(&dll_content.at(opt_header_pos));
-		break;
-	}
-	default: throw std::runtime_error{ "Invalid optional header" };
-	}
-
-	const IMAGE_SECTION_HEADER* section_header = reinterpret_cast<const IMAGE_SECTION_HEADER*>(
-		&dll_content.at(opt_header_pos + file_header.SizeOfOptionalHeader));
+			switch (magic)
+			{
+			case 0x10b:
+			{
+				return { std::cref(get_as.operator()<IMAGE_OPTIONAL_HEADER32>(opt_header_pos)) };
+			}
+			case 0x20b:
+			{
+				return { std::cref(get_as.operator()<IMAGE_OPTIONAL_HEADER64>(opt_header_pos)) };
+			}
+			default: throw std::runtime_error{ "Invalid optional header" };
+			}
+		}();
 
 	IMAGE_DATA_DIRECTORY export_dir;
 	IMAGE_DATA_DIRECTORY import_dir;
@@ -123,13 +132,16 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 	std::visit(
 		[&](const auto& header)
 		{
-			export_dir = header.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
-			import_dir = header.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+			export_dir = header.get().DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+			import_dir = header.get().DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
 		}, opt_header);
 
-
-	auto rva_to_pos = [&](DWORD rva)
+	const auto rva_to_pos = 
+		[&](DWORD rva)
 		{
+			const IMAGE_SECTION_HEADER* section_header = 
+				&get_as.operator()<IMAGE_SECTION_HEADER>(opt_header_pos + file_header.SizeOfOptionalHeader);
+
 			for (WORD i = 0; i < file_header.NumberOfSections; i++)
 			{
 				const IMAGE_SECTION_HEADER& section = section_header[i];
@@ -150,32 +162,39 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			return (DWORD)-1; // Invalid RVA
 		};
 
-	std::vector<std::string> dependencies{};
-	const _IMAGE_IMPORT_DESCRIPTOR* import_table = reinterpret_cast<const _IMAGE_IMPORT_DESCRIPTOR*>(
-		&dll_content.at(rva_to_pos(import_dir.VirtualAddress)));
-
-	while (true)
-	{
-		if (import_table->Characteristics == 0)
+	std::vector<std::string> dependencies = 
+		[&]
 		{
-			break;
-		}
+			const _IMAGE_IMPORT_DESCRIPTOR* import_table = reinterpret_cast<const _IMAGE_IMPORT_DESCRIPTOR*>(
+				&dll_content.at(rva_to_pos(import_dir.VirtualAddress)));
 
-		std::string_view name = &dll_content.at(rva_to_pos(import_table->Name));
-		dependencies.emplace_back(name);
-		import_table++;
-	}
+			std::vector<std::string> ret{};
 
-	auto data_dir_to_strings =
-		[&](const IMAGE_DATA_DIRECTORY& dir)
+			while (true)
+			{
+				if (import_table->Characteristics == 0)
+				{
+					break;
+				}
+
+				std::string_view name = &dll_content.at(rva_to_pos(import_table->Name));
+				ret.emplace_back(name);
+				import_table++;
+			}
+
+			return ret;
+		}();
+
+	std::vector<std::string> exported_names = 
+		[&]
 		{
-			if (dir.VirtualAddress == 0)
+			if (export_dir.VirtualAddress == 0)
 			{
 				throw std::runtime_error{ "No export directory found" };
 			}
 
 			IMAGE_EXPORT_DIRECTORY export_table = *reinterpret_cast<const IMAGE_EXPORT_DIRECTORY*>(
-				&dll_content.at(rva_to_pos(dir.VirtualAddress)));
+				&dll_content.at(rva_to_pos(export_dir.VirtualAddress)));
 
 			const DWORD* name_addresses = reinterpret_cast<const DWORD*>(
 				&dll_content.at(rva_to_pos(export_table.AddressOfNames)));
@@ -186,14 +205,13 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			for (DWORD i = 0; i < count; ++i)
 			{
 				std::string_view name = &dll_content.at(rva_to_pos(name_addresses[i]));
-
 				ret.emplace_back(name);
 			}
 
 			return ret;
-		};
+		}();
 
-	return { data_dir_to_strings(export_dir), dependencies };
+	return { std::move(exported_names), std::move(dependencies) };
 }
 
 std::shared_ptr<ge::modules::platform_module> ge::windows::modules::loader::load_platform_module(
