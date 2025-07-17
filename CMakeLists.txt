@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
+add_compile_definitions(API=__declspec\(dllexport\))
+
 if(MSVC)
   add_compile_options(/W4 /WX)
 else()

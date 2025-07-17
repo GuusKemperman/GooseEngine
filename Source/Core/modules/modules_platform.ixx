@@ -7,9 +7,9 @@ namespace ge::modules
 	export class platform_module
 	{
 	public:
-		virtual ~platform_module() = default;
+		API virtual ~platform_module() = default;
 
-		virtual void* get_exported_func(std::string_view func_name) = 0;
+		API virtual void* get_exported_func(std::string_view func_name) = 0;
 	};
 
 	export struct shared_lib_meta_data
@@ -22,12 +22,12 @@ namespace ge::modules
 	export class platform_loader
 	{
 	public:
-		virtual ~platform_loader() = default;
+		API virtual ~platform_loader() = default;
 
-		virtual bool is_shared_lib(const std::filesystem::path& path) = 0;
+		API virtual bool is_shared_lib(const std::filesystem::path& path) = 0;
 
-		virtual shared_lib_meta_data get_meta_data(const std::filesystem::path& path) = 0;
+		API virtual shared_lib_meta_data get_meta_data(const std::filesystem::path& path) = 0;
 
-		virtual std::shared_ptr<platform_module> load_platform_module(const std::filesystem::path& shared_lib) = 0;
+		API virtual std::shared_ptr<platform_module> load_platform_module(const std::filesystem::path& shared_lib) = 0;
 	};
 }

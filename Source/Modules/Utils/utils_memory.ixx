@@ -6,7 +6,7 @@ namespace ge
 	export template<typename T>
 	using shared_ptr = std::shared_ptr<T>;
 
-	template <class T>
+	export template <class T>
 	struct in_place_delete
 	{
 		constexpr in_place_delete() noexcept = default;
@@ -102,7 +102,7 @@ namespace ge
 	};
 
 	export template<typename T, typename... args_t>
-	shared_ptr<T> make_shared_ptr(args_t&&... args) requires (std::is_constructible_v<T, args_t...>);
+	 shared_ptr<T> make_shared_ptr(args_t&&... args) requires (std::is_constructible_v<T, args_t...>);
 
 	export template<typename T, typename... args_t>
 	unique_ptr<T> make_unique_ptr(args_t&&... args) requires (std::is_constructible_v<T, args_t...>);

@@ -13,7 +13,7 @@ namespace ge::windows::modules
 		public ge::modules::platform_module
 	{
 	public:
-		module(const std::filesystem::path& a_path);
+		API module(const std::filesystem::path& a_path);
 
 		module(const module&) = delete;
 		module(module&&) = delete;
@@ -21,9 +21,9 @@ namespace ge::windows::modules
 		module& operator=(const module&) = delete;
 		module& operator=(module&&) = delete;
 
-		~module() override;
+		API ~module() override;
 
-		void* get_exported_func(std::string_view func_name) override;
+		API void* get_exported_func(std::string_view func_name) override;
 
 	private:
 		HMODULE m_module{};
@@ -33,11 +33,11 @@ namespace ge::windows::modules
 		public ge::modules::platform_loader
 	{
 	public:
-		bool is_shared_lib(const std::filesystem::path& path) override;
+		API bool is_shared_lib(const std::filesystem::path& path) override;
 
-		ge::modules::shared_lib_meta_data get_meta_data(const std::filesystem::path& path) override;
+		API ge::modules::shared_lib_meta_data get_meta_data(const std::filesystem::path& path) override;
 
-		std::shared_ptr<ge::modules::platform_module> load_platform_module(const std::filesystem::path& shared_lib) override;
+		API std::shared_ptr<ge::modules::platform_module> load_platform_module(const std::filesystem::path& shared_lib) override;
 	};
 }
 

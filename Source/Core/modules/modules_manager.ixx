@@ -32,7 +32,7 @@ namespace ge::modules
 		{
 			std::vector<std::filesystem::path> m_paths_to_check{};
 		};
-		module_manager(std::shared_ptr<platform_loader> a_loader, const config& a_config);
+		API module_manager(std::shared_ptr<platform_loader> a_loader, const config& a_config);
 
 	private:
 		std::shared_ptr<platform_loader> m_loader{};

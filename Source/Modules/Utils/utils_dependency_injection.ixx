@@ -30,17 +30,17 @@ namespace
 namespace ge
 {
 	export template<typename... T>
-		class depends_on;
+	class depends_on;
 
 	export template <>
-		class depends_on<>
+	class depends_on<>
 	{
 	public:
 		template<typename... args_t>
 		constexpr depends_on(args_t&&...) {}
 
-		constexpr bool operator==(const depends_on&) const { return true; }
-		constexpr bool operator!=(const depends_on&) const { return false; }
+		API constexpr bool operator==(const depends_on&) const { return true; }
+		API constexpr bool operator!=(const depends_on&) const { return false; }
 
 		template<typename target_t>
 		static constexpr bool has_dependency();
@@ -50,7 +50,7 @@ namespace ge
 	};
 
 	export template<typename this_t, typename... others_t>
-		class depends_on<this_t, others_t...> : public depends_on<others_t...>
+	class depends_on<this_t, others_t...> : public depends_on<others_t...>
 	{
 		using depends_base_t = depends_on<others_t...>;
 
