@@ -8,10 +8,8 @@ namespace ge::modules
 {
 	export class module_manager;
 
-	export struct module_meta_data
+	export struct module_generated_data
 	{
-		std::string_view m_name{};
-		std::span<const std::string_view> m_dependencies{};
 		module_base* (*m_instance_factory)(module_manager&);
 	};
 
@@ -22,7 +20,7 @@ namespace ge::modules
 
 		std::shared_ptr<platform_module> m_platform_module{};
 
-		module_meta_data m_module_meta_data{};
+		module_generated_data m_module_generated_data{};
 
 		std::shared_ptr<module_base> m_module_instance{};
 	};
@@ -63,7 +61,7 @@ ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_l
 
 			module_internal& internal = m_modules.emplace_back(path, shared_lib_meta_data, module);
 
-			module_meta_data(*generated_func)(){};
+			module_generated_data(*generated_func)(){};
 
 			try
 			{
@@ -76,13 +74,13 @@ ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_l
 				return;
 			}
 
-			internal.m_module_meta_data = std::invoke(generated_func);
+			internal.m_module_generated_data = std::invoke(generated_func);
 
-			std::println("Loaded {} from {}", internal.m_module_meta_data.m_name, internal.m_file.string());
+			std::println("Loaded {} from {}", internal.m_shared_lib_meta_data.m_name, internal.m_file.string());
 
-			if (internal.m_module_meta_data.m_instance_factory != nullptr)
+			if (internal.m_module_generated_data.m_instance_factory != nullptr)
 			{
-				module_base* base = internal.m_module_meta_data.m_instance_factory(*this);
+				module_base* base = internal.m_module_generated_data.m_instance_factory(*this);
 				delete base;
 			}
 		};

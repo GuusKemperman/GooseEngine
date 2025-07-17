@@ -132,11 +132,8 @@ foreach(module_base IN LISTS MODULE_GROUPS)
 "   class module_manager;\n"
 "}\n"
 "\n"
-"struct module_meta_data\n"
+"struct module_generated_data\n"
 "{\n"
-    "std::string_view m_name{};\n"
-    "std::span<const std::string_view> m_dependencies{};\n"
-"\n"
     "using factory = ge::modules::module_base* (*)(ge::modules::module_manager&);\n"
     "factory m_instance_factory{};\n"
 "};\n"
@@ -155,20 +152,13 @@ foreach(module_base IN LISTS MODULE_GROUPS)
 "\n"
 "extern \"C\"\n"
 "{\n"
-    "__declspec(dllexport) module_meta_data generated_module_func()\n"
+    "__declspec(dllexport) module_generated_data generated_module_func()\n"
     "{\n"
         "using module_t = ${module_base}::module;\n"
-        "static constexpr std::string_view name = \"${module_base}\";\n"
-        "static constexpr std::string_view dependencies[] =\n"
+        "\n"
+        "static constexpr module_generated_data ret\n"
         "{\n"
-            "${module_all_deps_str}\n"
-        "};\n"
-"\n"
-        "static constexpr module_meta_data ret\n"
-        "{\n"
-            "name,\n"
-            "{ dependencies },\n"
-            "[]() -> module_meta_data::factory\n"
+            "[]() -> module_generated_data::factory\n"
             "{\n"
                 "if constexpr (is_type_complete_v<${module_base}::module>)\n"
                 "{\n"
@@ -206,7 +196,7 @@ foreach(module_base IN LISTS MODULE_GROUPS)
     # Set common BMI directory
     set_target_properties(${module_base} PROPERTIES
         CXX_MODULES_DIRECTORY "${MODULE_OUTPUT_DIR}"
-        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+       # WINDOWS_EXPORT_ALL_SYMBOLS TRUE
     )
 
     # MSVC-specific settings
