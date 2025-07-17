@@ -177,8 +177,9 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 					break;
 				}
 
-				std::string_view name = &dll_content.at(rva_to_pos(import_table->Name));
-				ret.emplace_back(name);
+				std::filesystem::path name{ &dll_content.at(rva_to_pos(import_table->Name)) };
+				name.replace_extension();
+				ret.emplace_back(name.string());
 				import_table++;
 			}
 
