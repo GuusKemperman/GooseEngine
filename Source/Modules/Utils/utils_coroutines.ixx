@@ -72,12 +72,13 @@ void ge::coroutine_context::tick(float a_dt)
     while (!m_queue.empty()
         && m_queue.top().m_continue_at_time <= m_current_time)
     {
-        if (const std::coroutine_handle<>& handle = *m_queue.top().m_handle)
+        std::coroutine_handle<> handle = std::move(*m_queue.top().m_handle);
+        m_queue.pop();
+
+    	if (handle)
         {
             handle.resume();
         }
-
-        m_queue.pop();
     }
 }
 
