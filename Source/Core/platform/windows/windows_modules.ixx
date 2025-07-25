@@ -33,11 +33,11 @@ namespace ge::windows::modules
 		public ge::modules::platform_loader
 	{
 	public:
-		API bool is_shared_lib(const std::filesystem::path& path) override;
+		API std::filesystem::path get_platform_shared_lib_file_extension() const override;
 
-		API ge::modules::shared_lib_meta_data get_meta_data(const std::filesystem::path& path) override;
+		API ge::modules::shared_lib_meta_data get_meta_data(const std::filesystem::path& path) const override;
 
-		API std::shared_ptr<ge::modules::platform_module> load_platform_module(const std::filesystem::path& shared_lib) override;
+		API std::shared_ptr<ge::modules::platform_module> load_platform_module(const std::filesystem::path& shared_lib) const override;
 	};
 }
 
@@ -69,12 +69,12 @@ void* ge::windows::modules::module::get_exported_func(std::string_view func_name
 	return address;
 }
 
-bool ge::windows::modules::loader::is_shared_lib(const std::filesystem::path& path)
+std::filesystem::path ge::windows::modules::loader::get_platform_shared_lib_file_extension() const
 {
-	return path.extension() == std::filesystem::path{ ".dll" };
+	return { ".dll" };
 }
 
-ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(const std::filesystem::path& path)
+ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(const std::filesystem::path& path) const
 {
 	const std::string dll_content = 
 		[&]
@@ -212,13 +212,11 @@ ge::modules::shared_lib_meta_data ge::windows::modules::loader::get_meta_data(co
 			return ret;
 		}();
 
-	std::string name = path.filename().replace_extension().string();
-
-	return { std::move(name), std::move(exported_names), std::move(dependencies) };
+	return { std::move(exported_names), std::move(dependencies) };
 }
 
 std::shared_ptr<ge::modules::platform_module> ge::windows::modules::loader::load_platform_module(
-	const std::filesystem::path& shared_lib)
+	const std::filesystem::path& shared_lib) const
 {
 	return std::make_shared<module>(shared_lib);
 }
