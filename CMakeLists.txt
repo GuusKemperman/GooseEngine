@@ -105,3 +105,4 @@ function(add_module module_name)
 endfunction()
 
 add_subdirectory("source")
+add_subdirectory("tests")
