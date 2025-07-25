@@ -18,80 +18,32 @@ endif()
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
-# Find all module files
-file(GLOB_RECURSE MODULE_FILES CONFIGURE_DEPENDS
-    "Source/Modules/*.ixx"
-    "Source/Core/*.ixx"
-)
-
-# Function to parse imports from a module file
-function(parse_module_imports file_path base_name_var imports_var)
-    file(STRINGS ${file_path} lines)
-    set(imports)
-
-    set(${base_name_var} "no export statement found in ${file_path}" PARENT_SCOPE)
-    
-    foreach(line IN LISTS lines)
-        # Skip comments and preprocessor directives
-        if(line MATCHES "^[ \t]*//" OR line MATCHES "^[ \t]*#")
-            continue()
-        endif()
-
-        if(line MATCHES "^(export[ \t]+)?module[ \t]+([^:;]+)[:;]")
-            set(${base_name_var} ${CMAKE_MATCH_2} PARENT_SCOPE)
-        endif()
-        
-        # Match regular import statements
-        if(line MATCHES "import[ \t]+([^;]+);")
-            list(APPEND imports ${CMAKE_MATCH_1})
-        endif()
-    endforeach()
-    
-    set(${imports_var} ${imports} PARENT_SCOPE)
-endfunction()
-
-# Group files by base module name and collect dependencies
-set(MODULE_GROUPS)
-set(MODULE_DEPENDENCIES)
-foreach(module_file IN LISTS MODULE_FILES)
-    # Extract base module name from file content
-    # Parse imports for dependency tracking
-    parse_module_imports(${module_file} module_base imports)
-    
-    # Add to module group
-    if(NOT DEFINED MODULE_GROUP_${module_base})
-        set(MODULE_GROUP_${module_base} "")
-        list(APPEND MODULE_GROUPS ${module_base})
-        
-        set(MODULE_DEPS_${module_base} "")
-    endif()
-
-    list(APPEND MODULE_GROUP_${module_base} ${module_file})
-    list(APPEND MODULE_DEPS_${module_base} ${imports})
-endforeach()
-
-# Create targets for each module group
-foreach(module_base IN LISTS MODULE_GROUPS)
-    # all .ixx files for this module
-    set(module_files ${MODULE_GROUP_${module_base}})
-
-    add_library(${module_base} SHARED ${module_files})
-    
-    target_sources(${module_base}
+function(target_module_sources module_name module_files)
+    target_sources(${module_name}
         PUBLIC
             FILE_SET cxx_modules TYPE CXX_MODULES FILES ${module_files}
     )
+endfunction()
 
-    set_target_properties(${module_base} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    )
+add_custom_target(all_modules_target)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+function(add_module module_name)
+    add_library(${module_name} SHARED)
+
+    add_dependencies(all_modules_target ${module_name})
+
+    if (${ARGC} GREATER 1)
+        target_module_sources(${module_name} "${ARGN}")
+    endif()
 
     # some code generation for getting the module-class factory
-    set(generated_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_base}.cpp")
+    set(generated_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_name}.cpp")
 	file(WRITE ${generated_file} 
-        "import ${module_base};\n"
+        "import ${module_name};\n"
         "import std;\n"
         "\n"
         "namespace ge::modules\n"
@@ -106,7 +58,7 @@ foreach(module_base IN LISTS MODULE_GROUPS)
         "	factory m_instance_factory{};\n"
         "};\n"
         "\n"
-        "namespace ${module_base}\n"
+        "namespace ${module_name}\n"
         "{\n"
         "	class module;\n"
         "}\n"
@@ -121,13 +73,13 @@ foreach(module_base IN LISTS MODULE_GROUPS)
         "{\n"
         "	__declspec(dllexport) module_generated_data generated_module_func()\n"
         "	{\n"
-        "		using module_t = ${module_base}::module;\n"
+        "		using module_t = ${module_name}::module;\n"
         "\n"
         "		static constexpr module_generated_data ret\n"
         "		{\n"
         "			[]() -> module_generated_data::factory\n"
         "			{\n"
-        "				if constexpr (is_type_complete_v<${module_base}::module>)\n"
+        "				if constexpr (is_type_complete_v<${module_name}::module>)\n"
         "				{\n"
         "					static_assert(std::is_constructible_v<module_t, ge::modules::module_manager&>,\n"
         "						\"Classes deriving from module must be constructible using a ge::modules::module_manager&\");\n"
@@ -149,42 +101,7 @@ foreach(module_base IN LISTS MODULE_GROUPS)
         "}\n"
 	)
 
-    target_sources(${module_base} PRIVATE ${generated_file})
-endforeach()
+    target_sources(${module_name} PRIVATE ${generated_file})
+endfunction()
 
-# Process dependencies after all targets are created
-foreach(module_base IN LISTS MODULE_GROUPS)
-    # Get dependencies
-    set(deps ${MODULE_DEPS_${module_base}})
-
-    list(REMOVE_DUPLICATES deps)
-
-    foreach(dep IN LISTS deps)
-        # Skip self-dependencies and non-existent targets
-        if(TARGET ${dep} AND NOT dep STREQUAL module_base)
-            target_link_libraries(${module_base} PUBLIC ${dep})
-            message(STATUS "Linking ${module_base} PUBLIC ${dep}")
-        endif()
-    endforeach()
-endforeach()
-
-set(exec_files
-    "Source/Core/platform/windows/windows.ixx"
-    "Source/Core/platform/windows/windows_modules.ixx"
-    "Source/Core/modules/modules.ixx"
-    "Source/Core/modules/modules_manager.ixx"
-    "Source/Core/modules/modules_module_base.ixx"
-    "Source/Core/modules/modules_platform.ixx"
-)
-
-add_executable(GooseEngine "Source/Core/main.cpp" ${exec_files})
-
-target_sources(GooseEngine
-    PRIVATE
-        FILE_SET cxx_modules TYPE CXX_MODULES FILES ${exec_files})
-
-set_target_properties(GooseEngine PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-)
-
-add_dependencies(GooseEngine ${MODULE_GROUPS})
+add_subdirectory("source")
