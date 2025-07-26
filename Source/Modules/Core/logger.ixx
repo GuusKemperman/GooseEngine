@@ -47,10 +47,3 @@ void ge::logger::println(std::string_view str)
 	std::putchar('\n');
 }
 
-extern "C"
-{
-	export API int test()
-	{
-		return 1;
-	}
-}

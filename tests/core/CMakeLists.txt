@@ -7,8 +7,20 @@ set_target_properties(test_runner
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
-add_test(
-  NAME test_runner
-  COMMAND $<TARGET_FILE:test_runner> "logger" "test"
-  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-  )
+function(add_unit_test_module module_name)
+    add_module(${module_name} "${ARGN}")
+
+    target_include_directories(${module_name} PRIVATE "${CMAKE_SOURCE_DIR}/tests/core/")
+
+    target_compile_options(${module_name} PRIVATE 
+        "/FIdefines.h"
+    )
+endfunction()
+
+function(add_unit_test module_name category_name test_name)
+    add_test(
+      NAME "${module_name}.${category_name}.${test_name}"
+      COMMAND $<TARGET_FILE:test_runner> "${module_name}" "${category_name}" "${test_name}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+      )
+endfunction()
