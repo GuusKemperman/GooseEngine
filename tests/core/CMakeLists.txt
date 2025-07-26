@@ -9,6 +9,6 @@ set_target_properties(test_runner
 
 add_test(
   NAME test_runner
-  COMMAND $<TARGET_FILE:test_runner> "logger"
+  COMMAND $<TARGET_FILE:test_runner> "logger" "test"
   WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
   )

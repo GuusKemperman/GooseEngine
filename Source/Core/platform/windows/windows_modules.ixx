@@ -23,7 +23,7 @@ namespace ge::windows::modules
 
 		API ~module() override;
 
-		API void* get_exported_func(std::string_view func_name) override;
+		API auto get_exported_func(std::string_view func_name) -> void(&)() override;
 
 	private:
 		HMODULE m_module{};
@@ -55,9 +55,9 @@ ge::windows::modules::module::~module()
 	FreeLibrary(m_module);
 }
 
-void* ge::windows::modules::module::get_exported_func(std::string_view func_name)
+auto ge::windows::modules::module::get_exported_func(std::string_view func_name) -> void(&)()
 {
-	void* address = GetProcAddress(m_module, func_name.data());
+	auto address = reinterpret_cast<void(*)()>(GetProcAddress(m_module, func_name.data()));
 
 	if (address == nullptr)
 	{
@@ -66,7 +66,7 @@ void* ge::windows::modules::module::get_exported_func(std::string_view func_name
 			GetLastError()) };
 	}
 
-	return address;
+	return *address;
 }
 
 std::filesystem::path ge::windows::modules::loader::get_platform_shared_lib_file_extension() const

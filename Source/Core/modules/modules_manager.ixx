@@ -32,6 +32,30 @@ namespace ge::modules
 		std::optional<loaded_data> m_data_avail_when_loaded{};
 	};
 
+	export class module_handle
+	{
+	public:
+		module_handle(const module_internal& a_module_internal);
+
+		API const std::filesystem::path& get_file() const;
+
+		API std::string_view get_name() const;
+
+		API auto get_function_address(std::string_view func_name) const -> void(&)();
+
+		API auto get_function_names() const;
+
+		API auto get_dependencies_names() const;
+
+		API const std::shared_ptr<module_base>& get_instance() const;
+
+		//template<std::derived_from<module_base> module_t>
+		//std::shared_ptr<module_t> get_instance() const;
+
+	private:
+		std::reference_wrapper<const module_internal> m_module;
+	};
+
 	class module_manager
 	{
 	public:
@@ -44,17 +68,62 @@ namespace ge::modules
 
 		API void load_all();
 
-		API void load_with_dependencies(std::string_view module_name);
+		API module_handle load_with_dependencies(std::string_view module_name);
+
+		API module_handle get_handle(std::string_view module_name) const;
 
 	private:
 		config m_config{};
 		std::shared_ptr<platform_loader> m_loader{};
-		std::vector<module_internal> m_modules{};
+		std::list<module_internal> m_modules{};
 	};
 }
 
+ge::modules::module_handle::module_handle(const module_internal& a_module_internal) :
+	m_module(a_module_internal)
+{
+}
+
+const std::filesystem::path& ge::modules::module_handle::get_file() const
+{
+	return m_module.get().m_file;
+}
+
+std::string_view ge::modules::module_handle::get_name() const
+{
+	return m_module.get().m_name;
+}
+
+auto ge::modules::module_handle::get_function_address(std::string_view func_name) const -> void(&)()
+{
+	return m_module.get().m_data_avail_when_loaded->m_platform_module->get_exported_func(func_name);
+}
+
+auto ge::modules::module_handle::get_function_names() const
+{
+	const std::vector<std::string>& names = m_module.get().m_data_avail_when_loaded->m_shared_lib_meta_data.m_exported_function_names;
+	return names | std::ranges::views::transform([](const std::string& str) { return std::string_view{ str }; });
+}
+
+auto ge::modules::module_handle::get_dependencies_names() const
+{
+	const std::vector<std::string>& names = m_module.get().m_data_avail_when_loaded->m_shared_lib_meta_data.m_dependencies;
+	return names | std::ranges::views::transform([](const std::string& str) { return std::string_view{ str }; });
+}
+
+const std::shared_ptr<ge::modules::module_base>& ge::modules::module_handle::get_instance() const
+{
+	return m_module.get().m_data_avail_when_loaded->m_module_instance;
+}
+
+//template <std::derived_from<ge::modules::module_base> module_t>
+//std::shared_ptr<module_t> ge::modules::module_handle::get_instance() const
+//{
+//	return std::dynamic_pointer_cast<module_t>(get_instance());
+//}
+
 ge::modules::module_manager::module_manager(std::shared_ptr<platform_loader> a_loader, 
-	config a_config) :
+                                            config a_config) :
 	m_config(std::move(a_config)),
 	m_loader(std::move(a_loader))
 {
@@ -99,21 +168,15 @@ void ge::modules::module_manager::load_all()
 	}
 }
 
-void ge::modules::module_manager::load_with_dependencies(std::string_view module_name)
+ge::modules::module_handle ge::modules::module_manager::load_with_dependencies(std::string_view module_name)
 {
-	size_t index_of_existing_module = 
-		[&]
+	auto existing_module = std::ranges::find_if(m_modules,
+		[&](const module_internal& mod)
 		{
-			auto existing_module = std::ranges::find_if(m_modules,
-				[&](const module_internal& mod)
-				{
-					return mod.m_name == module_name;
-				});
+			return mod.m_name == module_name;
+		});
 
-			return std::distance(m_modules.begin(), existing_module);
-		}();
-
-	if (index_of_existing_module == m_modules.size())
+	if (existing_module == m_modules.end())
 	{
 		const std::filesystem::path module_path =
 			[&]() -> std::filesystem::path
@@ -134,20 +197,15 @@ void ge::modules::module_manager::load_with_dependencies(std::string_view module
 			}();
 
 		m_modules.emplace_back(module_path, std::string{ module_name });
+		existing_module = --m_modules.end();
 	}
 
-	auto existing_module = 
-		[&]() -> decltype(auto)
-		{
-			return m_modules[index_of_existing_module];
-		};
-
-	if (existing_module().m_data_avail_when_loaded.has_value())
+	if (existing_module->m_data_avail_when_loaded.has_value())
 	{
-		return;
+		return { *existing_module };
 	}
 
-	shared_lib_meta_data lib_meta_data = m_loader->get_meta_data(existing_module().m_file);
+	shared_lib_meta_data lib_meta_data = m_loader->get_meta_data(existing_module->m_file);
 
 	for (const std::string_view dependency :
 		lib_meta_data.m_dependencies)
@@ -163,33 +221,50 @@ void ge::modules::module_manager::load_with_dependencies(std::string_view module
 	}
 
 	{
-		std::shared_ptr module = m_loader->load_platform_module(existing_module().m_file);
+		std::shared_ptr module = m_loader->load_platform_module(existing_module->m_file);
 
 		if (module == nullptr)
 		{
 			throw std::runtime_error{ "module was nullptr" };
 		}
 
-		existing_module().m_data_avail_when_loaded.emplace(
+		existing_module->m_data_avail_when_loaded.emplace(
 			std::move(lib_meta_data),
 			std::move(module));
 	}
 
 	module_generated_data(*generated_func)() = reinterpret_cast<decltype(generated_func)>(
-		existing_module().m_data_avail_when_loaded->
+		existing_module->m_data_avail_when_loaded->
 		m_platform_module->get_exported_func("generated_module_func"));
 
-	existing_module().m_data_avail_when_loaded->m_module_generated_data = 
+	existing_module->m_data_avail_when_loaded->m_module_generated_data = 
 		std::invoke(generated_func);
 
 	std::println("Loaded {} from {}",
-		existing_module().m_name,
-		existing_module().m_file.string());
+		existing_module->m_name,
+		existing_module->m_file.string());
 
-	if (auto* instance_factory = existing_module().m_data_avail_when_loaded->
+	if (auto* instance_factory = existing_module->m_data_avail_when_loaded->
 		m_module_generated_data.m_instance_factory)
 	{
 		module_base* base = instance_factory(*this);
-		delete base;
+		existing_module->m_data_avail_when_loaded->m_module_instance = std::shared_ptr<module_base>{ base };
 	}
+
+	return { *existing_module };
+}
+
+ge::modules::module_handle ge::modules::module_manager::get_handle(std::string_view module_name) const
+{
+	auto it = std::ranges::find_if(m_modules,
+		[&](const module_internal& mod)
+		{
+			return mod.m_name == module_name;
+		});
+
+	if (it == m_modules.end())
+	{
+		throw std::out_of_range{ std::format("no module called {}", module_name) };
+	}
+	return { *it };
 }
