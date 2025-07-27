@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        config: [Debug]
+        config: [Debug, Release]
     env:
       BUILD_DIR: build-${{ matrix.config }}
 
