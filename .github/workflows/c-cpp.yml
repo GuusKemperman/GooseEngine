@@ -38,7 +38,7 @@ jobs:
         cmake -B $env:BUILD_DIR -S . `
           -G "Ninja" `
           -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
-          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> `
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`$<$<CONFIG:Debug>:Debug> `
           -DBUILD_TESTING=ON
 
     - name: Build project
