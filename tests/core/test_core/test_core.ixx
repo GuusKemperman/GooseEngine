@@ -36,6 +36,13 @@ namespace ge::test_core
 			throw test_exception{ src };
 		}
 
+		export [[noreturn]] API void failure(
+			std::string_view msg,
+			const std::source_location& src = std::source_location::current())
+		{
+			throw test_exception{ msg, src };
+		}
+
 		export API void is_true(
 			bool cond,
 			const std::source_location& src = std::source_location::current())
