@@ -25,7 +25,7 @@ jobs:
         cmake-version: "3.31.6"
 
     - name: Install Ninja
-      run: choco install ninja -y  # Or use lukka/get-cmake action
+      run: choco install ninja -y
 
     - name: Setup MSVC environment
       uses: ilammy/msvc-dev-cmd@v1
@@ -36,9 +36,7 @@ jobs:
     - name: Configure CMake
       run: |
         cmake -B $env:BUILD_DIR -S . `
-          -G "Ninja" `
-          -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
-          -DBUILD_TESTING=ON
+          -G "Ninja" 
 
     - name: Build project
       run: cmake --build $env:BUILD_DIR --config ${{ matrix.config }}
