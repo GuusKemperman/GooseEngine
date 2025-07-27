@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.30)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
 project(GooseEngine LANGUAGES CXX)
 
+enable_testing()
+
 set(CMAKE_CXX_MODULE_STD 1)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -105,3 +107,4 @@ function(add_module module_name)
 endfunction()
 
 add_subdirectory("source")
+add_subdirectory("tests")

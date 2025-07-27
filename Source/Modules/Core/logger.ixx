@@ -46,3 +46,4 @@ void ge::logger::println(std::string_view str)
 	std::puts(str.data());
 	std::putchar('\n');
 }
+
