@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.30)
+
+message("Version: ${CMAKE_VERSION}")
+
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
 project(GooseEngine LANGUAGES CXX)
 
@@ -12,11 +15,7 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 add_compile_definitions(API=__declspec\(dllexport\))
 
-if(MSVC)
-  add_compile_options(/W4 /WX)
-else()
-  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-endif()
+add_compile_options(/W4 /WX)
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 

@@ -24,10 +24,16 @@ jobs:
       with:
         cmake-version: "3.31.6"
 
-    - name: Configure CMake (MSVC)
+    - name: Install Ninja
+      run: choco install ninja -y  # Or use lukka/get-cmake action
+
+    - name: Configure CMake
       run: |
         cmake -B $env:BUILD_DIR -S . `
-          -G "Visual Studio 17 2022" -A x64 `
+          -G "Ninja" `
+          -DCMAKE_CXX_COMPILER=cl.exe `
+          -DCMAKE_C_COMPILER=cl.exe `
+          -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
           -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> `
           -DBUILD_TESTING=ON
 
