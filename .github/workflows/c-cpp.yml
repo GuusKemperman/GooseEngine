@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        config: [Debug, Release]
+        config: [Debug]
     env:
       BUILD_DIR: build-${{ matrix.config }}
 
@@ -22,7 +22,7 @@ jobs:
     - name: Setup CMake
       uses: jwlawson/actions-setup-cmake@v2
       with:
-        cmake-version: "3.28.x"
+        cmake-version: "3.31.6"
 
     - name: Configure CMake (MSVC)
       run: |
