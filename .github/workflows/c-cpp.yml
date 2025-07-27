@@ -15,17 +15,17 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4  # ✅ Use latest checkout
+      uses: actions/checkout@v4 
 
     - name: Setup CMake
-      uses: jwlawson/actions-setup-cmake@v2  # ✅ Correct namespace :cite[1]
+      uses: jwlawson/actions-setup-cmake@v2
       with:
-        cmake-version: "3.28.x"  # ✅ Specify stable version (avoid 3.29.1 bugs :cite[2])
+        cmake-version: "3.30.x"
 
     - name: Configure CMake
       run: |
         cmake -B $env:BUILD_DIR -S . `
-          -G "Ninja" `  # ✅ Prefer Ninja for faster builds
+          -G "Ninja" `
           -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
           -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> `
           -DBUILD_TESTING=ON
