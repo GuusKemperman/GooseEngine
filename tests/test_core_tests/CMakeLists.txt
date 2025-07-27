@@ -1,0 +1,15 @@
+add_unit_test_module("test_test_core" 
+	"test_test_core.ixx")
+
+add_unit_test("test_test_core" "asserts" "is_true_all")
+add_unit_test("test_test_core" "asserts" "is_false_all")
+add_unit_test("test_test_core" "asserts" "is_null_raw")
+add_unit_test("test_test_core" "asserts" "is_null_smart")
+add_unit_test("test_test_core" "asserts" "is_not_null_raw")
+add_unit_test("test_test_core" "asserts" "is_not_null_smart")
+add_unit_test("test_test_core" "asserts" "eq_all")
+add_unit_test("test_test_core" "asserts" "ne_all")
+add_unit_test("test_test_core" "asserts" "lt_all")
+add_unit_test("test_test_core" "asserts" "gt_all")
+add_unit_test("test_test_core" "asserts" "le_all")
+add_unit_test("test_test_core" "asserts" "ge_all")
