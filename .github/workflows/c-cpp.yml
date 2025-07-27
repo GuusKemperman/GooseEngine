@@ -7,14 +7,10 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-test:
+  setup:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        config: [Release]
-    env:
-      BUILD_DIR: build-${{ matrix.config }}
-
+    outputs:
+      runner-id: ${{ steps.set-runner-id.outputs.runner-id }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -33,13 +29,39 @@ jobs:
         arch: x64
         vs-version: '2022'
 
+    - name: Set runner ID
+      id: set-runner-id
+      run: echo "runner-id=${{ github.run_id }}-${{ github.run_attempt }}" >> $env:GITHUB_OUTPUT
+
+  build-and-test:
+    needs: setup
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [Debug, Release]
+    env:
+      BUILD_DIR: build-${{ matrix.config }}
+    steps:
+    - name: Reuse setup steps
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Fail if runner IDs don't match
+          if (process.env.RUNNER_ID !== '${{ needs.setup.outputs.runner-id }}') {
+            throw new Error('Runner setup mismatch!');
+          }
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Configure CMake
       run: |
         cmake -B $env:BUILD_DIR -S . `
-          -G "Ninja" 
+          -G "Ninja" `
+          -DCMAKE_BUILD_TYPE=${{ matrix.config }}
 
     - name: Build project
-      run: cmake --build $env:BUILD_DIR --config ${{ matrix.config }}
+      run: cmake --build $env:BUILD_DIR
 
     - name: Run tests with CTest
-      run: ctest --test-dir $env:BUILD_DIR --build-config ${{ matrix.config }} --output-on-failure
+      run: ctest --test-dir $env:BUILD_DIR --output-on-failure
