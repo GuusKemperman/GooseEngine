@@ -27,14 +27,23 @@ jobs:
         arch: x64
         vs-version: '2022'
 
-    - name: Build and test Debug and Release
-      shell: powershell
+    - name: Configure CMake Debug
       run: |
-        $ErrorActionPreference = "Stop"
-        $configs = "Debug", "Release"
-        foreach ($config in $configs) {
-          $buildDir = "build-$config"
-          cmake -B $buildDir -S . -G "Ninja" -DCMAKE_BUILD_TYPE=$config
-          cmake --build $buildDir
-          ctest --test-dir $buildDir --output-on-failure
-        }
+        cmake -B build-Debug -S . `
+          -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
+    - name: Build project Debug
+      run: cmake --build build-Debug --config Debug
+
+    - name: Run tests with CTest Debug
+      run: ctest --test-dir build-Debug --build-config Debug --output-on-failure
+
+    - name: Configure CMake Release
+      run: |
+        cmake -B build-Release -S . `
+          -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+    - name: Build project Release
+      run: cmake --build build-Release --config Release
+
+    - name: Run tests with CTest Release
+      run: ctest --test-dir build-Release --build-config Release --output-on-failure
+
