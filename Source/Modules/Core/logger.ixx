@@ -3,28 +3,28 @@ export module logger;
 import std;
 import modules;
 
-namespace ge::core
+namespace ge
 {
-	export enum class severity
+	export enum severity
 	{
 		verbose,
 		message,
 		warning,
 		error,
-		fatal
-	};
-
-	export struct log_entry
-	{
-		severity m_severity{};
-		std::string m_logged_text{};
-		std::source_location m_src{};
+		fatal,
 	};
 
 	export class logger :
 		public modules::module<logger>
 	{
 	public:
+		struct entry
+		{
+			severity m_severity{};
+			std::string m_logged_text{};
+			std::source_location m_src{};
+		};
+
 		template <typename... T>
 		void log(severity a_severity,
 			std::format_string<T...> a_format, 
@@ -39,14 +39,14 @@ namespace ge::core
 
 	private:
 		mutable std::shared_mutex m_log_mut{};
-		std::vector<log_entry> m_log{};
+		std::vector<entry> m_log{};
 	};
 }
 
 namespace logger
 {
 	export class module :
-		public ge::core::logger
+		public ge::logger
 	{
 	public:
 		using logger::logger;
@@ -54,7 +54,7 @@ namespace logger
 }
 
 template <typename ... T>
-void ge::core::logger::log(severity a_severity, std::format_string<T...> a_format, T&&... a_args, std::source_location a_src)
+void ge::logger::log(severity a_severity, std::format_string<T...> a_format, T&&... a_args, std::source_location a_src)
 {
 	std::string formatted = std::format(a_format, std::forward<T>(a_args)...);
 	log(a_severity, 
@@ -62,7 +62,7 @@ void ge::core::logger::log(severity a_severity, std::format_string<T...> a_forma
 		a_src);
 }
 
-void ge::core::logger::log(severity a_severity, std::string_view a_msg, std::source_location a_src)
+void ge::logger::log(severity a_severity, std::string_view a_msg, std::source_location a_src)
 {
 	std::string logged_text = std::format("{}({}) - {}\n",
 		a_src.file_name(),
@@ -84,11 +84,11 @@ void ge::core::logger::log(severity a_severity, std::string_view a_msg, std::sou
 	}
 }
 
-auto ge::core::logger::get_logged_messages() const
+auto ge::logger::get_logged_messages() const
 {
 	struct
 	{
-		std::reference_wrapper<const std::vector<log_entry>> names;
+		std::reference_wrapper<const std::vector<entry>> names;
 		std::shared_lock<std::shared_mutex> lock{};
 
 		API auto begin() const { return names.get().begin(); }
