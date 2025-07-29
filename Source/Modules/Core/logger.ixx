@@ -81,16 +81,13 @@ void ge::core::logger::log(severity a_severity, std::string_view a_msg, std::sou
 
 auto ge::core::logger::get_logged_messages() const
 {
-	struct i_have_begin_and_end
+	struct
 	{
 		std::reference_wrapper<const std::vector<log_entry>> names;
 		std::shared_lock<std::shared_mutex> lock{};
 
-
-
 		API auto begin() const { return names.get().begin(); }
 		API auto end() const { return names.get().end(); }
-	};
-	i_have_begin_and_end test{ m_log, std::shared_lock{ m_log_mut } };
-	return std::ranges::owning_view(std::move(test));
+	} mut_view_range{ m_log, std::shared_lock{ m_log_mut } };
+	return std::ranges::owning_view(std::move(mut_view_range));
 }
