@@ -49,9 +49,6 @@ namespace ge::modules
 
 		API const std::shared_ptr<module_base>& get_instance() const;
 
-		//template<std::derived_from<module_base> module_t>
-		//std::shared_ptr<module_t> get_instance() const;
-
 	private:
 		std::reference_wrapper<const module_internal> m_module;
 	};
@@ -71,6 +68,9 @@ namespace ge::modules
 		API module_handle load_with_dependencies(std::string_view module_name);
 
 		API module_handle get_handle(std::string_view module_name) const;
+
+		template<typename module_t>
+		module_t& get_instance() const;
 
 	private:
 		config m_config{};
@@ -267,4 +267,27 @@ ge::modules::module_handle ge::modules::module_manager::get_handle(std::string_v
 		throw std::out_of_range{ std::format("no module called {}", module_name) };
 	}
 	return { *it };
+}
+
+template <typename module_t>
+module_t& ge::modules::module_manager::get_instance() const
+{
+	// Forces linker to consider this module a dependency,
+	// which informs US that the module instance needs
+	// to be constructed before the module from which
+	// function is called.
+	(void)module_t::get_derived_type_info();
+
+	for (const module_internal& internal : m_modules)
+	{
+		module_t* instance = dynamic_cast<module_t*>(
+			internal.m_data_avail_when_loaded->m_module_instance.get());
+
+		if (instance != nullptr)
+		{
+			return *instance;
+		}
+	}
+
+	throw std::out_of_range{ "could not find module instance" };
 }

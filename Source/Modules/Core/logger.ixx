@@ -3,47 +3,94 @@ export module logger;
 import std;
 import modules;
 
-namespace ge
+namespace ge::core
 {
-	export class ilogger
+	export enum severity
+	{
+		verbose,
+		message,
+		warning,
+		error,
+		fatal
+	};
+
+	export struct log_entry
+	{
+		severity m_severity{};
+		std::string m_logged_text{};
+		std::source_location m_src{};
+	};
+
+	export class logger :
+		public modules::module<logger>
 	{
 	public:
 		template <typename... T>
-		void log(const std::format_string<T...> format, T&&... args);
+		void log(severity a_severity,
+			std::format_string<T...> a_format, 
+			T&&... a_args, 
+			std::source_location a_src = std::source_location::current());
 
-		API virtual void println(std::string_view str) = 0;
-	};
+		API void log(severity a_severity,
+			std::string_view a_msg,
+			std::source_location a_src = std::source_location::current());
 
-	export class logger : public ilogger
-	{
-	public:
-		API void println(std::string_view str) override;
+		API auto get_logged_messages() const;
+
+	private:
+		mutable std::shared_mutex m_log_mut{};
+		std::vector<log_entry> m_log{};
 	};
 }
 
 namespace logger
 {
-	export class module : public ge::modules::module_base
+	export class module :
+		public ge::core::logger
 	{
 	public:
-		API module(ge::modules::module_manager&)
-		{
-			//test_engine();
-			//test_utils();
-			//std::println(" helooo {}", /*test_utils(),*/ test_engine());
-		}
+		using logger::logger;
 	};
 }
 
-template<typename ...T>
-void ge::ilogger::log(std::format_string<T...> format, T && ...args)
+template <typename ... T>
+void ge::core::logger::log(severity a_severity, std::format_string<T...> a_format, T&&... a_args, std::source_location a_src)
 {
-	println(std::format(format, std::forward<T>(args)...));
+	std::string formatted = std::format(a_format, std::forward<T>(a_args)...);
+	log(a_severity, 
+		formatted,
+		a_src);
 }
 
-void ge::logger::println(std::string_view str)
+void ge::core::logger::log(severity a_severity, std::string_view a_msg, std::source_location a_src)
 {
-	std::puts(str.data());
-	std::putchar('\n');
+	std::string logged_text = std::format("{}({}) - {}\n",
+		a_src.file_name(),
+		a_src.line(),
+		a_msg);
+
+	{
+		std::unique_lock _{ m_log_mut };
+		m_log.emplace_back(a_severity,
+			logged_text,
+			a_src
+		).m_logged_text;
+	}
+	std::cout << logged_text;
 }
 
+auto ge::core::logger::get_logged_messages() const
+{
+	struct i_have_begin_and_end
+	{
+		std::reference_wrapper<const std::vector<log_entry>> names;
+		std::shared_lock<std::shared_mutex> lock{};
+
+
+
+		API auto begin() const { return names.get().begin(); }
+		API auto end() const { return names.get().end(); }
+	};
+	i_have_begin_and_end test{ m_log, std::shared_lock{ m_log_mut } };
+	return std::ranges::owning_view(std::move(test));
+}
