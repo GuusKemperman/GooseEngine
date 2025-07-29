@@ -3,6 +3,7 @@ import std;
 import modules;
 
 import windows;
+import test_core;
 
 int main(int arg_c, char** arg_v)
 {
@@ -23,14 +24,16 @@ int main(int arg_c, char** arg_v)
 
     std::string get_unit_test_name = std::format("get_unit_test_{}_{}", category_name, test_name);
 
-    using test_t = void(&)();
+    using test_t = void(&)(ge::test_core::context&);
     using getter_t = test_t(&)();
     getter_t unit_test_getter = reinterpret_cast<getter_t>(module_to_test.get_function_address(get_unit_test_name));
     test_t unit_test = unit_test_getter();
 
+    ge::test_core::context context{ manager };
+
     try
     {
-        unit_test();
+        unit_test(context);
         return 0;
     }
     catch (const std::exception& e)

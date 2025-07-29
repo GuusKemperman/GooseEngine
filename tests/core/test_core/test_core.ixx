@@ -1,9 +1,16 @@
 export module test_core;
 
+import modules;
 import std;
 
 namespace ge::test_core
 {
+	export class context
+	{
+	public:
+		std::reference_wrapper<modules::module_manager> m_module_manager;
+	};
+
 	export class test_exception
 		: public std::exception
 	{
@@ -27,6 +34,61 @@ namespace ge::test_core
 		std::source_location m_src{};
 		std::string m_what{};
 	};
+
+	export struct threading_test_arg
+	{
+		size_t m_iteration{};
+		size_t m_thread_idx{};
+	};
+
+	export template<typename func_t>
+	auto test_threading(func_t&& a_func, size_t num_iterations_per_thread = 10, size_t num_threads = 2)
+		requires(std::is_invocable_v<func_t, const threading_test_arg&>)
+	{
+		auto work =
+			[&](size_t a_thread_idx)
+			{
+				std::thread::id id = std::this_thread::get_id();
+				std::hash<std::thread::id> hash{};
+				size_t seed = hash(id);
+				std::default_random_engine eng{ static_cast<std::uint32_t>(seed) };
+
+				for (size_t i = 0; i < num_iterations_per_thread; i++)
+				{
+					auto start = std::chrono::high_resolution_clock::now();
+					size_t num_ms_to_wait = std::uniform_int_distribution{ 1, 10 }(eng);
+					auto expected_end = start + std::chrono::milliseconds{ num_ms_to_wait };
+
+					while (std::chrono::high_resolution_clock::now() < expected_end)
+					{
+						
+					}
+
+					threading_test_arg arg{ i, a_thread_idx };
+					std::invoke(a_func, arg);
+				}
+			};
+
+		std::vector<std::thread> threads{};
+		threads.reserve(num_threads);
+
+		for (size_t i = 0; i < num_threads; i++)
+		{
+			threads.emplace_back(work, i);
+		}
+
+		for (std::thread& t : threads)
+		{
+			t.join();
+		}
+
+		struct
+		{
+			size_t m_num_threads{};
+			size_t m_num_iterations_per_thread{};
+		} params{ num_threads, num_iterations_per_thread };
+		return params;
+	}
 
 	namespace assert
 	{
@@ -100,15 +162,38 @@ namespace ge::test_core
 			return is_true(ptr != nullptr, src);
 		}
 
-		export void is_eq(
-			const auto& lhs,
-			const auto& rhs,
+		template<typename t1, typename t2>
+		void assert_template(std::string_view operator_as_txt,
+			bool failed,
+			const t1& lhs,
+			const t2& rhs,
+			const std::source_location& src)
+		{
+			if (failed)
+			{
+				return;
+			}
+
+			if constexpr (std::formattable<t1, char> && std::formattable<t2, char>)
+			{
+				failure(std::format("assert failed: {} {} {}", lhs, operator_as_txt, rhs), src);
+			}
+			else
+			{
+				failure(src);
+			}
+		}
+
+		export template<typename t1, typename t2>
+		void is_eq(
+			const t1& lhs,
+			const t2& rhs,
 			const std::source_location& src = std::source_location::current()) requires requires
 					{
 						{ lhs == rhs } -> std::same_as<bool>;
 					}
 		{
-			return is_true(lhs == rhs, src);
+			assert_template("==", lhs == rhs, lhs, rhs, src);
 		}
 
 		export void is_ne(
@@ -119,7 +204,7 @@ namespace ge::test_core
 			{ lhs != rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs != rhs, src);
+			assert_template("!=", lhs != rhs, lhs, rhs, src);
 		}
 
 		export void is_lt(
@@ -130,7 +215,7 @@ namespace ge::test_core
 			{ lhs < rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs < rhs, src);
+			assert_template("<", lhs < rhs, lhs, rhs, src);
 		}
 
 		export void is_gt(
@@ -141,7 +226,7 @@ namespace ge::test_core
 			{ lhs > rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs > rhs, src);
+			assert_template(">", lhs > rhs, lhs, rhs, src);
 		}
 
 		export void is_le(
@@ -152,7 +237,7 @@ namespace ge::test_core
 			{ lhs <= rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs <= rhs, src);
+			assert_template("<=", lhs <= rhs, lhs, rhs, src);
 		}
 
 		export void is_ge(
@@ -163,7 +248,7 @@ namespace ge::test_core
 			{ lhs >= rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs >= rhs, src);
+			assert_template(">=", lhs >= rhs, lhs, rhs, src);
 		}
 	}
 
