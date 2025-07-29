@@ -12,13 +12,13 @@ UNIT_TEST(logger, hello_world)
 	ge::core::logger& logger = a_context.m_module_manager.get().get_instance<ge::core::logger>();
 	size_t initial_size = std::ranges::size(logger.get_logged_messages());
 
-	logger.log(ge::core::message, "Hello world!");
+	logger.log(ge::core::severity::message, "Hello world!");
 
 	is_eq(std::ranges::size(logger.get_logged_messages()), initial_size + 1);
 
 	const ge::core::log_entry& entry = logger.get_logged_messages()[initial_size];
 
-	is_eq(entry.m_severity, ge::core::message);
+	is_eq(entry.m_severity, ge::core::severity::message);
 	is_eq(std::string_view{ entry.m_src.file_name() }, std::source_location::current().file_name());
 	is_eq(std::string_view{ entry.m_src.function_name() }, std::source_location::current().function_name());
 
@@ -44,7 +44,7 @@ UNIT_TEST(logger, multi_threading)
 				std::this_thread::sleep_for(std::chrono::milliseconds{
 					std::uniform_int_distribution{ 1, 10 }(eng) });
 
-				logger.log(ge::core::message, msg);
+				logger.log(ge::core::severity::message, msg);
 			}
 		};
 
@@ -63,4 +63,18 @@ UNIT_TEST(logger, multi_threading)
 
 	is_eq(num_messages_per_thread, count("Hello"));
 	is_eq(num_messages_per_thread, count("world"));
+}
+
+UNIT_TEST(logger, fatal_message)
+{
+	static constexpr std::string_view msg = "expecting a crash!";
+	ge::core::logger log{};
+
+	std::exception e = expect_exception<std::exception>(
+		[&]
+		{
+			log.log(ge::core::severity::fatal, msg);
+		});
+
+	is_true(std::string_view{ e.what() }.contains(msg));
 }

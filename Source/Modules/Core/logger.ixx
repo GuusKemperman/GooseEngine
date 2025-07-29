@@ -5,7 +5,7 @@ import modules;
 
 namespace ge::core
 {
-	export enum severity
+	export enum class severity
 	{
 		verbose,
 		message,
@@ -75,8 +75,13 @@ void ge::core::logger::log(severity a_severity, std::string_view a_msg, std::sou
 			logged_text,
 			a_src
 		).m_logged_text;
+		std::cout << logged_text;
 	}
-	std::cout << logged_text;
+
+	if (a_severity == severity::fatal)
+	{
+		throw std::runtime_error{ std::format("fatal message: {}", logged_text) };
+	}
 }
 
 auto ge::core::logger::get_logged_messages() const
