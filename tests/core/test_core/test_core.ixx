@@ -100,15 +100,38 @@ namespace ge::test_core
 			return is_true(ptr != nullptr, src);
 		}
 
-		export void is_eq(
-			const auto& lhs,
-			const auto& rhs,
+		template<typename t1, typename t2>
+		void assert_template(std::string_view operator_as_txt,
+			bool failed,
+			const t1& lhs,
+			const t2& rhs,
+			const std::source_location& src)
+		{
+			if (failed)
+			{
+				return;
+			}
+
+			if constexpr (std::formattable<t1, char> && std::formattable<t2, char>)
+			{
+				failure(std::format("assert failed: {} {} {}", lhs, operator_as_txt, rhs), src);
+			}
+			else
+			{
+				failure(src);
+			}
+		}
+
+		export template<typename t1, typename t2>
+		void is_eq(
+			const t1& lhs,
+			const t2& rhs,
 			const std::source_location& src = std::source_location::current()) requires requires
 					{
 						{ lhs == rhs } -> std::same_as<bool>;
 					}
 		{
-			return is_true(lhs == rhs, src);
+			assert_template("==", lhs == rhs, lhs, rhs, src);
 		}
 
 		export void is_ne(
@@ -119,7 +142,7 @@ namespace ge::test_core
 			{ lhs != rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs != rhs, src);
+			assert_template("!=", lhs != rhs, lhs, rhs, src);
 		}
 
 		export void is_lt(
@@ -130,7 +153,7 @@ namespace ge::test_core
 			{ lhs < rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs < rhs, src);
+			assert_template("<", lhs < rhs, lhs, rhs, src);
 		}
 
 		export void is_gt(
@@ -141,7 +164,7 @@ namespace ge::test_core
 			{ lhs > rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs > rhs, src);
+			assert_template(">", lhs > rhs, lhs, rhs, src);
 		}
 
 		export void is_le(
@@ -152,7 +175,7 @@ namespace ge::test_core
 			{ lhs <= rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs <= rhs, src);
+			assert_template("<=", lhs <= rhs, lhs, rhs, src);
 		}
 
 		export void is_ge(
@@ -163,7 +186,7 @@ namespace ge::test_core
 			{ lhs >= rhs } -> std::same_as<bool>;
 		}
 		{
-			return is_true(lhs >= rhs, src);
+			assert_template(">=", lhs >= rhs, lhs, rhs, src);
 		}
 	}
 
