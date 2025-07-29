@@ -7,74 +7,220 @@ import test_core;
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
-UNIT_TEST(logger, hello_world)
+// Test basic logging functionality
+UNIT_TEST(logger, basic_logging)
 {
-	ge::logger& logger = a_context.m_module_manager.get().get_instance<ge::logger>();
-	size_t initial_size = std::ranges::size(logger.get_logged_messages());
+    ge::logger logger{};
+    logger.clear();
+    const size_t initial_size = std::ranges::size(logger.get_logged_messages());
 
-	logger.log(ge::message, "Hello world!");
+    logger.log(ge::severity::message, "Test message"); const auto src = std::source_location::current();
 
-	is_eq(std::ranges::size(logger.get_logged_messages()), initial_size + 1);
+    const auto& messages = logger.get_logged_messages();
+    is_eq(messages.size(), initial_size + 1);
 
-	const ge::logger::entry& entry = logger.get_logged_messages()[initial_size];
-
-	is_eq(entry.m_severity, ge::message);
-	is_eq(std::string_view{ entry.m_src.file_name() }, std::source_location::current().file_name());
-	is_eq(std::string_view{ entry.m_src.function_name() }, std::source_location::current().function_name());
-
-	is_true(entry.m_logged_text.contains("Hello world!"));
+    const auto& entry = messages.back();
+    is_eq(entry.m_severity, ge::severity::message);
+    is_true(entry.m_logged_text.contains("Test message"));
+    is_eq(std::string_view(entry.m_src.file_name()), std::string_view(src.file_name()));
+    is_eq(entry.m_src.line(), src.line());
 }
 
-UNIT_TEST(logger, multi_threading)
+// Test formatted logging
+UNIT_TEST(logger, formatted_logging)
 {
-	ge::logger& logger = a_context.m_module_manager.get().get_instance<ge::logger>();
+    ge::logger logger{};
+    logger.clear();
+    const int value = 42;
 
-	size_t num_messages_per_thread = 10;
+    logger.log(ge::severity::verbose, "Value: {}", value);
+    logger.log(ge::severity::verbose, "Value: {} {} {}", value, value, value);
 
-	auto work = 
-		[&](std::string_view msg)
-		{
-			std::thread::id id = std::this_thread::get_id();
-			std::hash<std::thread::id> hash{};
-			size_t seed = hash(id);
-			std::default_random_engine eng{ static_cast<std::uint32_t>(seed) };
-			
-			for (size_t i = 0; i < num_messages_per_thread; i++)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds{
-					std::uniform_int_distribution{ 1, 10 }(eng) });
-
-				logger.log(ge::message, msg);
-			}
-		};
-
-	std::thread t1{ work, "Hello" };
-	std::thread t2{ work, "world" };
-	t1.join(); t2.join();
-
-	auto count = [&](std::string_view msg) -> size_t
-		{
-			return std::ranges::count_if(logger.get_logged_messages(),
-				[&](const ge::logger::entry& entry)
-				{
-					return entry.m_logged_text.contains(msg);
-				});
-		};
-
-	is_eq(num_messages_per_thread, count("Hello"));
-	is_eq(num_messages_per_thread, count("world"));
+    const auto& messages = logger.get_logged_messages();
+    is_true(messages.front().m_logged_text.contains("Value: 42"));
+    is_true(messages.back().m_logged_text.contains("Value: 42 42 42"));
 }
 
-UNIT_TEST(logger, fatal_message)
+// Test severity filtering
+UNIT_TEST(logger, severity_filtering)
 {
-	static constexpr std::string_view msg = "expecting a crash!";
-	ge::logger log{};
+    std::stringstream output{};
 
-	std::exception e = expect_exception<std::exception>(
-		[&]
-		{
-			log.log(ge::fatal, msg);
-		});
+    ge::logger logger{ output, output };
+    logger.clear();
+    logger.set_severity(ge::severity::warning);
 
-	is_true(std::string_view{ e.what() }.contains(msg));
+    logger.log(ge::severity::message, "Should not appear");
+    logger.log(ge::severity::warning, "Should appear");
+    logger.log(ge::severity::error, "Should appear");
+
+    const auto& messages = logger.get_logged_messages();
+    is_eq(messages.size(), 3);
+    is_eq(messages.front().m_severity, ge::severity::message);
+    is_eq(std::next(messages.begin())->m_severity, ge::severity::warning);
+    is_eq(messages.back().m_severity, ge::severity::error);
+
+    std::string output_str = output.str();
+
+    is_true(output_str.contains("Should appear"));
+    is_true(!output_str.contains("Should not appear"));
+}
+
+// Test log clearing
+UNIT_TEST(logger, clear_log)
+{
+    ge::logger logger{};
+    logger.log(ge::severity::message, "Test");
+
+    logger.clear();
+    is_true(logger.get_logged_messages().empty());
+    is_eq(logger.get_max_num_characters_stored(), 2097152);
+}
+
+// Test character limit enforcement
+UNIT_TEST(logger, zero_character_limit)
+{
+    ge::logger logger{};
+    logger.clear();
+    logger.log(ge::severity::message, "Message1");
+
+    // Lower to less than currently available
+	logger.set_max_num_characters_stored(0);
+
+    is_eq(logger.get_logged_messages().size(), 0);
+
+    logger.log(ge::severity::message, "Msg2");
+    logger.log(ge::severity::message, "LongMessage3");
+
+    is_eq(logger.get_logged_messages().size(), 0);
+
+    is_eq(logger.get_max_num_characters_stored(), 0);
+}
+
+// Test multi-threaded logging using test_threading API
+UNIT_TEST(logger, multi_threaded_logging)
+{
+    ge::logger logger{};
+    logger.clear();
+
+    auto format_thread_id = [](size_t thread_idx) {
+        return std::format("Thread {}", thread_idx);
+        };
+
+    auto result = test_threading(
+        [&](const threading_test_arg& arg) {
+            logger.log(ge::severity::verbose,
+                format_thread_id(arg.m_thread_idx));
+        },
+        100,  // Iterations per thread
+        10    // Number of threads
+    );
+
+    const auto& messages = logger.get_logged_messages();
+    is_eq(messages.size(), result.m_num_threads * result.m_num_iterations_per_thread);
+
+    // Verify each thread's logs were recorded correctly
+    for (size_t thread_idx = 0; thread_idx < result.m_num_threads; thread_idx++) {
+        size_t count = std::ranges::count_if(messages, [&](const auto& entry) {
+            return entry.m_logged_text.contains(format_thread_id(thread_idx));
+            });
+        is_eq(count, result.m_num_iterations_per_thread);
+    }
+}
+
+// Test fatal severity exception
+UNIT_TEST(logger, fatal_exception)
+{
+    ge::logger logger{};
+    const std::string_view msg = "Fatal error occurred";
+
+    auto e = expect_exception<std::runtime_error>([&] {
+        logger.log(ge::severity::fatal, msg);
+        });
+
+    is_true(std::string(e.what()).contains(msg));
+}
+
+// Test source location capture
+UNIT_TEST(logger, source_location)
+{
+    ge::logger logger{};
+    logger.clear();
+    logger.log(ge::severity::warning, "Location test"); const auto test_location = std::source_location::current();
+
+    const auto& entry = logger.get_logged_messages().back();
+    is_eq(std::string_view{ entry.m_src.file_name() }, test_location.file_name());
+    is_eq(std::string_view{ entry.m_src.function_name() }, test_location.function_name());
+    is_eq(entry.m_src.line(), test_location.line());
+}
+
+// Test stream output redirection
+UNIT_TEST(logger, stream_output)
+{
+    std::ostringstream cout_buffer;
+    std::ostringstream cerr_buffer;
+
+    {
+        ge::logger logger{ cout_buffer, cerr_buffer };
+        logger.clear();
+
+        logger.log(ge::severity::verbose, "Verbose to cout");
+        logger.log(ge::severity::message, "Message to cout");
+        logger.log(ge::severity::warning, "Warning to cerr");
+        logger.log(ge::severity::error, "Error to cerr");
+
+        (void)expect_exception<std::runtime_error>(
+            [&]
+            {
+                logger.log(ge::severity::fatal, "Fatal to cerr");
+            });
+    }
+
+    const std::string cout_output = cout_buffer.str();
+    const std::string cerr_output = cerr_buffer.str();
+
+    is_true(cout_output.contains("Verbose to cout"));
+    is_true(cout_output.contains("Message to cout"));
+    is_false(cout_output.contains("Warning to cerr"));
+    is_false(cout_output.contains("Error to cerr"));
+    is_false(cout_output.contains("Fatal to cerr"));
+
+    is_false(cerr_output.contains("Verbose to cout"));
+    is_false(cerr_output.contains("Message to cout"));
+    is_true(cerr_output.contains("Warning to cerr"));
+    is_true(cerr_output.contains("Error to cerr"));
+    is_true(cerr_output.contains("Fatal to cerr"));
+}
+
+// Test thread safety with mixed operations
+UNIT_TEST(logger, thread_safety_mixed_operations)
+{
+    ge::logger logger{};
+    logger.clear();
+    logger.set_max_num_characters_stored(1000);
+
+    auto mixed_operations = [&](const threading_test_arg& arg) {
+        switch (arg.m_iteration % 4) {
+        case 0:
+            logger.log(ge::severity::verbose,
+                "Log from thread {}", arg.m_thread_idx);
+            break;
+        case 1:
+            logger.clear();
+            break;
+        case 2:
+            logger.set_severity(static_cast<ge::severity>(arg.m_iteration % 5));
+            break;
+        case 3:
+            logger.set_max_num_characters_stored(arg.m_iteration * 10);
+            break;
+        }
+        };
+
+    test_threading(mixed_operations, 100, 5);
+
+    // Final sanity checks
+    is_true(logger.get_logged_messages().size() <= 1000);
+    const auto sev = logger.get_severity();
+    is_true(sev >= ge::severity::verbose && sev <= ge::severity::fatal);
 }
