@@ -34,11 +34,11 @@ UNIT_TEST(logger, formatted_logging)
     const int value = 42;
 
     logger.log(ge::severity::verbose, "Value: {}", value);
-    logger.log(ge::severity::verbose, "Value: {} {} {}", value, value, value);
+    logger.log(ge::severity::verbose, "Value: {} {} {}", value + 1, value + 2, value + 3);
 
     const auto& messages = logger.get_logged_messages();
     is_true(messages.front().m_logged_text.contains("Value: 42"));
-    is_true(messages.back().m_logged_text.contains("Value: 42 42 42"));
+    is_true(messages.back().m_logged_text.contains("Value: 43 44 45"));
 }
 
 // Test severity filtering
@@ -109,7 +109,7 @@ UNIT_TEST(logger, multi_threaded_logging)
 
     auto result = test_threading(
         [&](const threading_test_arg& arg) {
-            logger.log(ge::severity::verbose,
+            logger.log_raw(ge::severity::verbose,
                 format_thread_id(arg.m_thread_idx));
         },
         100,  // Iterations per thread
@@ -126,19 +126,6 @@ UNIT_TEST(logger, multi_threaded_logging)
             });
         is_eq(count, result.m_num_iterations_per_thread);
     }
-}
-
-// Test fatal severity exception
-UNIT_TEST(logger, fatal_exception)
-{
-    ge::logger logger{};
-    const std::string_view msg = "Fatal error occurred";
-
-    auto e = expect_exception<std::runtime_error>([&] {
-        logger.log(ge::severity::fatal, msg);
-        });
-
-    is_true(std::string(e.what()).contains(msg));
 }
 
 // Test source location capture
@@ -168,12 +155,6 @@ UNIT_TEST(logger, stream_output)
         logger.log(ge::severity::message, "Message to cout");
         logger.log(ge::severity::warning, "Warning to cerr");
         logger.log(ge::severity::error, "Error to cerr");
-
-        (void)expect_exception<std::runtime_error>(
-            [&]
-            {
-                logger.log(ge::severity::fatal, "Fatal to cerr");
-            });
     }
 
     const std::string cout_output = cout_buffer.str();
@@ -183,13 +164,11 @@ UNIT_TEST(logger, stream_output)
     is_true(cout_output.contains("Message to cout"));
     is_false(cout_output.contains("Warning to cerr"));
     is_false(cout_output.contains("Error to cerr"));
-    is_false(cout_output.contains("Fatal to cerr"));
 
     is_false(cerr_output.contains("Verbose to cout"));
     is_false(cerr_output.contains("Message to cout"));
     is_true(cerr_output.contains("Warning to cerr"));
     is_true(cerr_output.contains("Error to cerr"));
-    is_true(cerr_output.contains("Fatal to cerr"));
 }
 
 // Test thread safety with mixed operations
@@ -209,7 +188,7 @@ UNIT_TEST(logger, thread_safety_mixed_operations)
             logger.clear();
             break;
         case 2:
-            logger.set_severity(static_cast<ge::severity>(arg.m_iteration % 5));
+            logger.set_severity(static_cast<ge::severity>(arg.m_iteration % 4));
             break;
         case 3:
             logger.set_max_num_characters_stored(arg.m_iteration * 10);
@@ -222,5 +201,5 @@ UNIT_TEST(logger, thread_safety_mixed_operations)
     // Final sanity checks
     is_true(logger.get_logged_messages().size() <= 1000);
     const auto sev = logger.get_severity();
-    is_true(sev >= ge::severity::verbose && sev <= ge::severity::fatal);
+    is_true(sev >= ge::severity::verbose && sev <= ge::severity::error);
 }

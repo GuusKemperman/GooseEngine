@@ -10,8 +10,7 @@ namespace ge
 		verbose,
 		message,
 		warning,
-		error,
-		fatal,
+		error
 	};
 
 	export template<typename... types_t>
@@ -29,7 +28,7 @@ namespace ge
 		std::source_location m_src{};
 	};
 
-	export template <class... types_t>
+	export template<typename... types_t>
 	using format_with_location = basic_format_with_location<std::type_identity_t<types_t>...>;
 
 	export class logger :
@@ -49,9 +48,9 @@ namespace ge
 		template <typename... T>
 		void log(severity a_severity,
 			format_with_location<T...> a_format,
-			T&&... a_args) requires(sizeof...(T) > 0);
+			T&&... a_args);
 
-		API void log(severity a_severity,
+		API void log_raw(severity a_severity,
 			std::string_view a_msg,
 			const std::source_location& a_src = std::source_location::current());
 
@@ -70,8 +69,6 @@ namespace ge
 		API size_t get_max_num_characters_stored() const;
 
 	private:
-		API void log_internal(severity a_severity, std::string_view a_msg, std::source_location a_src);
-
 		void clear_excess_messages();
 
 		std::reference_wrapper<std::ostream> m_output_stream;
@@ -95,26 +92,45 @@ namespace logger
 	};
 }
 
-template <typename ... T>
-void ge::logger::log(severity a_severity, 
-	format_with_location<T...> a_format, 
-	T&&... a_args) requires (sizeof...(T) > 0)
-{
-	std::string formatted = std::format(a_format.m_str, std::forward<T>(a_args)...);
-	log_internal(a_severity,
-		formatted,
-		a_format.m_src);
-}
-
-void ge::logger::log(severity a_severity, std::string_view a_msg, const std::source_location& a_src)
-{
-	log_internal(a_severity, a_msg, a_src);
-}
-
 ge::logger::logger(std::ostream& a_output_stream, std::ostream& a_err_stream) :
 	m_output_stream(a_output_stream),
 	m_err_stream(a_err_stream)
 {
+}
+
+template <typename ... T>
+void ge::logger::log(severity a_severity, 
+	format_with_location<T...> a_format, 
+	T&&... a_args)
+{
+	std::string formatted = std::format(a_format.m_str, std::forward<T>(a_args)...);
+	log_raw(a_severity,
+		formatted,
+		a_format.m_src);
+}
+
+void ge::logger::log_raw(severity a_severity, std::string_view a_msg, const std::source_location& a_src)
+{
+	std::string logged_text = std::format("{}({}): '{}'\n",
+		std::filesystem::path{ a_src.file_name() }.filename().string(),
+		a_src.line(),
+		a_msg);
+
+	std::unique_lock _{ m_log_mut };
+
+	m_num_characters_logged += logged_text.size();
+	m_log.emplace_back(a_severity,
+		logged_text,
+		a_src
+	).m_logged_text;
+
+	clear_excess_messages();
+
+	if (should_display(m_severity, a_severity))
+	{
+		std::ostream& stream = (a_severity >= severity::warning) ? m_err_stream : m_output_stream;
+		stream << logged_text;
+	}
 }
 
 auto ge::logger::get_logged_messages() const
@@ -167,37 +183,6 @@ size_t ge::logger::get_max_num_characters_stored() const
 {
 	std::shared_lock _{ m_log_mut };
 	return m_max_num_characters_logged;
-}
-
-void ge::logger::log_internal(severity a_severity, std::string_view a_msg, std::source_location a_src)
-{
-	std::string logged_text = std::format("{}({}) - {}\n",
-		a_src.file_name(),
-		a_src.line(),
-		a_msg);
-
-	{
-		std::unique_lock _{ m_log_mut };
-
-		m_num_characters_logged += logged_text.size();
-		m_log.emplace_back(a_severity,
-			logged_text,
-			a_src
-		).m_logged_text;
-
-		clear_excess_messages();
-
-		if (should_display(m_severity, a_severity))
-		{
-			std::ostream& stream = (a_severity >= severity::warning) ? m_err_stream : m_output_stream;
-			stream << logged_text;
-		}
-	}
-
-	if (a_severity == severity::fatal)
-	{
-		throw std::runtime_error{ std::format("fatal message: {}", logged_text) };
-	}
 }
 
 void ge::logger::clear_excess_messages()
