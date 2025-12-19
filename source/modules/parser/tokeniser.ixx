@@ -14,8 +14,10 @@ namespace ge
 			enum class flag
 			{
 				none,
+				white_space,
 				comment,
 				attribute,
+				valid_identifier,
 			};
 
 			std::string_view m_str{};
@@ -84,11 +86,14 @@ namespace ge
 			while (!m_remaining_file.empty() 
 				&& std::isspace(static_cast<unsigned char>(m_remaining_file.front())))
 			{
+				token.m_flag = token::flag::white_space;
 				discard_char();
 			}
 
-			if (m_remaining_file.empty())
+			if (m_remaining_file.empty()
+				|| token.m_flag == token::flag::white_space)
 			{
+				token.m_flag = token::flag::white_space;
 				return token;
 			}
 
@@ -208,6 +213,8 @@ namespace ge
 					{
 						return !identifier_characters.contains(m_remaining_file.front());
 					});
+
+				token.m_flag = token::flag::valid_identifier;
 				return token;
 			}
 
