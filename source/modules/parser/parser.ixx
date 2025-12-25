@@ -13,6 +13,9 @@ namespace ge
 
 	export struct parsed_func
 	{
+		bool m_has_static_keyword{};
+		bool m_has_inline_keyword{};
+		bool m_has_virtual_keyword{};
 		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_return_type{};
@@ -34,9 +37,7 @@ namespace ge
 			waiting_for_refl,
 			waiting_for_attrib_opening_parentheses,
 			waiting_for_attrib_closing_parentheses,
-			waiting_for_func_return_type,
-			waiting_for_func_return_type_end,
-			waiting_for_func_name,
+			waiting_for_func_return_type_and_name,
 			waiting_for_func_param_opening_parentheses,
 			waiting_for_func_param_closing_parentheses,
 
@@ -53,13 +54,10 @@ namespace ge
 
 		API parsed_file parse(std::string_view file)
 		{
-			parsed_file parsed_file{};
 			tokeniser tokeniser{ file };
 
-			auto it = tokeniser.begin();
-
 			auto parse_until_type_end =
-				[&]
+				[&](token_iterator& it)
 				{
 					std::string type{};
 					int template_bracket_count = 0;
@@ -92,7 +90,8 @@ namespace ge
 					return type;
 				};
 
-			for (; it != tokeniser.end(); ++it)
+			parsed_file parsed_file{};
+			for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
 			{
 				if (it->m_flag== token::flag::comment
 					|| it->m_flag== token::flag::attribute
@@ -116,7 +115,7 @@ namespace ge
 					if (it->m_str == s_refl_func)
 					{
 						m_state = parse_state::waiting_for_attrib_opening_parentheses;
-						m_state_after_attributes_found = parse_state::waiting_for_func_return_type;
+						m_state_after_attributes_found = parse_state::waiting_for_func_return_type_and_name;
 
 						m_currently_parsing_func.emplace();
 						m_attributes_target = &m_currently_parsing_func->m_attributes;
@@ -141,29 +140,48 @@ namespace ge
 					*m_attributes_target += it->m_str;
 					break;
 
-				case parse_state::waiting_for_func_return_type:
-					if (it->m_flag!= token::flag::valid_identifier)
+				case parse_state::waiting_for_func_return_type_and_name:
+
+					// Parse until we hit an opening (, assume that
+					// whatever is before that is the function name, 
+					// and that whatever is before that is the return type.
+					for (auto current = it; current != tokeniser.end(); ++current)
 					{
-						break;
+						if (current->m_str == "(")
+						{
+							break;
+						}
+					
+						if (current->m_flag != token::flag::valid_identifier)
+						{
+							continue;;
+						}
+
+						m_currently_parsing_func->m_return_type = std::exchange(m_currently_parsing_func->m_name, parse_until_type_end(current));
 					}
 
-					if (it->m_str == "static"
-						|| it->m_str == "inline"
-						|| it->m_str == "virtual"
-						|| it->m_str == "extern")
-					{
-						break;
-					}
-
-					// Assume that this is the return type
-					m_currently_parsing_func->m_return_type = parse_until_type_end();
-					m_state = parse_state::waiting_for_func_name;
-					break;
-				case parse_state::waiting_for_func_name:
-					m_currently_parsing_func->m_name = it->m_str;
 					m_state = parse_state::waiting_for_func_param_opening_parentheses;
-					break;
+					[[fallthrough]];
 				case parse_state::waiting_for_func_param_opening_parentheses:
+
+					if (it->m_str == "inline")
+					{
+						m_currently_parsing_func->m_has_inline_keyword = true;
+						break;
+					}
+
+					if (it->m_str == "static")
+					{
+						m_currently_parsing_func->m_has_static_keyword = true;
+						break;
+					}
+
+					if (it->m_str == "virtual")
+					{
+						m_currently_parsing_func->m_has_virtual_keyword = true;
+						break;
+					}
+
 					if (it->m_str == "(")
 					{
 						m_state = parse_state::waiting_for_func_param_closing_parentheses;
@@ -198,7 +216,7 @@ namespace ge
 
 					if (param.m_type.empty())
 					{
-						param.m_type = parse_until_type_end();
+						param.m_type = parse_until_type_end(it);
 						break;
 					}
 

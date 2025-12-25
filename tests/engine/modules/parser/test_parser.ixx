@@ -49,7 +49,7 @@ UNIT_TEST(parser, complex_function_no_crash)
         "        /*Comment in comment!\n"
         "        // Commentttsss\n"
         "        */\n"
-        R"(        [[nodiscard]] inline /*haha here is another comment */int ___function_name    (int param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)" "\n"
+        R"(        [[nodiscard]] inline /*haha here is another comment */ API  int ___function_name    (int param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)" "\n"
         "            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), std::array<std::vector<std::pair<int, float>>, 0x401ul > foo = 1.0f);\n"
     );
 
