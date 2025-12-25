@@ -43,7 +43,7 @@ UNIT_TEST(parser, complex_function_no_crash)
     ge::parser parser{};
 
     [[maybe_unused]] ge::parsed_file file = parser.parse(
-        "        REFL_FUNC()\n"
+        "        REFL_FUNC(DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable)\n"
         "        // Hello we are reflect*/ing this\n"
         "        /*\n"
         "        /*Comment in comment!\n"
@@ -56,6 +56,7 @@ UNIT_TEST(parser, complex_function_no_crash)
     is_eq(file.m_funcs.size(), 1);
     is_eq(file.m_funcs.front().m_return_type, "int");
     is_eq(file.m_funcs.front().m_name, "___function_name");
+    is_eq(file.m_funcs.front().m_attributes, "DisplayName(\"Hello)()}\"),DisplayName(\"Hello)()}\"),IsScriptable");
     is_eq(file.m_funcs.front().m_parameters.at(0).m_type, "int");
     is_eq(file.m_funcs.front().m_parameters.at(0).m_name, "param0_name");
     is_eq(file.m_funcs.front().m_parameters.at(1).m_type, "std::string");

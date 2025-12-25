@@ -32,7 +32,8 @@ namespace ge
 		enum class parse_state
 		{
 			waiting_for_refl,
-			waiting_for_attrib,
+			waiting_for_attrib_opening_parentheses,
+			waiting_for_attrib_closing_parentheses,
 			waiting_for_func_return_type,
 			waiting_for_func_return_type_end,
 			waiting_for_func_name,
@@ -114,17 +115,32 @@ namespace ge
 				case parse_state::waiting_for_refl:
 					if (it->m_str == s_refl_func)
 					{
-						m_state = parse_state::waiting_for_func_return_type;
+						m_state = parse_state::waiting_for_attrib_opening_parentheses;
 						m_state_after_attributes_found = parse_state::waiting_for_func_return_type;
-						
+
 						m_currently_parsing_func.emplace();
 						m_attributes_target = &m_currently_parsing_func->m_attributes;
 						break;
 					}
 					break;
-				case parse_state::waiting_for_attrib:
-				
+				case parse_state::waiting_for_attrib_opening_parentheses:
+					if (it->m_str == "(")
+					{
+						m_state = parse_state::waiting_for_attrib_closing_parentheses;
+						m_parentheses_count_before_parameters = m_parentheses_count - 1;
+					}
 					break;
+				case parse_state::waiting_for_attrib_closing_parentheses:
+					if (it->m_str == ")"
+						&& m_parentheses_count == m_parentheses_count_before_parameters)
+					{
+						m_state = m_state_after_attributes_found;
+						break;
+					}
+
+					*m_attributes_target += it->m_str;
+					break;
+
 				case parse_state::waiting_for_func_return_type:
 					if (it->m_flag!= token::flag::valid_identifier)
 					{
@@ -146,16 +162,13 @@ namespace ge
 				case parse_state::waiting_for_func_name:
 					m_currently_parsing_func->m_name = it->m_str;
 					m_state = parse_state::waiting_for_func_param_opening_parentheses;
-					m_parentheses_count_before_parameters = m_parentheses_count;
 					break;
 				case parse_state::waiting_for_func_param_opening_parentheses:
-
-					if (it->m_str == "("
-						&& m_parentheses_count == m_parentheses_count_before_parameters + 1)
+					if (it->m_str == "(")
 					{
 						m_state = parse_state::waiting_for_func_param_closing_parentheses;
+						m_parentheses_count_before_parameters = m_parentheses_count - 1;
 					}
-
 					break;
 				case parse_state::waiting_for_func_param_closing_parentheses:
 
