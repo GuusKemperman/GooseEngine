@@ -17,9 +17,8 @@ namespace
 
         logger.log(ge::verbose, "Parsing {}", file);
 
-        while (!parser.m_remaining_file.empty())
+        for (ge::token token : ge::tokeniser{ file })
         {
-            ge::tokeniser::token token = parser.consume_token();
             logger.log(ge::verbose, "{} - {}", static_cast<int>(token.m_flag), token.m_str);
         }
 	}

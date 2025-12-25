@@ -6,12 +6,14 @@ namespace ge
 {
 	export struct parsed_data
 	{
+		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_type{};
 	};
 
 	export struct parsed_func
 	{
+		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_return_type{};
 		std::vector<parsed_data> m_parameters{};
@@ -30,17 +32,21 @@ namespace ge
 		enum class parse_state
 		{
 			waiting_for_refl,
+			waiting_for_attrib,
 			waiting_for_func_return_type,
 			waiting_for_func_return_type_end,
 			waiting_for_func_name,
 			waiting_for_func_param_opening_parentheses,
 			waiting_for_func_param_closing_parentheses,
-			
+
 		};
 		parse_state m_state{};
 
 		std::optional<parsed_func> m_currently_parsing_func{};
 		int m_parentheses_count_before_parameters{};
+
+		std::string* m_attributes_target{};
+		parse_state m_state_after_attributes_found{};
 
 		int m_parentheses_count{};
 
@@ -49,32 +55,32 @@ namespace ge
 			parsed_file parsed_file{};
 			tokeniser tokeniser{ file };
 
-			auto parse_until_type_end = 
-				[&](tokeniser::token token)
-				{
-					std::string type{ token.m_str };
-					int template_bracket_count = 0;
-					
-					while (!tokeniser.m_remaining_file.empty())
-					{
-						token = tokeniser.consume_token();
+			auto it = tokeniser.begin();
 
-						if (template_bracket_count == 0 
-							&& token.m_flag == tokeniser::token::flag::white_space)
+			auto parse_until_type_end =
+				[&]
+				{
+					std::string type{};
+					int template_bracket_count = 0;
+
+					for (; it != tokeniser.end(); ++it)
+					{
+						if (template_bracket_count == 0
+							&& it->m_flag== token::flag::white_space)
 						{
 							break;
 						}
 
-						if (token.m_str == "<")
+						if (it->m_str == "<")
 						{
 							template_bracket_count++;
 						}
-						else if (token.m_str == ">")
+						else if (it->m_str == ">")
 						{
 							template_bracket_count--;
 						}
 
-						type += token.m_str;
+						type += it->m_str;
 					}
 
 					if (template_bracket_count != 0)
@@ -85,22 +91,20 @@ namespace ge
 					return type;
 				};
 
-			while (!tokeniser.m_remaining_file.empty())
+			for (; it != tokeniser.end(); ++it)
 			{
-				tokeniser::token token = tokeniser.consume_token();
-
-				if (token.m_flag == tokeniser::token::flag::comment
-					|| token.m_flag == tokeniser::token::flag::attribute
-					|| token.m_flag == tokeniser::token::flag::white_space)
+				if (it->m_flag== token::flag::comment
+					|| it->m_flag== token::flag::attribute
+					|| it->m_flag== token::flag::white_space)
 				{
 					continue;
 				}
 
-				if (token.m_str == "(")
+				if (it->m_str == "(")
 				{
 					m_parentheses_count++;
 				}
-				else if (token.m_str == ")")
+				else if (it->m_str == ")")
 				{
 					m_parentheses_count--;
 				}
@@ -108,38 +112,45 @@ namespace ge
 				switch (m_state)
 				{
 				case parse_state::waiting_for_refl:
-					if (token.m_str == s_refl_func)
+					if (it->m_str == s_refl_func)
 					{
 						m_state = parse_state::waiting_for_func_return_type;
+						m_state_after_attributes_found = parse_state::waiting_for_func_return_type;
+						
 						m_currently_parsing_func.emplace();
+						m_attributes_target = &m_currently_parsing_func->m_attributes;
+						break;
 					}
 					break;
+				case parse_state::waiting_for_attrib:
+				
+					break;
 				case parse_state::waiting_for_func_return_type:
-					if (token.m_flag != tokeniser::token::flag::valid_identifier)
+					if (it->m_flag!= token::flag::valid_identifier)
 					{
 						break;
 					}
 
-					if (token.m_str == "static"
-						|| token.m_str == "inline"
-						|| token.m_str == "virtual"
-						|| token.m_str == "extern")
+					if (it->m_str == "static"
+						|| it->m_str == "inline"
+						|| it->m_str == "virtual"
+						|| it->m_str == "extern")
 					{
 						break;
 					}
 
 					// Assume that this is the return type
-					m_currently_parsing_func->m_return_type = parse_until_type_end(token);
+					m_currently_parsing_func->m_return_type = parse_until_type_end();
 					m_state = parse_state::waiting_for_func_name;
 					break;
 				case parse_state::waiting_for_func_name:
-					m_currently_parsing_func->m_name = token.m_str;
+					m_currently_parsing_func->m_name = it->m_str;
 					m_state = parse_state::waiting_for_func_param_opening_parentheses;
 					m_parentheses_count_before_parameters = m_parentheses_count;
 					break;
 				case parse_state::waiting_for_func_param_opening_parentheses:
 
-					if (token.m_str == "("
+					if (it->m_str == "("
 						&& m_parentheses_count == m_parentheses_count_before_parameters + 1)
 					{
 						m_state = parse_state::waiting_for_func_param_closing_parentheses;
@@ -148,17 +159,17 @@ namespace ge
 					break;
 				case parse_state::waiting_for_func_param_closing_parentheses:
 
-					if (token.m_str == ","
+					if (it->m_str == ","
 						&& m_parentheses_count == m_parentheses_count_before_parameters + 1)
 					{
 						m_currently_parsing_func->m_parameters.emplace_back();
 						break;
 					}
 
-					if (token.m_str == ")"
+					if (it->m_str == ")"
 						&& m_parentheses_count == m_parentheses_count_before_parameters)
 					{
-						
+
 						m_state = parse_state::waiting_for_refl;
 						parsed_file.m_funcs.emplace_back(*m_currently_parsing_func);
 						m_currently_parsing_func.reset();
@@ -171,22 +182,22 @@ namespace ge
 					}
 
 					parsed_data& param = m_currently_parsing_func->m_parameters.back();
-					
+
 					if (param.m_type.empty())
 					{
-						param.m_type = parse_until_type_end(token);
+						param.m_type = parse_until_type_end();
 						break;
 					}
-					
+
 					if (param.m_name.empty())
 					{
-						param.m_name = token.m_str;
+						param.m_name = it->m_str;
 					}
 
 					break;
 				}
 			}
-		
+
 			return parsed_file;
 		}
 	};
