@@ -99,16 +99,28 @@ UNIT_TEST(parser, complete_file)
 
         "REFL_FUNC()\n"
         "int global() { return 1; }\n"
+		"REFL_DATA()\n"
+		"int global_data = 5;"
         "\n"
         "namespace first\n"
         "{\n"
-        "REFL_FUNC()\n"
+		"REFL_DATA()\n"
+        "static inline API std::vector<std::string<char>> global_data;\n"
+        "REFL_DATA()\n"
+        "static inline API std::vector<std::string<char>> global_data_2 = global_data;\n"
+
+        "REFL_DATA()\n"
+        "static inline API std::vector<std::string<char>> global_data_3{global_data};\n"
+        "REFL_DATA()\n"
+        "static inline API std::vector<std::string<char>> global_data_4(global_data);\n"
+
+	"REFL_FUNC()\n"
         "	int first_func() { return 70; }\n"
         "	\n"
         "    namespace second\n"
         "	{\n"
         "REFL_FUNC()\n"
-        "		int second()\n"
+        "		static int second()\n"
         "		{\n"
         "            return 2;\n"
         "		}\n"
@@ -123,7 +135,7 @@ UNIT_TEST(parser, complete_file)
         "\n"
         "namespace\n"
         "{\n"
-        "REFL_FUNC()\n"
+        "   REFL_FUNC()\n"
         "    int anon() { return 6; }\n"
         "}";
     
@@ -131,7 +143,29 @@ UNIT_TEST(parser, complete_file)
 
     is_eq(file.m_funcs.at(0).m_return_type, "int");
     is_eq(file.m_funcs.at(0).m_name, "global");
-    
+    is_eq(file.m_data.at(0).m_type, "int");
+    is_eq(file.m_data.at(0).m_name, "global_data");
+	
+	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_type, "std::vector<std::string<char>>");
+	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_name, "global_data");
+	is_true(file.m_namespaces.at(0).get().m_data.at(0).m_has_inline_keyword);
+	is_true(file.m_namespaces.at(0).get().m_data.at(0).m_has_static_keyword);
+	
+    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_type, "std::vector<std::string<char>>");
+    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_name, "global_data_2");
+    is_true(file.m_namespaces.at(0).get().m_data.at(1).m_has_inline_keyword);
+    is_true(file.m_namespaces.at(0).get().m_data.at(1).m_has_static_keyword);
+
+    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_type, "std::vector<std::string<char>>");
+    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_name, "global_data_3");
+    is_true(file.m_namespaces.at(0).get().m_data.at(2).m_has_inline_keyword);
+    is_true(file.m_namespaces.at(0).get().m_data.at(2).m_has_static_keyword);
+
+    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_type, "std::vector<std::string<char>>");
+    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_name, "global_data_4");
+    is_true(file.m_namespaces.at(0).get().m_data.at(3).m_has_inline_keyword);
+    is_true(file.m_namespaces.at(0).get().m_data.at(3).m_has_static_keyword);
+
 	is_eq(file.m_namespaces.at(0).get().m_name, "first");
     is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
     is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_name, "first_func");

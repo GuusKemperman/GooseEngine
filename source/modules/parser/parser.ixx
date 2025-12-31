@@ -12,6 +12,9 @@ namespace ge
 		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_type{};
+
+		bool m_has_static_keyword{};
+		bool m_has_inline_keyword{};
 	};
 
 	export struct parsed_func
@@ -50,6 +53,7 @@ namespace ge
 	{
 	public:
 		static constexpr std::string_view s_refl_func = "REFL_FUNC";
+		static constexpr std::string_view s_refl_data = "REFL_DATA";
 		static constexpr std::string_view s_refl_class = "REFL_TYPE";
 
 		enum class parse_state
@@ -57,10 +61,10 @@ namespace ge
 			waiting_for_refl,
 			waiting_for_attrib_opening_parentheses,
 			waiting_for_attrib_closing_parentheses,
+			waiting_for_data_type_and_name,
 			waiting_for_func_return_type_and_name,
 			waiting_for_func_param_closing_parentheses,
 			waiting_for_namespace_opening_bracket,
-
 		};
 		parse_state m_state{};
 
@@ -70,8 +74,6 @@ namespace ge
 			int m_curly_brackets_count_before_scope{};
 		};
 		std::stack<scope_stack_entry> m_scope_stack{};
-		
-		std::optional<parsed_func> m_currently_parsing_func{};
 
 		std::string* m_attributes_target{};
 		parse_state m_state_after_attributes_found{};
@@ -101,6 +103,39 @@ namespace ge
 					return type;
 				};
 
+			auto retrieve_name_and_previous_tokens =
+				[&](std::string_view end_tokens, token_iterator& it, auto& target, const auto& receive_keyword_or_type) -> bool
+				{
+					bool success = false;
+
+					auto function_start_it = it;
+					auto function_name_it = it;
+					for (; it != tokeniser.end(); ++it)
+					{
+						if (end_tokens.contains(it->m_str)
+							&& it.template_bracket_count() == 0)
+						{
+							success = true;
+							break;
+						}
+
+						if (it->m_flag != token::flag::valid_identifier)
+						{
+							continue;
+						}
+
+						target.m_name = it->m_str;
+						function_name_it = it;
+					}
+
+					for (auto current = function_start_it; current != function_name_it; ++current)
+					{
+						receive_keyword_or_type(current);
+					}
+
+					return success;
+				};
+
 			parsed_file parsed_file{};
 			m_scope_stack.emplace(parsed_file, std::numeric_limits<int>::min());
 
@@ -121,8 +156,20 @@ namespace ge
 						m_state = parse_state::waiting_for_attrib_opening_parentheses;
 						m_state_after_attributes_found = parse_state::waiting_for_func_return_type_and_name;
 
-						m_currently_parsing_func.emplace();
-						m_attributes_target = &m_currently_parsing_func->m_attributes;
+						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
+						parsed_func& func = parent.m_funcs.emplace_back();
+						m_attributes_target = &func.m_attributes;
+						break;
+					}
+
+					if (it->m_str == s_refl_data)
+					{
+						m_state = parse_state::waiting_for_attrib_opening_parentheses;
+						m_state_after_attributes_found = parse_state::waiting_for_data_type_and_name;
+
+						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
+						parsed_data& data = parent.m_data.emplace_back();
+						m_attributes_target = &data.m_attributes;
 						break;
 					}
 
@@ -134,7 +181,7 @@ namespace ge
 						m_state = parse_state::waiting_for_namespace_opening_bracket;
 						break;
 					}
-					
+
 					if (it->m_str == "}"
 						&& m_scope_stack.size() > 1
 						&& m_scope_stack.top().m_curly_brackets_count_before_scope == it.curly_bracket_count())
@@ -173,60 +220,44 @@ namespace ge
 
 				case parse_state::waiting_for_func_return_type_and_name:
 				{
-					auto function_start_it = it;
-					auto function_name_it = it;
-					for (; it != tokeniser.end(); ++it)
+					parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
+					if (retrieve_name_and_previous_tokens("(", it, func,
+						[&](token_iterator& iterator)
+						{
+							if (iterator->m_str == "inline")
+							{
+								func.m_has_inline_keyword = true;
+								return;
+							}
+
+							if (iterator->m_str == "static")
+							{
+								func.m_has_static_keyword = true;
+								return;
+							}
+
+							if (iterator->m_str == "virtual")
+							{
+								func.m_has_virtual_keyword = true;
+								return;
+							}
+
+							func.m_return_type = parse_until_type_end(iterator);
+						}))
 					{
-						if (it->m_str == "("
-							&& it.template_bracket_count() == 0)
-						{
-							m_state = parse_state::waiting_for_func_param_closing_parentheses;
-							m_parentheses_count_before_parameters = it.parentheses_count() - 1;
-							break;
-						}
-
-						if (it->m_flag != token::flag::valid_identifier)
-						{
-							continue;
-						}
-
-						m_currently_parsing_func->m_name = it->m_str;
-						function_name_it = it;
-					}
-
-					for (auto current = function_start_it; current != function_name_it; ++current)
-					{
-						if (current->m_str == "inline")
-						{
-							m_currently_parsing_func->m_has_inline_keyword = true;
-							break;
-						}
-
-						if (current->m_str == "static")
-						{
-							m_currently_parsing_func->m_has_static_keyword = true;
-							break;
-						}
-
-						if (current->m_str == "virtual")
-						{
-							m_currently_parsing_func->m_has_virtual_keyword = true;
-							break;
-						}
-
-						if (current->m_str != m_currently_parsing_func->m_name)
-						{
-							m_currently_parsing_func->m_return_type = parse_until_type_end(current);
-						}
+						m_state = parse_state::waiting_for_func_param_closing_parentheses;
+						m_parentheses_count_before_parameters = it.parentheses_count() - 1;
 					}
 					break;
 				}
 				case parse_state::waiting_for_func_param_closing_parentheses:
+				{
+					parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
 
 					if (it->m_str == ","
 						&& it.parentheses_count() == m_parentheses_count_before_parameters + 1)
 					{
-						m_currently_parsing_func->m_parameters.emplace_back();
+						func.m_parameters.emplace_back();
 						break;
 					}
 
@@ -234,19 +265,15 @@ namespace ge
 						&& it.parentheses_count() == m_parentheses_count_before_parameters)
 					{
 						m_state = parse_state::waiting_for_refl;
-
-						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-						parent.m_funcs.emplace_back(*std::move(m_currently_parsing_func));
-						m_currently_parsing_func.reset();
 						break;
 					}
 
-					if (m_currently_parsing_func->m_parameters.empty())
+					if (func.m_parameters.empty())
 					{
-						m_currently_parsing_func->m_parameters.emplace_back();
+						func.m_parameters.emplace_back();
 					}
 
-					parsed_data& param = m_currently_parsing_func->m_parameters.back();
+					parsed_data& param = func.m_parameters.back();
 
 					if (param.m_type.empty())
 					{
@@ -260,6 +287,32 @@ namespace ge
 					}
 
 					break;
+				}
+				case parse_state::waiting_for_data_type_and_name:
+				{
+					parsed_data& data = m_scope_stack.top().m_parsed_scope.get().m_data.back();
+					if (retrieve_name_and_previous_tokens(";={(", it, data,
+						[&](token_iterator& iterator)
+						{
+							if (iterator->m_str == "inline")
+							{
+								data.m_has_inline_keyword = true;
+								return;
+							}
+
+							if (iterator->m_str == "static")
+							{
+								data.m_has_static_keyword = true;
+								return;
+							}
+
+							data.m_type = parse_until_type_end(iterator);
+						}))
+					{
+						m_state = parse_state::waiting_for_refl;
+					}
+					break;
+				}
 				}
 			}
 
