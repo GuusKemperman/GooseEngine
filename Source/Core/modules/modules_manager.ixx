@@ -233,10 +233,14 @@ ge::modules::module_handle ge::modules::module_manager::load_with_dependencies(s
 			std::move(module));
 	}
 
-	module_generated_data(*generated_func)() = reinterpret_cast<decltype(generated_func)>(
-		existing_module->m_data_avail_when_loaded->
-		m_platform_module->get_exported_func("generated_module_func"));
-
+	
+	module_generated_data(&generated_func)() =
+		[&]() -> decltype(auto)
+		{
+			void(&func)() = existing_module->m_data_avail_when_loaded->m_platform_module->get_exported_func("generated_module_func");
+			return reinterpret_cast<decltype(generated_func)>(func);
+		}();
+;
 	existing_module->m_data_avail_when_loaded->m_module_generated_data = 
 		std::invoke(generated_func);
 

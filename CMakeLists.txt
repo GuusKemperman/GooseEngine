@@ -15,7 +15,21 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 add_compile_definitions(API=__declspec\(dllexport\))
 
-add_compile_options(/W4 /WX)
+add_compile_options(/Wall /WX 
+/wd5045 
+/wd4623
+/wd4624
+/wd4625
+/wd4626
+/wd5026
+/wd5027
+/wd4820
+/wd4686
+/wd4191
+/wd5039
+/wd4865
+/wd4868
+)
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 

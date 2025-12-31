@@ -53,7 +53,7 @@ UNIT_TEST(parser, complex_function_no_crash)
         "            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), std::array<std::vector<std::pair<int, float>>, 0x401ul > foo = 1.0f);\n"
     );
 
-    is_eq(file.m_funcs.size(), 1);
+    is_eq(file.m_funcs.size(), 1ull);
     is_eq(file.m_funcs.front().m_return_type, "int");
     is_eq(file.m_funcs.front().m_name, "___function_name");
     is_eq(file.m_funcs.front().m_attributes, "DisplayName(\"Hello)()}\"),DisplayName(\"Hello)()}\"),IsScriptable");
@@ -65,5 +65,83 @@ UNIT_TEST(parser, complex_function_no_crash)
     is_eq(file.m_funcs.front().m_parameters.at(2).m_name, "param2");
     is_eq(file.m_funcs.front().m_parameters.at(3).m_type, "std::array<std::vector<std::pair<int,float>>,0x401ul>");
     is_eq(file.m_funcs.front().m_parameters.at(3).m_name, "foo");
-    is_eq(file.m_funcs.front().m_parameters.size(), 4);
+    is_eq(file.m_funcs.front().m_parameters.size(), 4ull);
+}
+
+UNIT_TEST(tokeniser, func_signature)
+{
+    ge::tokeniser tokeniser{ "int func_name() { return 1; }" };
+
+    ge::token_iterator it = tokeniser.begin();
+    is_eq(it->m_str, "int"); ++it;
+    is_eq(it->m_flag, ge::token::flag::white_space); ++it;
+    is_eq(it->m_str, "func_name"); ++it;
+    is_eq(it->m_str, "("); ++it;
+    is_eq(it->m_str, ")"); ++it;
+    is_eq(it->m_flag, ge::token::flag::white_space); ++it;
+    is_eq(it->m_str, "{"); ++it;
+    is_eq(it->m_flag, ge::token::flag::white_space); ++it;
+    is_eq(it->m_str, "return"); ++it;
+    is_eq(it->m_flag, ge::token::flag::white_space); ++it;
+    is_eq(it->m_str, "1"); ++it;
+    is_eq(it->m_str, ";"); ++it;
+    is_eq(it->m_flag, ge::token::flag::white_space); ++it;
+    is_eq(it->m_str, "}"); ++it;
+    is_eq(it, tokeniser.end());
+
+}
+
+UNIT_TEST(parser, complete_file)
+{
+    ge::parser parser{};
+
+    std::string_view src =
+
+        "REFL_FUNC()\n"
+        "int global() { return 1; }\n"
+        "\n"
+        "namespace first\n"
+        "{\n"
+        "REFL_FUNC()\n"
+        "	int first_func() { return 70; }\n"
+        "	\n"
+        "    namespace second\n"
+        "	{\n"
+        "REFL_FUNC()\n"
+        "		int second()\n"
+        "		{\n"
+        "            return 2;\n"
+        "		}\n"
+        "	}\n"
+        "\n"
+        "	namespace third\n"
+        "	{\n"
+        "REFL_FUNC()\n"
+        "        int third() { return 5; }\n"
+        "	}\n"
+        "}\n"
+        "\n"
+        "namespace\n"
+        "{\n"
+        "REFL_FUNC()\n"
+        "    int anon() { return 6; }\n"
+        "}";
+    
+	ge::parsed_file file = parser.parse(src);
+
+    is_eq(file.m_funcs.at(0).m_return_type, "int");
+    is_eq(file.m_funcs.at(0).m_name, "global");
+    
+	is_eq(file.m_namespaces.at(0).get().m_name, "first");
+    is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
+    is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_name, "first_func");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_name, "second");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_funcs.at(0).m_name, "second");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(1).get().m_name, "third");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(1).get().m_funcs.at(0).m_return_type, "int");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(1).get().m_funcs.at(0).m_name, "third");
+    is_eq(file.m_namespaces.at(1).get().m_name, "");
+    is_eq(file.m_namespaces.at(1).get().m_funcs.at(0).m_return_type, "int");
+    is_eq(file.m_namespaces.at(1).get().m_funcs.at(0).m_name, "anon");
 }

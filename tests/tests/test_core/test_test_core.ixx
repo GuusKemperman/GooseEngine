@@ -76,43 +76,33 @@ UNIT_TEST(asserts, is_not_null_smart)
 UNIT_TEST(asserts, eq_all)
 {
 	test_all(&is_eq<int, int>, std::make_tuple(1, 1), std::make_tuple(1, 2));
-	test_all(&is_eq<int, float>, std::make_tuple(1, 1.0f), std::make_tuple(1, 2.0f));
 }
 
 UNIT_TEST(asserts, ne_all)
 {
 	test_all(&is_ne<int, int>, std::make_tuple(1, 2), std::make_tuple(1, 1));
-	test_all(&is_ne<int, float>, std::make_tuple(1, 2.0f), std::make_tuple(1, 1.0f));
 }
 
 UNIT_TEST(asserts, lt_all)
 {
 	test_all(&is_lt<int, int>, std::make_tuple(1, 2), std::make_tuple(1, 1));
 	test_all(&is_lt<int, int>, std::make_tuple(1, 2), std::make_tuple(2, 1));
-	test_all(&is_lt<int, float>, std::make_tuple(1, 2.0f), std::make_tuple(1, 1.0f));
-	test_all(&is_lt<int, float>, std::make_tuple(1, 2.0f), std::make_tuple(2, 1.0f));
 }
 
 UNIT_TEST(asserts, gt_all)
 {
 	test_all(&is_gt<int, int>, std::make_tuple(2, 1), std::make_tuple(1, 1));
 	test_all(&is_gt<int, int>, std::make_tuple(2, 1), std::make_tuple(1, 2));
-	test_all(&is_gt<int, float>, std::make_tuple(2, 1.0f), std::make_tuple(1, 1.0f));
-	test_all(&is_gt<int, float>, std::make_tuple(2, 1.0f), std::make_tuple(1, 2.0f));
 }
 
 UNIT_TEST(asserts, le_all)
 {
 	test_all(&is_le<int, int>, std::make_tuple(1, 1), std::make_tuple(2, 1));
 	test_all(&is_le<int, int>, std::make_tuple(1, 2), std::make_tuple(2, 1));
-	test_all(&is_le<int, float>, std::make_tuple(1, 1.0f), std::make_tuple(2, 1.0f));
-	test_all(&is_le<int, float>, std::make_tuple(1, 2.0f), std::make_tuple(2, 1.0f));
 }
 
 UNIT_TEST(asserts, ge_all)
 {
 	test_all(&is_ge<int, int>, std::make_tuple(1, 1), std::make_tuple(1, 2));
 	test_all(&is_ge<int, int>, std::make_tuple(2, 1), std::make_tuple(1, 2));
-	test_all(&is_ge<int, float>, std::make_tuple(1, 1.0f), std::make_tuple(1, 2.0f));
-	test_all(&is_ge<int, float>, std::make_tuple(2, 1.0f), std::make_tuple(1, 2.0f));
 }

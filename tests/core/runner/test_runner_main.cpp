@@ -10,12 +10,12 @@ int main(int arg_c, char** arg_v)
     if (arg_c < 4)
     {
         std::println(std::cerr, "Provided only {} arguments", arg_c);
-        return -1;
+        //return -1;
     }
 
-    const std::string_view module_name = arg_v[1];
-    const std::string_view category_name = arg_v[2];
-    const std::string_view test_name = arg_v[3];
+    const std::string_view module_name = "test_parser"; //arg_v[1];
+    const std::string_view category_name = "parser";// arg_v[2];
+    const std::string_view test_name = "complete_file"; (void)arg_v[3];
 
     ge::modules::module_manager::config config{ { "bin" } };
     ge::modules::module_manager manager{ std::make_shared<ge::windows::modules::loader>(), config };

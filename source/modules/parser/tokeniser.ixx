@@ -44,11 +44,17 @@ namespace ge
 
 		API bool operator==(const token_iterator&) const = default;
 
+		API int parentheses_count() const { return m_parentheses_count; }
+		API int curly_bracket_count() const { return m_curly_brackets_count; }
+		API int template_bracket_count() const { return m_template_brackets_count; }
+
 	private:
 		std::string_view m_remaining_file{};
 		std::optional<token> m_token{};
+		int m_parentheses_count{};
+		int m_curly_brackets_count{};
+		int m_template_brackets_count{};
 	};
-
 
 	export class tokeniser
 	{
@@ -149,6 +155,7 @@ ge::token_iterator& ge::token_iterator::operator++()
 	if (white_space_found)
 	{
 		m_token.emplace();
+		m_token->m_str = " ";
 		m_token->m_flag = token::flag::white_space;
 		return *this;
 	}
@@ -276,6 +283,31 @@ ge::token_iterator& ge::token_iterator::operator++()
 
 	start_token();
 	add_to_token();
+
+	if (m_token->m_str == "<")
+	{
+		m_template_brackets_count++;
+	}
+	else if (m_token->m_str == ">")
+	{
+		m_template_brackets_count--;
+	}
+	else if (m_token->m_str == "(")
+	{
+		m_parentheses_count++;
+	}
+	else if (m_token->m_str == ")")
+	{
+		m_parentheses_count--;
+	}
+	else if (m_token->m_str == "{")
+	{
+		m_curly_brackets_count++;
+	}
+	else if (m_token->m_str == "}")
+	{
+		m_curly_brackets_count--;
+	}
 	return *this;
 }
 

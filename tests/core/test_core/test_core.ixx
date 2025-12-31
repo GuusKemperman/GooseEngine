@@ -56,7 +56,7 @@ namespace ge::test_core
 				for (size_t i = 0; i < num_iterations_per_thread; i++)
 				{
 					auto start = std::chrono::high_resolution_clock::now();
-					size_t num_ms_to_wait = std::uniform_int_distribution{ 1, 10 }(eng);
+					int num_ms_to_wait = std::uniform_int_distribution{ 1, 10 }(eng);
 					auto expected_end = start + std::chrono::milliseconds{ num_ms_to_wait };
 
 					while (std::chrono::high_resolution_clock::now() < expected_end)

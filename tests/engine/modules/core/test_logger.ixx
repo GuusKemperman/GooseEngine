@@ -55,7 +55,7 @@ UNIT_TEST(logger, severity_filtering)
     logger.log(ge::severity::error, "Should appear");
 
     const auto& messages = logger.get_logged_messages();
-    is_eq(messages.size(), 3);
+    is_eq(messages.size(), 3ull);
     is_eq(messages.front().m_severity, ge::severity::message);
     is_eq(std::next(messages.begin())->m_severity, ge::severity::warning);
     is_eq(messages.back().m_severity, ge::severity::error);
@@ -74,7 +74,7 @@ UNIT_TEST(logger, clear_log)
 
     logger.clear();
     is_true(logger.get_logged_messages().empty());
-    is_eq(logger.get_max_num_characters_stored(), 2097152);
+    is_eq(logger.get_max_num_characters_stored(), 2097152ull);
 }
 
 // Test character limit enforcement
@@ -87,14 +87,14 @@ UNIT_TEST(logger, zero_character_limit)
     // Lower to less than currently available
 	logger.set_max_num_characters_stored(0);
 
-    is_eq(logger.get_logged_messages().size(), 0);
+    is_eq(logger.get_logged_messages().size(), 0ull);
 
     logger.log(ge::severity::message, "Msg2");
     logger.log(ge::severity::message, "LongMessage3");
 
-    is_eq(logger.get_logged_messages().size(), 0);
+    is_eq(logger.get_logged_messages().size(), 0ull);
 
-    is_eq(logger.get_max_num_characters_stored(), 0);
+    is_eq(logger.get_max_num_characters_stored(), 0ull);
 }
 
 // Test multi-threaded logging using test_threading API
@@ -121,9 +121,9 @@ UNIT_TEST(logger, multi_threaded_logging)
 
     // Verify each thread's logs were recorded correctly
     for (size_t thread_idx = 0; thread_idx < result.m_num_threads; thread_idx++) {
-        size_t count = std::ranges::count_if(messages, [&](const auto& entry) {
+        size_t count = static_cast<size_t>(std::ranges::count_if(messages, [&](const auto& entry) {
             return entry.m_logged_text.contains(format_thread_id(thread_idx));
-            });
+            }));
         is_eq(count, result.m_num_iterations_per_thread);
     }
 }
