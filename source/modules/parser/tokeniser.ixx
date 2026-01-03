@@ -42,7 +42,8 @@ namespace ge
 			return tmp;
 		}
 
-		API bool operator==(const token_iterator&) const = default;
+		API bool operator==(const token_iterator& other) const { return m_remaining_file == other.m_remaining_file; }
+		API bool operator!=(const token_iterator& other) const { return m_remaining_file != other.m_remaining_file; }
 
 		API int parentheses_count() const { return m_parentheses_count; }
 		API int curly_bracket_count() const { return m_curly_brackets_count; }

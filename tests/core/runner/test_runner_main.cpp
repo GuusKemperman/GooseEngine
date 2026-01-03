@@ -15,7 +15,7 @@ int main(int arg_c, char** arg_v)
 
     const std::string_view module_name = "test_parser"; //arg_v[1];
     const std::string_view category_name = "parser";// arg_v[2];
-    const std::string_view test_name = "complete_file"; (void)arg_v[3];
+    const std::string_view test_name = "simple_class"; (void)arg_v[3];
 
     ge::modules::module_manager::config config{ { "bin" } };
     ge::modules::module_manager manager{ std::make_shared<ge::windows::modules::loader>(), config };

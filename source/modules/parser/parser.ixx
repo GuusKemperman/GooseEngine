@@ -5,6 +5,19 @@ import utils;
 
 namespace ge
 {
+	export enum class parsed_access_type
+	{
+		public_access,
+		private_access,
+		protected_access,
+	};
+
+	export enum class parsed_type_type
+	{
+		class_type,
+		struct_type,
+	};
+
 	export struct parsed_type;
 
 	export struct parsed_data
@@ -15,17 +28,22 @@ namespace ge
 
 		bool m_has_static_keyword{};
 		bool m_has_inline_keyword{};
+
+		parsed_access_type m_access{};
 	};
 
 	export struct parsed_func
 	{
-		bool m_has_static_keyword{};
-		bool m_has_inline_keyword{};
-		bool m_has_virtual_keyword{};
 		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_return_type{};
 		std::vector<parsed_data> m_parameters{};
+		
+		bool m_has_static_keyword{};
+		bool m_has_inline_keyword{};
+		bool m_has_virtual_keyword{};
+	
+		parsed_access_type m_access{};
 	};
 
 	export struct parsed_scope
@@ -39,10 +57,18 @@ namespace ge
 		std::vector<unique_ref<parsed_type>> m_types{};
 	};
 
+	struct parsed_base
+	{
+		std::string m_name{};
+		parsed_access_type m_access{};
+	};
+
 	struct parsed_type : parsed_scope
 	{
 		std::string m_attributes{};
-		std::vector<std::string> m_base_types{};
+		parsed_type_type m_type{};
+		std::vector<parsed_base> m_base_types{};
+		parsed_access_type m_access{};
 	};
 
 	export struct parsed_file : parsed_scope
@@ -65,6 +91,8 @@ namespace ge
 			waiting_for_func_return_type_and_name,
 			waiting_for_func_param_closing_parentheses,
 			waiting_for_namespace_opening_bracket,
+			waiting_for_type_inheritance_list,
+			waiting_for_type_opening_bracket,
 		};
 		parse_state m_state{};
 
@@ -72,6 +100,7 @@ namespace ge
 		{
 			std::reference_wrapper<parsed_scope> m_parsed_scope;
 			int m_curly_brackets_count_before_scope{};
+			parsed_access_type m_current_access_level{};
 		};
 		std::stack<scope_stack_entry> m_scope_stack{};
 
@@ -91,8 +120,8 @@ namespace ge
 
 					for (; it != tokeniser.end(); ++it)
 					{
-						if (it.template_bracket_count() == 0
-							&& it->m_flag == token::flag::white_space)
+						if (it.template_bracket_count() == 0 
+							&& (it->m_flag == token::flag::white_space || it->m_str == "," || it->m_str == ";" || it->m_str == "{"))
 						{
 							break;
 						}
@@ -153,23 +182,41 @@ namespace ge
 				case parse_state::waiting_for_refl:
 					if (it->m_str == s_refl_func)
 					{
-						m_state = parse_state::waiting_for_attrib_opening_parentheses;
-						m_state_after_attributes_found = parse_state::waiting_for_func_return_type_and_name;
-
 						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
 						parsed_func& func = parent.m_funcs.emplace_back();
+
+						m_state = parse_state::waiting_for_attrib_opening_parentheses;
 						m_attributes_target = &func.m_attributes;
+						m_state_after_attributes_found = parse_state::waiting_for_func_return_type_and_name;
+						
+						func.m_access = m_scope_stack.top().m_current_access_level;
 						break;
 					}
 
 					if (it->m_str == s_refl_data)
 					{
-						m_state = parse_state::waiting_for_attrib_opening_parentheses;
-						m_state_after_attributes_found = parse_state::waiting_for_data_type_and_name;
-
 						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
 						parsed_data& data = parent.m_data.emplace_back();
+
+						m_state = parse_state::waiting_for_attrib_opening_parentheses;
 						m_attributes_target = &data.m_attributes;
+						m_state_after_attributes_found = parse_state::waiting_for_data_type_and_name;
+
+						data.m_access = m_scope_stack.top().m_current_access_level;
+						break;
+					}
+
+					if (it->m_str == s_refl_class)
+					{
+						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
+						parsed_type& type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
+
+						m_scope_stack.emplace(type, it.curly_bracket_count());
+						m_state = parse_state::waiting_for_attrib_opening_parentheses;
+						m_attributes_target = &type.m_attributes;
+						m_state_after_attributes_found = parse_state::waiting_for_type_opening_bracket;
+
+						type.m_access = m_scope_stack.top().m_current_access_level;
 						break;
 					}
 
@@ -187,6 +234,25 @@ namespace ge
 						&& m_scope_stack.top().m_curly_brackets_count_before_scope == it.curly_bracket_count())
 					{
 						m_scope_stack.pop();
+						break;
+					}
+
+					if (it->m_str == "private")
+					{
+						m_scope_stack.top().m_current_access_level = parsed_access_type::private_access;
+						break;
+					}
+
+					if (it->m_str == "protected")
+					{
+						m_scope_stack.top().m_current_access_level = parsed_access_type::protected_access;
+						break;
+					}
+
+					if (it->m_str == "public")
+					{
+						m_scope_stack.top().m_current_access_level = parsed_access_type::public_access;
+						break;
 					}
 
 					break;
@@ -241,7 +307,7 @@ namespace ge
 								func.m_has_virtual_keyword = true;
 								return;
 							}
-
+							
 							func.m_return_type = parse_until_type_end(iterator);
 						}))
 					{
@@ -311,6 +377,75 @@ namespace ge
 					{
 						m_state = parse_state::waiting_for_refl;
 					}
+					break;
+				}
+				case parse_state::waiting_for_type_inheritance_list:
+				{
+					parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
+
+					if (it->m_str == "," || type.m_base_types.empty() || !type.m_base_types.back().m_name.empty())
+					{
+						type.m_base_types.emplace_back();
+					}
+
+					parsed_base& base = type.m_base_types.back();
+
+					if (it->m_str == "public")
+					{
+						base.m_access = parsed_access_type::public_access;
+						break;
+					}
+
+					if (it->m_str == "protected")
+					{
+						base.m_access = parsed_access_type::protected_access;
+						break;
+					}
+
+					if (it->m_str == "private")
+					{
+						base.m_access = parsed_access_type::private_access;
+						break;
+					}
+
+					if (it->m_flag == token::flag::valid_identifier)
+					{
+						base.m_name = parse_until_type_end(it);
+						break;
+					}
+
+					[[fallthrough]];
+				}
+				case parse_state::waiting_for_type_opening_bracket:
+				{
+					if (it->m_str == "{")
+					{
+						m_state = parse_state::waiting_for_refl;
+						break;
+					}
+
+					if (it->m_str == ":")
+					{
+						m_state = parse_state::waiting_for_type_inheritance_list;
+						break;
+					}
+
+					parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
+
+					if (it->m_str == "struct")
+					{
+						type.m_type = parsed_type_type::struct_type;
+						break;
+					}
+
+					if (it->m_str == "class")
+					{
+						type.m_type = parsed_type_type::class_type;
+						m_scope_stack.top().m_current_access_level = parsed_access_type::private_access;
+						break;
+					}
+
+					type.m_name = it->m_str;
 					break;
 				}
 				}
