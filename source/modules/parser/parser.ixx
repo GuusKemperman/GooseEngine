@@ -5,6 +5,32 @@ import utils;
 
 namespace ge
 {
+	export enum class parsed_keywords
+	{
+		inline_keyword = 1 << 1,
+		static_keyword = 1 << 2,
+		virtual_keyword = 1 << 3,
+		export_keyword = 1 << 4,
+	};
+
+	export API constexpr parsed_keywords operator|(parsed_keywords lhs, parsed_keywords rhs)
+	{
+		using key_t = std::underlying_type_t<parsed_keywords> ;
+		lhs = static_cast<parsed_keywords>(
+			static_cast<key_t>(lhs) |
+			static_cast<key_t>(rhs));
+		return lhs;
+	}
+
+	export API constexpr parsed_keywords operator&(parsed_keywords lhs, parsed_keywords rhs)
+	{
+		using key_t = std::underlying_type_t<parsed_keywords>;
+		lhs = static_cast<parsed_keywords>(
+			static_cast<key_t>(lhs) &
+			static_cast<key_t>(rhs));
+		return lhs;
+	}
+
 	export enum class parsed_access_type
 	{
 		public_access,
@@ -26,10 +52,14 @@ namespace ge
 		std::string m_name{};
 		std::string m_type{};
 
-		bool m_has_static_keyword{};
-		bool m_has_inline_keyword{};
-
+		parsed_keywords m_keywords{};
 		parsed_access_type m_access{};
+	};
+
+	export struct parsed_parameter
+	{
+		std::string m_type{};
+		std::string m_name{};
 	};
 
 	export struct parsed_func
@@ -37,12 +67,9 @@ namespace ge
 		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_return_type{};
-		std::vector<parsed_data> m_parameters{};
+		std::vector<parsed_parameter> m_parameters{};
 		
-		bool m_has_static_keyword{};
-		bool m_has_inline_keyword{};
-		bool m_has_virtual_keyword{};
-	
+		parsed_keywords m_keywords{};
 		parsed_access_type m_access{};
 	};
 
@@ -82,19 +109,30 @@ namespace ge
 		static constexpr std::string_view s_refl_data = "REFL_DATA";
 		static constexpr std::string_view s_refl_class = "REFL_TYPE";
 
-		enum class parse_state
+		API parsed_file parse(std::string_view file);
+
+	private:
+		enum class parse_state : std::uint32_t
 		{
-			waiting_for_refl,
-			waiting_for_attrib_opening_parentheses,
-			waiting_for_attrib_closing_parentheses,
-			waiting_for_data_type_and_name,
-			waiting_for_func_return_type_and_name,
-			waiting_for_func_param_closing_parentheses,
-			waiting_for_namespace_opening_bracket,
-			waiting_for_type_inheritance_list,
-			waiting_for_type_opening_bracket,
+			none,
+			complete_next_state_immediately,
+
+			reflect_func,
+			reflect_data,
+			reflect_parameter,
+
+			check_for_next_parameter,
+			skip_to_opening_parentheses,
+
+			parse_type,
+			parse_keywords,
+			parse_identifier,
+			parse_attributes,
+
+			store_reflected_data,
+			store_reflected_func,
+			store_parameter
 		};
-		parse_state m_state{};
 
 		struct scope_stack_entry
 		{
@@ -102,356 +140,428 @@ namespace ge
 			int m_curly_brackets_count_before_scope{};
 			parsed_access_type m_current_access_level{};
 		};
+
+		void complete_state();
+
+		void report_error(std::string reason) 
+		{
+			std::print("error: {}\n", reason);
+			
+			m_state_stack = {};
+			m_state_stack.emplace(parse_state::none);
+		}
+
+		void push_state(parse_state state);
+		void switch_state(parse_state state);
+
+		void on_event(parse_state state);
+		
+		void on_state_push_requested(parse_state state);
+		bool on_state_receive_token(parse_state state, token_iterator it);
+		void on_state_completed(parse_state state);
+
+		std::stack<parse_state> m_state_stack{};
 		std::stack<scope_stack_entry> m_scope_stack{};
 
-		std::string* m_attributes_target{};
-		parse_state m_state_after_attributes_found{};
-
-		int m_parentheses_count_before_parameters{};
-
-		API parsed_file parse(std::string_view file)
-		{
-			tokeniser tokeniser{ file };
-
-			auto parse_until_type_end =
-				[&](token_iterator& it)
-				{
-					std::string type{};
-
-					for (; it != tokeniser.end(); ++it)
-					{
-						if (it.template_bracket_count() == 0 
-							&& (it->m_flag == token::flag::white_space || it->m_str == "," || it->m_str == ";" || it->m_str == "{"))
-						{
-							break;
-						}
-
-						type += it->m_str;
-					}
-
-					return type;
-				};
-
-			auto retrieve_name_and_previous_tokens =
-				[&](std::string_view end_tokens, token_iterator& it, auto& target, const auto& receive_keyword_or_type) -> bool
-				{
-					bool success = false;
-
-					auto function_start_it = it;
-					auto function_name_it = it;
-					for (; it != tokeniser.end(); ++it)
-					{
-						if (end_tokens.contains(it->m_str)
-							&& it.template_bracket_count() == 0)
-						{
-							success = true;
-							break;
-						}
-
-						if (it->m_flag != token::flag::valid_identifier)
-						{
-							continue;
-						}
-
-						target.m_name = it->m_str;
-						function_name_it = it;
-					}
-
-					for (auto current = function_start_it; current != function_name_it; ++current)
-					{
-						receive_keyword_or_type(current);
-					}
-
-					return success;
-				};
-
-			parsed_file parsed_file{};
-			m_scope_stack.emplace(parsed_file, std::numeric_limits<int>::min());
-
-			for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
-			{
-				if (it->m_flag== token::flag::comment
-					|| it->m_flag== token::flag::attribute
-					|| it->m_flag== token::flag::white_space)
-				{
-					continue;
-				}
-
-				switch (m_state)
-				{
-				case parse_state::waiting_for_refl:
-					if (it->m_str == s_refl_func)
-					{
-						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-						parsed_func& func = parent.m_funcs.emplace_back();
-
-						m_state = parse_state::waiting_for_attrib_opening_parentheses;
-						m_attributes_target = &func.m_attributes;
-						m_state_after_attributes_found = parse_state::waiting_for_func_return_type_and_name;
-						
-						func.m_access = m_scope_stack.top().m_current_access_level;
-						break;
-					}
-
-					if (it->m_str == s_refl_data)
-					{
-						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-						parsed_data& data = parent.m_data.emplace_back();
-
-						m_state = parse_state::waiting_for_attrib_opening_parentheses;
-						m_attributes_target = &data.m_attributes;
-						m_state_after_attributes_found = parse_state::waiting_for_data_type_and_name;
-
-						data.m_access = m_scope_stack.top().m_current_access_level;
-						break;
-					}
-
-					if (it->m_str == s_refl_class)
-					{
-						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-						parsed_type& type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
-
-						m_scope_stack.emplace(type, it.curly_bracket_count());
-						m_state = parse_state::waiting_for_attrib_opening_parentheses;
-						m_attributes_target = &type.m_attributes;
-						m_state_after_attributes_found = parse_state::waiting_for_type_opening_bracket;
-
-						type.m_access = m_scope_stack.top().m_current_access_level;
-						break;
-					}
-
-					if (it->m_str == "namespace")
-					{
-						parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-						parsed_scope& new_namespace = parent.m_namespaces.emplace_back(make_unique_ref<parsed_scope>());
-						m_scope_stack.emplace(new_namespace, it.curly_bracket_count());
-						m_state = parse_state::waiting_for_namespace_opening_bracket;
-						break;
-					}
-
-					if (it->m_str == "}"
-						&& m_scope_stack.size() > 1
-						&& m_scope_stack.top().m_curly_brackets_count_before_scope == it.curly_bracket_count())
-					{
-						m_scope_stack.pop();
-						break;
-					}
-
-					if (it->m_str == "private")
-					{
-						m_scope_stack.top().m_current_access_level = parsed_access_type::private_access;
-						break;
-					}
-
-					if (it->m_str == "protected")
-					{
-						m_scope_stack.top().m_current_access_level = parsed_access_type::protected_access;
-						break;
-					}
-
-					if (it->m_str == "public")
-					{
-						m_scope_stack.top().m_current_access_level = parsed_access_type::public_access;
-						break;
-					}
-
-					break;
-				case parse_state::waiting_for_namespace_opening_bracket:
-					if (it->m_str == "{")
-					{
-						m_state = parse_state::waiting_for_refl;
-						break;
-					}
-
-					m_scope_stack.top().m_parsed_scope.get().m_name += it->m_str;
-					break;
-
-				case parse_state::waiting_for_attrib_opening_parentheses:
-					if (it->m_str == "(")
-					{
-						m_state = parse_state::waiting_for_attrib_closing_parentheses;
-						m_parentheses_count_before_parameters = it.parentheses_count() - 1;
-					}
-					break;
-				case parse_state::waiting_for_attrib_closing_parentheses:
-					if (it->m_str == ")"
-						&& it.parentheses_count() == m_parentheses_count_before_parameters)
-					{
-						m_state = m_state_after_attributes_found;
-						break;
-					}
-
-					*m_attributes_target += it->m_str;
-					break;
-
-				case parse_state::waiting_for_func_return_type_and_name:
-				{
-					parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
-					if (retrieve_name_and_previous_tokens("(", it, func,
-						[&](token_iterator& iterator)
-						{
-							if (iterator->m_str == "inline")
-							{
-								func.m_has_inline_keyword = true;
-								return;
-							}
-
-							if (iterator->m_str == "static")
-							{
-								func.m_has_static_keyword = true;
-								return;
-							}
-
-							if (iterator->m_str == "virtual")
-							{
-								func.m_has_virtual_keyword = true;
-								return;
-							}
-							
-							func.m_return_type = parse_until_type_end(iterator);
-						}))
-					{
-						m_state = parse_state::waiting_for_func_param_closing_parentheses;
-						m_parentheses_count_before_parameters = it.parentheses_count() - 1;
-					}
-					break;
-				}
-				case parse_state::waiting_for_func_param_closing_parentheses:
-				{
-					parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
-
-					if (it->m_str == ","
-						&& it.parentheses_count() == m_parentheses_count_before_parameters + 1)
-					{
-						func.m_parameters.emplace_back();
-						break;
-					}
-
-					if (it->m_str == ")"
-						&& it.parentheses_count() == m_parentheses_count_before_parameters)
-					{
-						m_state = parse_state::waiting_for_refl;
-						break;
-					}
-
-					if (func.m_parameters.empty())
-					{
-						func.m_parameters.emplace_back();
-					}
-
-					parsed_data& param = func.m_parameters.back();
-
-					if (param.m_type.empty())
-					{
-						param.m_type = parse_until_type_end(it);
-						break;
-					}
-
-					if (param.m_name.empty())
-					{
-						param.m_name = it->m_str;
-					}
-
-					break;
-				}
-				case parse_state::waiting_for_data_type_and_name:
-				{
-					parsed_data& data = m_scope_stack.top().m_parsed_scope.get().m_data.back();
-					if (retrieve_name_and_previous_tokens(";={(", it, data,
-						[&](token_iterator& iterator)
-						{
-							if (iterator->m_str == "inline")
-							{
-								data.m_has_inline_keyword = true;
-								return;
-							}
-
-							if (iterator->m_str == "static")
-							{
-								data.m_has_static_keyword = true;
-								return;
-							}
-
-							data.m_type = parse_until_type_end(iterator);
-						}))
-					{
-						m_state = parse_state::waiting_for_refl;
-					}
-					break;
-				}
-				case parse_state::waiting_for_type_inheritance_list:
-				{
-					parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
-
-					if (it->m_str == "," || type.m_base_types.empty() || !type.m_base_types.back().m_name.empty())
-					{
-						type.m_base_types.emplace_back();
-					}
-
-					parsed_base& base = type.m_base_types.back();
-
-					if (it->m_str == "public")
-					{
-						base.m_access = parsed_access_type::public_access;
-						break;
-					}
-
-					if (it->m_str == "protected")
-					{
-						base.m_access = parsed_access_type::protected_access;
-						break;
-					}
-
-					if (it->m_str == "private")
-					{
-						base.m_access = parsed_access_type::private_access;
-						break;
-					}
-
-					if (it->m_flag == token::flag::valid_identifier)
-					{
-						base.m_name = parse_until_type_end(it);
-						break;
-					}
-
-					[[fallthrough]];
-				}
-				case parse_state::waiting_for_type_opening_bracket:
-				{
-					if (it->m_str == "{")
-					{
-						m_state = parse_state::waiting_for_refl;
-						break;
-					}
-
-					if (it->m_str == ":")
-					{
-						m_state = parse_state::waiting_for_type_inheritance_list;
-						break;
-					}
-
-					parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
-
-					if (it->m_str == "struct")
-					{
-						type.m_type = parsed_type_type::struct_type;
-						break;
-					}
-
-					if (it->m_str == "class")
-					{
-						type.m_type = parsed_type_type::class_type;
-						m_scope_stack.top().m_current_access_level = parsed_access_type::private_access;
-						break;
-					}
-
-					type.m_name = it->m_str;
-					break;
-				}
-				}
-			}
-
-			return parsed_file;
-		}
+		std::string m_most_recently_parsed_attributes{};
+		std::string m_most_recently_parsed_type{};
+		std::string m_most_recently_parsed_identifier{};
+		parsed_keywords m_most_recently_parsed_keywords{};
 	};
+}
+
+ge::parsed_file ge::parser::parse(std::string_view file)
+{
+	tokeniser tokeniser{ file };
+	parsed_file parsed_file{};
+
+	m_scope_stack.emplace(parsed_file, -1);
+	push_state(parse_state::none);
+
+	for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
+	{
+		while (true)
+		{
+			if (bool was_token_consumed = on_state_receive_token(m_state_stack.top(), it))
+			{
+				break;
+			}
+		}
+	}
+
+	return parsed_file;
+}
+
+void ge::parser::on_state_push_requested(parse_state state)
+{
+	auto queue_single =
+		[&](parse_state sub_state)
+		{
+			if (sub_state == state)
+			{
+				m_state_stack.push(state);
+			}
+			else
+			{
+				push_state(sub_state);
+			}
+		};
+
+	auto queue_multi =
+		[&](const auto& self, auto sub_state, auto... sub_states)
+		{
+			if constexpr (sizeof...(sub_states) == 0)
+			{
+				queue_single(sub_state);
+			}
+			else
+			{
+				self(self, sub_states...);
+				queue_single(sub_state);
+			}
+		};
+
+	auto queue = 
+		[&](auto... states)
+		{
+			queue_multi(queue_multi, states...);
+		};
+
+	switch (state)
+	{
+	case parse_state::reflect_data:
+	{
+		queue(parse_state::parse_attributes, 
+			parse_state::parse_keywords, 
+			parse_state::parse_type,
+			parse_state::parse_identifier,
+			parse_state::complete_next_state_immediately,
+			parse_state::store_reflected_data);
+		break;
+	}
+	case parse_state::reflect_func:
+	{
+		queue(parse_state::parse_attributes,
+			parse_state::parse_keywords,
+			parse_state::parse_type,
+			parse_state::parse_identifier,
+			parse_state::complete_next_state_immediately,
+			parse_state::store_reflected_func,
+			parse_state::skip_to_opening_parentheses,
+			parse_state::check_for_next_parameter
+		);
+		break;
+	}
+	case parse_state::check_for_next_parameter:
+	{
+		queue(parse_state::check_for_next_parameter);
+		break;
+	}
+	case parse_state::reflect_parameter:
+	{
+		queue(parse_state::parse_type,
+			parse_state::parse_identifier,
+			parse_state::complete_next_state_immediately,
+			parse_state::store_parameter);
+		break;
+	}
+	case parse_state::parse_attributes:
+	{
+		m_most_recently_parsed_attributes.clear();
+		queue(parse_state::skip_to_opening_parentheses,
+			parse_state::parse_attributes);
+		break;
+	}
+	case parse_state::parse_type:
+	{
+		m_most_recently_parsed_type.clear();
+		queue(parse_state::parse_type);
+		break;
+	}
+	case parse_state::parse_keywords:
+	{
+		m_most_recently_parsed_keywords = {};
+		queue(parse_state::parse_keywords);
+		break;
+	}
+	case parse_state::parse_identifier:
+	{
+		m_most_recently_parsed_identifier.clear();
+		queue(parse_state::parse_identifier);
+		break;
+	}
+	case parse_state::none:
+	case parse_state::skip_to_opening_parentheses:
+	case parse_state::complete_next_state_immediately:
+	case parse_state::store_reflected_data:
+	case parse_state::store_reflected_func:
+	case parse_state::store_parameter:
+		queue(state);
+		break;
+	default:
+		std::unreachable();
+	}
+}
+
+void ge::parser::complete_state()
+{
+	parse_state completed = m_state_stack.top();
+	m_state_stack.pop();
+	on_state_completed(completed);
+
+	if (m_state_stack.top() == parse_state::complete_next_state_immediately)
+	{
+		m_state_stack.pop();
+		complete_state();
+	}
+}
+
+void ge::parser::push_state(parse_state state)
+{
+	on_state_push_requested(state);
+}
+
+void ge::parser::switch_state(parse_state state)
+{
+	complete_state();
+	on_state_push_requested(state);
+}
+
+bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
+{
+	switch (state)
+	{
+	case parse_state::parse_keywords:
+	{
+		auto add_flag =
+			[&](parsed_keywords keyword)
+			{
+				m_most_recently_parsed_keywords = m_most_recently_parsed_keywords | keyword;
+			};
+
+		if (it->m_flag == token::flag::white_space ||
+			it->m_flag == token::flag::attribute ||
+			it->m_flag == token::flag::comment)
+		{
+			return true;
+		}
+
+		if (it->m_str == "static")
+		{
+			add_flag(parsed_keywords::static_keyword);
+			return true;
+		}
+
+		if (it->m_str == "inline")
+		{
+			add_flag(parsed_keywords::inline_keyword);
+			return true;
+		}
+
+		if (it->m_str == "virtual")
+		{
+			add_flag(parsed_keywords::virtual_keyword);
+			return true;
+		}
+
+		if (it->m_str == "export")
+		{
+			add_flag(parsed_keywords::export_keyword);
+			return true;
+		}
+
+		// Assume it's a macro if it's all caps
+		if (std::ranges::all_of(it->m_str, [](char ch){ return std::isupper(static_cast<unsigned char>(ch)); }))
+		{
+			return true;
+		}
+
+		complete_state();
+		return false;
+	}
+	case parse_state::skip_to_opening_parentheses:
+	{
+		if (it->m_str == "(")
+		{
+			complete_state();
+		}
+		return true;
+	}
+	case parse_state::parse_identifier:
+	{
+		if (it->m_flag == token::flag::valid_identifier)
+		{
+			m_most_recently_parsed_identifier = it->m_str;
+			complete_state();
+		}
+		return true;
+	}
+	case parse_state::parse_attributes:
+	{
+		if (it.parentheses_count() == 0
+			&& it->m_str == ")")
+		{
+			complete_state();
+			return true;
+		}
+
+		m_most_recently_parsed_attributes += it->m_str;
+		return true;
+	}
+	case parse_state::parse_type:
+	{
+		if (m_most_recently_parsed_type.empty() 
+			&& it->m_flag == token::flag::white_space)
+		{
+			return true;
+		}
+
+		if (it.template_bracket_count() == 0
+			&& (it->m_flag == token::flag::white_space || it->m_str == "," || it->m_str == ";" || it->m_str == "{"))
+		{
+			complete_state();
+			return false;
+		}
+
+		m_most_recently_parsed_type += it->m_str;
+		return true;
+	}
+	case parse_state::none:
+	{
+		if (it->m_str == s_refl_data)
+		{
+			push_state(parse_state::reflect_data);
+			return true;
+		}
+
+		if (it->m_str == s_refl_func)
+		{
+			push_state(parse_state::reflect_func);
+			return true;
+		}
+
+		return true;
+	}
+	case parse_state::check_for_next_parameter:
+	{
+		if (it.parentheses_count() == 0
+			&& it->m_str == ")")
+		{
+			complete_state();
+			return true;
+		}
+
+		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
+
+		if (func.m_parameters.empty())
+		{
+			complete_state();
+			push_state(parse_state::reflect_parameter);
+			return false;
+		}
+
+		if (it.parentheses_count() == 1
+			&& it.template_bracket_count() == 0
+			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
+			&& it->m_str == ",")
+		{
+			complete_state();
+			push_state(parse_state::reflect_parameter);
+			return true;
+		}
+
+		return true;
+	}
+	default:
+	case parse_state::reflect_data:
+	case parse_state::reflect_func:
+	case parse_state::reflect_parameter:
+	case parse_state::complete_next_state_immediately:
+	case parse_state::store_reflected_data:
+	case parse_state::store_reflected_func:
+	case parse_state::store_parameter:
+		std::unreachable();
+	}
+}
+
+void ge::parser::on_state_completed(parse_state state)
+{
+	switch (state)
+	{
+	case parse_state::store_reflected_data:
+	{
+		if (m_most_recently_parsed_type.empty())
+		{
+			report_error(std::format("{} was not followed by a type", s_refl_data));
+			break;
+		}
+
+		if (m_most_recently_parsed_identifier.empty())
+		{
+			report_error(std::format("{} requires a named variable, but no valid identifier could be found.", s_refl_data));
+			break;
+		}
+
+		parsed_data& data = m_scope_stack.top().m_parsed_scope.get().m_data.emplace_back();
+		data.m_access = m_scope_stack.top().m_current_access_level;
+		data.m_name = m_most_recently_parsed_identifier;
+		data.m_type = m_most_recently_parsed_type;
+		data.m_attributes = m_most_recently_parsed_attributes;
+		data.m_keywords = m_most_recently_parsed_keywords;
+		break;
+	}
+	case parse_state::store_reflected_func:
+	{
+		if (m_most_recently_parsed_type.empty())
+		{
+			report_error(std::format("{} was not followed by a return type", s_refl_func));
+			break;
+		}
+
+		if (m_most_recently_parsed_identifier.empty())
+		{
+			report_error(std::format("{} requires a named function, but no valid identifier could be found.", s_refl_func));
+			break;
+		}
+
+		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.emplace_back();
+		func.m_access = m_scope_stack.top().m_current_access_level;
+		func.m_name = m_most_recently_parsed_identifier;
+		func.m_return_type = m_most_recently_parsed_type;
+		func.m_attributes = m_most_recently_parsed_attributes;
+		func.m_keywords = m_most_recently_parsed_keywords;
+		break;
+	}
+	case parse_state::store_parameter:
+	{
+		if (m_most_recently_parsed_type.empty())
+		{
+			report_error(std::format("{} has a parameter without a type", s_refl_func));
+			break;
+		}
+	
+		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
+		parsed_parameter& param = func.m_parameters.emplace_back();
+		
+		param.m_type = m_most_recently_parsed_type;
+		param.m_name = m_most_recently_parsed_identifier;
+
+		push_state(parse_state::check_for_next_parameter);
+		break;
+	}
+	case parse_state::parse_type:
+	case parse_state::parse_keywords:
+	case parse_state::skip_to_opening_parentheses:
+	case parse_state::parse_identifier:
+	case parse_state::parse_attributes:
+	case parse_state::check_for_next_parameter:
+	default:
+		break;
+	case parse_state::none:
+	case parse_state::complete_next_state_immediately:
+	case parse_state::reflect_func:
+	case parse_state::reflect_data:
+	case parse_state::reflect_parameter:
+		std::unreachable();
+	}
 }

@@ -48,7 +48,7 @@ UNIT_TEST(parser, complex_function_no_crash)
         "        /*Comment in comment!\n"
         "        // Commentttsss\n"
         "        */\n"
-        R"(        [[nodiscard]] inline /*haha here is another comment */ API  int ___function_name    (int param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)" "\n"
+        R"(        [[nodiscard]] inline /*haha here is another comment */ API  int ___function_name    (const int*& param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)" "\n"
         "            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), std::array<std::vector<std::pair<int, float>>, 0x401ul > foo = 1.0f);\n"
     );
 
@@ -56,7 +56,7 @@ UNIT_TEST(parser, complex_function_no_crash)
     is_eq(file.m_funcs.front().m_return_type, "int");
     is_eq(file.m_funcs.front().m_name, "___function_name");
     is_eq(file.m_funcs.front().m_attributes, "DisplayName(\"Hello)()}\"),DisplayName(\"Hello)()}\"),IsScriptable");
-    is_eq(file.m_funcs.front().m_parameters.at(0).m_type, "int");
+    is_eq(file.m_funcs.front().m_parameters.at(0).m_type, "const int*&");
     is_eq(file.m_funcs.front().m_parameters.at(0).m_name, "param0_name");
     is_eq(file.m_funcs.front().m_parameters.at(1).m_type, "std::string");
     is_eq(file.m_funcs.front().m_parameters.at(1).m_name, "param1_name");
@@ -67,7 +67,7 @@ UNIT_TEST(parser, complex_function_no_crash)
     is_eq(file.m_funcs.front().m_parameters.size(), 4ull);
 }
 
-UNIT_TEST(tokeniser, func_signature)
+UNIT_TEST(tokeniser, simple_func)
 {
     ge::tokeniser tokeniser{ "int func_name() { return 1; }" };
 
@@ -87,6 +87,43 @@ UNIT_TEST(tokeniser, func_signature)
     is_eq(it->m_flag, ge::token::flag::white_space); ++it;
     is_eq(it->m_str, "}"); ++it;
     is_eq(it, tokeniser.end());
+}
+
+UNIT_TEST(parser, simple_data)
+{
+    ge::parser parser{};
+
+    std::string_view src =
+        "REFL_DATA(attry!, attry2!)\n"
+        "static int global_data = 5;";
+
+    ge::parsed_file file = parser.parse(src);
+
+    is_eq(file.m_data.at(0).m_attributes, "attry!, attry2!");
+    is_eq(file.m_data.at(0).m_type, "int");
+    is_eq(file.m_data.at(0).m_name, "global_data");
+    is_eq(file.m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword);
+}
+
+UNIT_TEST(parser, simple_func)
+{
+    ge::parser parser{};
+
+    std::string_view src =
+        "REFL_FUNC(attry!, attry2!)\n"
+        "static std::vector<int> global_func(std::array<int, 2> p1 = { 1, 2 }, std::array<int, 3> p2 = std::array<int, 3>(1, 2, 3));";
+
+    ge::parsed_file file = parser.parse(src);
+
+    is_eq(file.m_funcs.at(0).m_attributes, "attry!, attry2!");
+    is_eq(file.m_funcs.at(0).m_return_type, "std::vector<int>");
+    is_eq(file.m_funcs.at(0).m_name, "global_func");
+    is_eq(file.m_funcs.at(0).m_keywords, ge::parsed_keywords::static_keyword);
+    is_eq(file.m_funcs.at(0).m_parameters.at(0).m_name, "p1");
+    is_eq(file.m_funcs.at(0).m_parameters.at(0).m_type, "std::array<int, 2>");
+
+    is_eq(file.m_funcs.at(0).m_parameters.at(1).m_name, "p2");
+    is_eq(file.m_funcs.at(0).m_parameters.at(1).m_type, "std::array<int, 3>");
 }
 
 UNIT_TEST(parser, complete_file)
@@ -146,23 +183,19 @@ UNIT_TEST(parser, complete_file)
 	
 	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_type, "std::vector<std::string<char>>");
 	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_name, "global_data");
-	is_true(file.m_namespaces.at(0).get().m_data.at(0).m_has_inline_keyword);
-	is_true(file.m_namespaces.at(0).get().m_data.at(0).m_has_static_keyword);
-	
+    is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
+
     is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_type, "std::vector<std::string<char>>");
     is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_name, "global_data_2");
-    is_true(file.m_namespaces.at(0).get().m_data.at(1).m_has_inline_keyword);
-    is_true(file.m_namespaces.at(0).get().m_data.at(1).m_has_static_keyword);
+    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
 
     is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_type, "std::vector<std::string<char>>");
+    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
     is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_name, "global_data_3");
-    is_true(file.m_namespaces.at(0).get().m_data.at(2).m_has_inline_keyword);
-    is_true(file.m_namespaces.at(0).get().m_data.at(2).m_has_static_keyword);
 
     is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_type, "std::vector<std::string<char>>");
     is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_name, "global_data_4");
-    is_true(file.m_namespaces.at(0).get().m_data.at(3).m_has_inline_keyword);
-    is_true(file.m_namespaces.at(0).get().m_data.at(3).m_has_static_keyword);
+    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
 
 	is_eq(file.m_namespaces.at(0).get().m_name, "first");
     is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
