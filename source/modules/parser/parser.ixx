@@ -3,6 +3,9 @@ export module parser;
 export import :tokeniser;
 import utils;
 
+// TODO: Consider splitting enums into separate ones
+// TODO: Consider removing the '{' counter in the scopestack entry, and instead infer it from the size of the stack
+
 namespace ge
 {
 	export enum class parsed_keywords
@@ -117,11 +120,13 @@ namespace ge
 			none,
 			complete_next_state_immediately,
 
-			reflect_func,
+			reflect_namespace,
 			reflect_data,
+			reflect_func,
 			reflect_parameter,
 
 			check_for_next_parameter,
+
 			skip_to_opening_parentheses,
 
 			parse_type,
@@ -129,9 +134,11 @@ namespace ge
 			parse_identifier,
 			parse_attributes,
 
+			store_reflected_namespace,
 			store_reflected_data,
 			store_reflected_func,
-			store_parameter
+			store_parameter,
+
 		};
 
 		struct scope_stack_entry
@@ -229,6 +236,14 @@ void ge::parser::on_state_push_requested(parse_state state)
 
 	switch (state)
 	{
+	case parse_state::reflect_namespace:
+	{
+		queue(parse_state::parse_identifier,
+			parse_state::complete_next_state_immediately,
+			parse_state::store_reflected_namespace);
+		break;
+	}
+
 	case parse_state::reflect_data:
 	{
 		queue(parse_state::parse_attributes, 
@@ -293,6 +308,7 @@ void ge::parser::on_state_push_requested(parse_state state)
 	case parse_state::none:
 	case parse_state::skip_to_opening_parentheses:
 	case parse_state::complete_next_state_immediately:
+	case parse_state::store_reflected_namespace:
 	case parse_state::store_reflected_data:
 	case parse_state::store_reflected_func:
 	case parse_state::store_parameter:
@@ -394,6 +410,17 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			m_most_recently_parsed_identifier = it->m_str;
 			complete_state();
 		}
+	
+		if (it->m_str == "{"
+			|| it->m_str == "}"
+			|| it->m_str == "("
+			|| it->m_str == ")"
+			|| it->m_str == ";")
+		{
+			complete_state();
+			return false;
+		}
+
 		return true;
 	}
 	case parse_state::parse_attributes:
@@ -440,6 +467,24 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			return true;
 		}
 
+		if (it->m_str == "namespace")
+		{
+			push_state(parse_state::reflect_namespace);
+			return true;
+		}
+
+		if (it->m_str == "}")
+		{
+			if (m_scope_stack.size() <= 1ull)
+			{
+				report_error("Unexpected token: '}'. No matching '{'");
+				return true;
+			}
+
+			m_scope_stack.pop();
+			return true;
+		}
+
 		return true;
 	}
 	case parse_state::check_for_next_parameter:
@@ -473,10 +518,12 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		return true;
 	}
 	default:
+	case parse_state::reflect_namespace:
 	case parse_state::reflect_data:
 	case parse_state::reflect_func:
 	case parse_state::reflect_parameter:
 	case parse_state::complete_next_state_immediately:
+	case parse_state::store_reflected_namespace:
 	case parse_state::store_reflected_data:
 	case parse_state::store_reflected_func:
 	case parse_state::store_parameter:
@@ -488,6 +535,16 @@ void ge::parser::on_state_completed(parse_state state)
 {
 	switch (state)
 	{
+	case parse_state::store_reflected_namespace:
+	{
+		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
+		parsed_scope& new_namespace = parent.m_namespaces.emplace_back(make_unique_ref<parsed_scope>());
+
+		new_namespace.m_name = m_most_recently_parsed_identifier;
+
+		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope);
+		break;
+	}
 	case parse_state::store_reflected_data:
 	{
 		if (m_most_recently_parsed_type.empty())
@@ -559,8 +616,9 @@ void ge::parser::on_state_completed(parse_state state)
 		break;
 	case parse_state::none:
 	case parse_state::complete_next_state_immediately:
-	case parse_state::reflect_func:
+	case parse_state::reflect_namespace:
 	case parse_state::reflect_data:
+	case parse_state::reflect_func:
 	case parse_state::reflect_parameter:
 		std::unreachable();
 	}

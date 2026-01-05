@@ -89,6 +89,27 @@ UNIT_TEST(tokeniser, simple_func)
     is_eq(it, tokeniser.end());
 }
 
+
+
+UNIT_TEST(parser, simple_namespace)
+{
+    ge::parser parser{};
+
+    std::string_view src =
+        "namespace hello\n"
+        "{\n"
+        "    namespace         world {}\n"
+        "}\n"
+        "namespace {}\n";
+
+    ge::parsed_file file = parser.parse(src);
+
+    is_eq(file.m_namespaces.at(0).get().m_name, "hello");
+    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_name, "world");
+    is_eq(file.m_namespaces.at(1).get().m_name, "");
+    is_eq(file.m_namespaces.size(), 2ull);
+}
+
 UNIT_TEST(parser, simple_data)
 {
     ge::parser parser{};
