@@ -207,6 +207,16 @@ ge::parsed_file ge::parser::parse(std::string_view file)
 		}
 	}
 
+	if (m_scope_stack.size() > 1ull)
+	{
+		report_error("Found '{' with no matching '}'");
+	}
+
+	if (m_state_stack.size() > 1ull)
+	{
+		report_error("Parser did not fully exit all of it's states before reaching the end of the file.");
+	}
+
 	return parsed_file;
 }
 
@@ -563,17 +573,18 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 
 		if (it->m_str == "}")
 		{
+			if (it.curly_bracket_count() != m_scope_stack.top().m_curly_brackets_count_before_scope)
+			{
+				return true;
+			}
+
 			if (m_scope_stack.size() <= 1ull)
 			{
 				report_error("Unexpected token: '}'. No matching '{'");
 				return true;
 			}
 
-			if (it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope)
-			{
-				m_scope_stack.pop();
-			}
-
+			m_scope_stack.pop();
 			return true;
 		}
 
@@ -662,7 +673,7 @@ void ge::parser::on_state_completed(parse_state state)
 
 		new_namespace.m_name = m_most_recently_parsed_identifier;
 
-		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope);
+		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 		break;
 	}
 	case parse_state::store_reflected_type:
@@ -680,7 +691,7 @@ void ge::parser::on_state_completed(parse_state state)
 		new_type.m_type = m_most_recently_parsed_type_type;
 		new_type.m_attributes = m_most_recently_parsed_attributes;
 
-		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope);
+		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 
 		switch (new_type.m_type)
 		{

@@ -37,6 +37,42 @@ R"(        [[nodiscard]] inline /*haha here is another comment */int function_na
 );
 }
 
+UNIT_TEST(tokeniser, iterators)
+{
+    ge::tokeniser tokeniser{ "1 2 3 4" };
+
+    (void)expect_exception<std::out_of_range>(
+        [&]
+        {
+            ge::token_iterator end = tokeniser.end();
+            ++end;
+        });
+
+    ge::token_iterator it = tokeniser.begin();
+    is_eq(it->m_str, "1");
+    is_ne(it, tokeniser.end());
+    ++it;
+	is_eq(it->m_str, " ");
+    is_ne(it, tokeniser.end());
+    ++it;
+	is_eq(it->m_str, "2");
+    is_ne(it, tokeniser.end());
+    ++it;
+    is_eq(it->m_str, " ");
+    is_ne(it, tokeniser.end());
+    ++it;
+    is_eq(it->m_str, "3");
+    is_ne(it, tokeniser.end());
+    ++it;
+    is_eq(it->m_str, " ");
+    is_ne(it, tokeniser.end());
+    ++it;
+    is_eq(it->m_str, "4");
+    is_ne(it, tokeniser.end());
+    ++it;
+    is_eq(it, tokeniser.end());
+}
+
 UNIT_TEST(parser, complex_function_no_crash)
 {
     ge::parser parser{};
@@ -88,8 +124,6 @@ UNIT_TEST(tokeniser, simple_func)
     is_eq(it->m_str, "}"); ++it;
     is_eq(it, tokeniser.end());
 }
-
-
 
 UNIT_TEST(parser, simple_namespace)
 {
@@ -194,7 +228,7 @@ UNIT_TEST(parser, complete_file)
         "   REFL_FUNC()\n"
         "    int anon() { return 6; }\n"
         "}";
-    
+    print_tokens(src);
 	ge::parsed_file file = parser.parse(src);
 
     is_eq(file.m_funcs.at(0).m_return_type, "int");
@@ -204,19 +238,19 @@ UNIT_TEST(parser, complete_file)
 	
 	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_type, "std::vector<std::string<char>>");
 	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_name, "global_data");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
+    is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
 
     is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_type, "std::vector<std::string<char>>");
     is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_name, "global_data_2");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
+    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
 
     is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_type, "std::vector<std::string<char>>");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
+    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
     is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_name, "global_data_3");
 
     is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_type, "std::vector<std::string<char>>");
     is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_name, "global_data_4");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_keywords, ge::parsed_keywords::static_keyword & ge::parsed_keywords::inline_keyword);
+    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
 
 	is_eq(file.m_namespaces.at(0).get().m_name, "first");
     is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
