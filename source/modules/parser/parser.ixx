@@ -34,7 +34,7 @@ namespace ge
 		return lhs;
 	}
 
-	export enum class parsed_access_type
+	export enum class parsed_access_specifier
 	{
 		public_access,
 		private_access,
@@ -56,7 +56,7 @@ namespace ge
 		std::string m_type{};
 
 		parsed_keywords m_keywords{};
-		parsed_access_type m_access{};
+		parsed_access_specifier m_access{};
 	};
 
 	export struct parsed_parameter
@@ -73,7 +73,7 @@ namespace ge
 		std::vector<parsed_parameter> m_parameters{};
 		
 		parsed_keywords m_keywords{};
-		parsed_access_type m_access{};
+		parsed_access_specifier m_access{};
 	};
 
 	export struct parsed_scope
@@ -90,7 +90,7 @@ namespace ge
 	struct parsed_base
 	{
 		std::string m_name{};
-		parsed_access_type m_access{};
+		std::optional<parsed_access_specifier> m_access{};
 	};
 
 	struct parsed_type : parsed_scope
@@ -98,7 +98,7 @@ namespace ge
 		std::string m_attributes{};
 		parsed_type_type m_type{};
 		std::vector<parsed_base> m_base_types{};
-		parsed_access_type m_access{};
+		parsed_access_specifier m_access{};
 	};
 
 	export struct parsed_file : parsed_scope
@@ -121,31 +121,37 @@ namespace ge
 			complete_next_state_immediately,
 
 			reflect_namespace,
+			reflect_type,
+			reflect_base,
 			reflect_data,
 			reflect_func,
 			reflect_parameter,
 
 			check_for_next_parameter,
+			check_for_next_base,
 
 			skip_to_opening_parentheses,
 
 			parse_type,
+			parse_type_type, // check for the 'struct' or 'class' keyword
 			parse_keywords,
 			parse_identifier,
 			parse_attributes,
+			parse_access_specifier,
 
 			store_reflected_namespace,
+			store_reflected_type,
+			store_base,
 			store_reflected_data,
 			store_reflected_func,
 			store_parameter,
-
 		};
 
 		struct scope_stack_entry
 		{
 			std::reference_wrapper<parsed_scope> m_parsed_scope;
 			int m_curly_brackets_count_before_scope{};
-			parsed_access_type m_current_access_level{};
+			parsed_access_specifier m_current_access_level{};
 		};
 
 		void complete_state();
@@ -167,6 +173,9 @@ namespace ge
 		bool on_state_receive_token(parse_state state, token_iterator it);
 		void on_state_completed(parse_state state);
 
+		// Keyword being private, protected, or public
+		static std::optional<parsed_access_specifier> get_access_specifier_from_string(std::string_view keyword);
+
 		std::stack<parse_state> m_state_stack{};
 		std::stack<scope_stack_entry> m_scope_stack{};
 
@@ -174,6 +183,8 @@ namespace ge
 		std::string m_most_recently_parsed_type{};
 		std::string m_most_recently_parsed_identifier{};
 		parsed_keywords m_most_recently_parsed_keywords{};
+		parsed_type_type m_most_recently_parsed_type_type{};
+		std::optional<parsed_access_specifier> m_most_recently_parsed_access_specifier{};
 	};
 }
 
@@ -243,7 +254,6 @@ void ge::parser::on_state_push_requested(parse_state state)
 			parse_state::store_reflected_namespace);
 		break;
 	}
-
 	case parse_state::reflect_data:
 	{
 		queue(parse_state::parse_attributes, 
@@ -252,6 +262,16 @@ void ge::parser::on_state_push_requested(parse_state state)
 			parse_state::parse_identifier,
 			parse_state::complete_next_state_immediately,
 			parse_state::store_reflected_data);
+		break;
+	}
+	case parse_state::reflect_type:
+	{
+		queue(parse_state::parse_attributes,
+			parse_state::parse_type_type,
+			parse_state::parse_identifier,
+			parse_state::complete_next_state_immediately,
+			parse_state::store_reflected_type,
+			parse_state::check_for_next_base);
 		break;
 	}
 	case parse_state::reflect_func:
@@ -267,17 +287,20 @@ void ge::parser::on_state_push_requested(parse_state state)
 		);
 		break;
 	}
-	case parse_state::check_for_next_parameter:
-	{
-		queue(parse_state::check_for_next_parameter);
-		break;
-	}
 	case parse_state::reflect_parameter:
 	{
 		queue(parse_state::parse_type,
 			parse_state::parse_identifier,
 			parse_state::complete_next_state_immediately,
 			parse_state::store_parameter);
+		break;
+	}
+	case parse_state::reflect_base:
+	{
+		queue(parse_state::parse_access_specifier,
+			parse_state::parse_type,
+			parse_state::complete_next_state_immediately,
+			parse_state::store_base);
 		break;
 	}
 	case parse_state::parse_attributes:
@@ -293,6 +316,18 @@ void ge::parser::on_state_push_requested(parse_state state)
 		queue(parse_state::parse_type);
 		break;
 	}
+	case parse_state::parse_type_type:
+	{
+		m_most_recently_parsed_type_type = {};
+		queue(parse_state::parse_type_type);
+		break;
+	}
+	case parse_state::parse_access_specifier:
+	{
+		m_most_recently_parsed_access_specifier.reset();
+		queue(parse_state::parse_access_specifier);
+		break;
+	}
 	case parse_state::parse_keywords:
 	{
 		m_most_recently_parsed_keywords = {};
@@ -306,9 +341,13 @@ void ge::parser::on_state_push_requested(parse_state state)
 		break;
 	}
 	case parse_state::none:
+	case parse_state::check_for_next_parameter:
+	case parse_state::check_for_next_base:
 	case parse_state::skip_to_opening_parentheses:
 	case parse_state::complete_next_state_immediately:
 	case parse_state::store_reflected_namespace:
+	case parse_state::store_reflected_type:
+	case parse_state::store_base:
 	case parse_state::store_reflected_data:
 	case parse_state::store_reflected_func:
 	case parse_state::store_parameter:
@@ -453,6 +492,43 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		m_most_recently_parsed_type += it->m_str;
 		return true;
 	}
+	case parse_state::parse_type_type:
+	{
+		if (it->m_str == "class")
+		{
+			m_most_recently_parsed_type_type = parsed_type_type::class_type;
+			complete_state();
+			return true;
+		}
+
+		if (it->m_str == "struct")
+		{
+			m_most_recently_parsed_type_type = parsed_type_type::struct_type;
+			complete_state();
+			return true;
+		}
+
+		return true;
+	}
+	case parse_state::parse_access_specifier:
+	{
+		std::optional<parsed_access_specifier> access = get_access_specifier_from_string(it->m_str);
+
+		if (access.has_value())
+		{
+			m_most_recently_parsed_access_specifier = std::move(access);
+			complete_state();
+			return true;
+		}
+
+		if (it->m_flag == token::flag::white_space)
+		{
+			return true;
+		}
+
+		complete_state();
+		return false;
+	}
 	case parse_state::none:
 	{
 		if (it->m_str == s_refl_data)
@@ -467,9 +543,21 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			return true;
 		}
 
+		if (it->m_str == s_refl_class)
+		{
+			push_state(parse_state::reflect_type);
+			return true;
+		}
+
 		if (it->m_str == "namespace")
 		{
 			push_state(parse_state::reflect_namespace);
+			return true;
+		}
+
+		if (std::optional<parsed_access_specifier> access = get_access_specifier_from_string(it->m_str))
+		{
+			m_scope_stack.top().m_current_access_level = *access;
 			return true;
 		}
 
@@ -481,7 +569,11 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 				return true;
 			}
 
-			m_scope_stack.pop();
+			if (it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope)
+			{
+				m_scope_stack.pop();
+			}
+
 			return true;
 		}
 
@@ -489,6 +581,7 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 	}
 	case parse_state::check_for_next_parameter:
 	{
+		// TODO check for curly/template bracket
 		if (it.parentheses_count() == 0
 			&& it->m_str == ")")
 		{
@@ -517,13 +610,40 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 
 		return true;
 	}
+	case parse_state::check_for_next_base:
+	{
+		if (it.template_bracket_count() != 0)
+		{
+			return true;
+		}
+
+		if (it->m_str == "{")
+		{
+			complete_state();
+			return true;
+		}
+
+		if (it->m_str == ":"
+			|| it->m_str == ",")
+		{
+			complete_state();
+			push_state(parse_state::reflect_base);
+			return true;
+		}
+		return true;
+	}
+
 	default:
 	case parse_state::reflect_namespace:
+	case parse_state::reflect_type:
 	case parse_state::reflect_data:
 	case parse_state::reflect_func:
 	case parse_state::reflect_parameter:
+	case parse_state::reflect_base:
 	case parse_state::complete_next_state_immediately:
 	case parse_state::store_reflected_namespace:
+	case parse_state::store_reflected_type:
+	case parse_state::store_base:
 	case parse_state::store_reflected_data:
 	case parse_state::store_reflected_func:
 	case parse_state::store_parameter:
@@ -543,6 +663,53 @@ void ge::parser::on_state_completed(parse_state state)
 		new_namespace.m_name = m_most_recently_parsed_identifier;
 
 		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope);
+		break;
+	}
+	case parse_state::store_reflected_type:
+	{
+		if (m_most_recently_parsed_identifier.empty())
+		{
+			report_error(std::format("{} requires a named type, but no valid identifier could be found.", s_refl_class));
+			break;
+		}
+
+		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
+		parsed_type& new_type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
+
+		new_type.m_name = m_most_recently_parsed_identifier;
+		new_type.m_type = m_most_recently_parsed_type_type;
+		new_type.m_attributes = m_most_recently_parsed_attributes;
+
+		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope);
+
+		switch (new_type.m_type)
+		{
+		case parsed_type_type::class_type:
+			new_entry.m_current_access_level = parsed_access_specifier::private_access;
+			break;
+		case parsed_type_type::struct_type:
+			new_entry.m_current_access_level = parsed_access_specifier::public_access;
+			break;
+		default:
+			std::unreachable();
+		}
+		break;
+	}
+	case parse_state::store_base:
+	{
+		if (m_most_recently_parsed_type.empty())
+		{
+			report_error(std::format("{} has a base type, but no valid typename could be parsed.", s_refl_class));
+			break;
+		}
+
+		parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
+		parsed_base& base = type.m_base_types.emplace_back();
+
+		base.m_name = m_most_recently_parsed_type;
+		base.m_access = m_most_recently_parsed_access_specifier;
+
+		push_state(parse_state::check_for_next_base);
 		break;
 	}
 	case parse_state::store_reflected_data:
@@ -610,16 +777,41 @@ void ge::parser::on_state_completed(parse_state state)
 	case parse_state::parse_keywords:
 	case parse_state::skip_to_opening_parentheses:
 	case parse_state::parse_identifier:
+	case parse_state::parse_type_type:
+	case parse_state::parse_access_specifier:
 	case parse_state::parse_attributes:
 	case parse_state::check_for_next_parameter:
+	case parse_state::check_for_next_base:
 	default:
 		break;
 	case parse_state::none:
 	case parse_state::complete_next_state_immediately:
 	case parse_state::reflect_namespace:
 	case parse_state::reflect_data:
+	case parse_state::reflect_type:
+	case parse_state::reflect_base:
 	case parse_state::reflect_func:
 	case parse_state::reflect_parameter:
 		std::unreachable();
 	}
+}
+
+std::optional<ge::parsed_access_specifier> ge::parser::get_access_specifier_from_string(std::string_view keyword)
+{
+	if (keyword == "private")
+	{
+		return parsed_access_specifier::private_access;
+	}
+	
+	if (keyword == "protected")
+	{
+		return parsed_access_specifier::protected_access;
+	}
+
+	if (keyword == "public")
+	{
+		return parsed_access_specifier::public_access;
+	}
+
+	return std::nullopt;
 }

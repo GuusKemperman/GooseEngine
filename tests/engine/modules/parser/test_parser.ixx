@@ -241,7 +241,7 @@ UNIT_TEST(parser, simple_class)
         "{\n"
         "    REFL_TYPE(i_am_an_attribute = 5)\n"
         "        class __myClassName :\n"
-        "        public foo, private bar, protected _foobar<foo, bar>\n"
+        "        public foo, private bar, protected _foobar<foo, bar>, barfoo\n"
         "    {\n"
         "        REFL_DATA(me_is_data!)\n"
         "            std::vector<char> vecy{};\n"
@@ -256,18 +256,21 @@ UNIT_TEST(parser, simple_class)
     ge::parsed_file file = parser.parse(src);
     is_eq(file.m_namespaces.at(0)->m_name, "my_name_spacey");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_name, "__myClassName");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_attributes, "i_am_an_attribute=5");
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_attributes, "i_am_an_attribute = 5");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(0).m_name, "foo");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(0).m_access, ge::parsed_access_type::public_access);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(0).m_access, ge::parsed_access_specifier::public_access);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(1).m_name, "bar");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(1).m_access, ge::parsed_access_type::private_access);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(1).m_access, ge::parsed_access_specifier::private_access);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(2).m_name, "_foobar<foo, bar>");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(2).m_access, ge::parsed_access_type::protected_access);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(2).m_access, ge::parsed_access_specifier::protected_access);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(3).m_name, "barfoo");
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(3).m_access, std::nullopt);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_type, ge::parsed_type_type::class_type);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_name, "vecy");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_name, "vecy");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_attributes, "me_is_data!");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_type, "std::vector<char>");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_access, ge::parsed_access_type::private_access);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_access, ge::parsed_access_specifier::private_access);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_name, "is_alpha");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_attributes, "hi");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_name, "is_alpha");
@@ -275,5 +278,5 @@ UNIT_TEST(parser, simple_class)
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_type, "char");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_name, "al");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.size(), 1ull);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_access, ge::parsed_access_type::public_access);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_access, ge::parsed_access_specifier::public_access);
 }
