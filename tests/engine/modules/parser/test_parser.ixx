@@ -91,14 +91,14 @@ UNIT_TEST(parser, complex_function_no_crash)
     is_eq(file.m_funcs.size(), 1ull);
     is_eq(file.m_funcs.front().m_return_type, "int");
     is_eq(file.m_funcs.front().m_name, "___function_name");
-    is_eq(file.m_funcs.front().m_attributes, "DisplayName(\"Hello)()}\"),DisplayName(\"Hello)()}\"),IsScriptable");
+    is_eq(file.m_funcs.front().m_attributes, "DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable");
     is_eq(file.m_funcs.front().m_parameters.at(0).m_type, "const int*&");
     is_eq(file.m_funcs.front().m_parameters.at(0).m_name, "param0_name");
     is_eq(file.m_funcs.front().m_parameters.at(1).m_type, "std::string");
     is_eq(file.m_funcs.front().m_parameters.at(1).m_name, "param1_name");
     is_eq(file.m_funcs.front().m_parameters.at(2).m_type, "std::string<char>");
     is_eq(file.m_funcs.front().m_parameters.at(2).m_name, "param2");
-    is_eq(file.m_funcs.front().m_parameters.at(3).m_type, "std::array<std::vector<std::pair<int,float>>,0x401ul>");
+    is_eq(file.m_funcs.front().m_parameters.at(3).m_type, "std::array<std::vector<std::pair<int, float>>, 0x401ul >");
     is_eq(file.m_funcs.front().m_parameters.at(3).m_name, "foo");
     is_eq(file.m_funcs.front().m_parameters.size(), 4ull);
 }

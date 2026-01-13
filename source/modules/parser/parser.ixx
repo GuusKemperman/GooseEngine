@@ -133,6 +133,7 @@ namespace ge
 			skip_to_opening_parentheses,
 
 			parse_type,
+			parse_type_after_identifier_start_found,
 			parse_type_type, // check for the 'struct' or 'class' keyword
 			parse_keywords,
 			parse_identifier,
@@ -176,6 +177,8 @@ namespace ge
 		// Keyword being private, protected, or public
 		static std::optional<parsed_access_specifier> get_access_specifier_from_string(std::string_view keyword);
 
+		static bool is_type_qualifier_ish(std::string_view keyword);
+
 		std::stack<parse_state> m_state_stack{};
 		std::stack<scope_stack_entry> m_scope_stack{};
 
@@ -198,6 +201,12 @@ ge::parsed_file ge::parser::parse(std::string_view file)
 
 	for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
 	{
+		if (it->m_flag == token::flag::comment
+			|| it->m_flag == token::flag::attribute)
+		{
+			continue;
+		}
+
 		while (true)
 		{
 			if (bool was_token_consumed = on_state_receive_token(m_state_stack.top(), it))
@@ -354,6 +363,7 @@ void ge::parser::on_state_push_requested(parse_state state)
 	case parse_state::check_for_next_parameter:
 	case parse_state::check_for_next_base:
 	case parse_state::skip_to_opening_parentheses:
+	case parse_state::parse_type_after_identifier_start_found:
 	case parse_state::complete_next_state_immediately:
 	case parse_state::store_reflected_namespace:
 	case parse_state::store_reflected_type:
@@ -486,15 +496,48 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 	}
 	case parse_state::parse_type:
 	{
-		if (m_most_recently_parsed_type.empty() 
+		// Trim leading whitespace
+		if (m_most_recently_parsed_type.empty()
 			&& it->m_flag == token::flag::white_space)
 		{
 			return true;
 		}
 
-		if (it.template_bracket_count() == 0
-			&& (it->m_flag == token::flag::white_space || it->m_str == "," || it->m_str == ";" || it->m_str == "{"))
+		if (is_type_qualifier_ish(it->m_str)
+			|| it->m_flag == token::flag::white_space)
 		{
+			m_most_recently_parsed_type += it->m_str;
+			return true;
+		}
+
+		if (it->m_flag != token::flag::valid_identifier)
+		{
+			report_error("No valid type found");
+			return false;
+		}
+
+		m_most_recently_parsed_type += it->m_str;
+		complete_state();
+		push_state(parse_state::parse_type_after_identifier_start_found);
+		return true;
+	}
+	case parse_state::parse_type_after_identifier_start_found:
+	{
+		// Check keywords
+		if (it.template_bracket_count() == 0
+			&& it->m_str != ">"
+			&& !is_type_qualifier_ish(it->m_str)
+			&& it->m_flag != token::flag::white_space
+			&& it->m_str != "::"
+			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed_type.ends_with("::")))
+		{
+			// Trim ending whitespace
+			m_most_recently_parsed_type.erase(std::find_if(m_most_recently_parsed_type.rbegin(), m_most_recently_parsed_type.rend(),
+				[](char ch)
+				{
+					return !std::isspace(static_cast<unsigned char>(ch));
+				}).base(), m_most_recently_parsed_type.end());
+
 			complete_state();
 			return false;
 		}
@@ -785,6 +828,7 @@ void ge::parser::on_state_completed(parse_state state)
 		break;
 	}
 	case parse_state::parse_type:
+	case parse_state::parse_type_after_identifier_start_found:
 	case parse_state::parse_keywords:
 	case parse_state::skip_to_opening_parentheses:
 	case parse_state::parse_identifier:
@@ -825,4 +869,13 @@ std::optional<ge::parsed_access_specifier> ge::parser::get_access_specifier_from
 	}
 
 	return std::nullopt;
+}
+
+bool ge::parser::is_type_qualifier_ish(std::string_view keyword)
+{
+	return keyword == "&"
+		|| keyword == "&&"
+		|| keyword == "*"
+		|| keyword == "const"
+		|| keyword == "volatile";
 }
