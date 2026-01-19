@@ -5,6 +5,8 @@ import utils;
 
 // TODO: Consider removing the '{' counter in the scopestack entry, and instead infer it from the size of the stack
 // TODO: Move comment/attribute logic from tokeniser to parser
+// TODO: Error handling
+// TODO: Member function 'this' type
 
 namespace ge
 {
@@ -18,7 +20,7 @@ namespace ge
 
 	export API constexpr parsed_keywords operator|(parsed_keywords lhs, parsed_keywords rhs)
 	{
-		using key_t = std::underlying_type_t<parsed_keywords> ;
+		using key_t = std::underlying_type_t<parsed_keywords>;
 		lhs = static_cast<parsed_keywords>(
 			static_cast<key_t>(lhs) |
 			static_cast<key_t>(rhs));
@@ -71,7 +73,7 @@ namespace ge
 		std::string m_name{};
 		std::string m_return_type{};
 		std::vector<parsed_parameter> m_parameters{};
-		
+
 		parsed_keywords m_keywords{};
 		parsed_access_specifier m_access{};
 	};
@@ -126,22 +128,25 @@ namespace ge
 			reflect_func,
 			reflect_parameter,
 			reflect_type_specifier,
-			parse_attributes,
+			reflect_attributes,
 		};
 
 		enum class token_consumer : enum_type
 		{
 			none,
-			check_for_next_parameter,
-			check_for_next_base,
-			skip_to_opening_parentheses,
-			parse_type_specifier_pre_identifier,
-			parse_type_specifier_post_identifier,
-			parse_type_type, // check for the 'struct' or 'class' keyword
+
+			parse_attributes,
 			parse_keywords,
 			parse_identifier,
-			parse_attributes,
+			parse_type_specifier_pre_identifier,
+			parse_type_specifier_post_identifier,
 			parse_access_specifier,
+			parse_type_type, // check for the 'struct' or 'class' keyword
+
+			check_for_next_base,
+			check_for_next_parameter,
+
+			skip_to_opening_parentheses,
 		};
 
 		enum class store_event : enum_type
@@ -172,10 +177,10 @@ namespace ge
 
 		void complete_state();
 
-		void report_error(std::string reason) 
+		void report_error(std::string reason)
 		{
 			std::print("error: {}\n", reason);
-			
+
 			m_state_stack = {};
 			push_state(token_consumer::none);
 		}
@@ -262,7 +267,7 @@ void ge::parser::push_state(reflect_bundle bundle)
 			}
 		};
 
-	auto queue = 
+	auto queue =
 		[&](auto... states)
 		{
 			queue_multi(queue_multi, states...);
@@ -271,65 +276,50 @@ void ge::parser::push_state(reflect_bundle bundle)
 	switch (bundle)
 	{
 	case reflect_bundle::reflect_namespace:
-	{
 		queue(token_consumer::parse_identifier,
 			store_event::store_reflected_namespace);
 		break;
-	}
-	case reflect_bundle::reflect_data:
-	{
-		queue(reflect_bundle::parse_attributes,
-			token_consumer::parse_keywords, 
-			reflect_bundle::reflect_type_specifier,
-			token_consumer::parse_identifier,
-			store_event::store_reflected_data);
-		break;
-	}
 	case reflect_bundle::reflect_type_definition:
-	{
-		queue(reflect_bundle::parse_attributes,
+		queue(reflect_bundle::reflect_attributes,
 			token_consumer::parse_type_type,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_type,
 			token_consumer::check_for_next_base);
 		break;
-	}
+	case reflect_bundle::reflect_base:
+		queue(token_consumer::parse_access_specifier,
+			reflect_bundle::reflect_type_specifier,
+			store_event::store_base);
+		break;
+	case reflect_bundle::reflect_data:
+		queue(reflect_bundle::reflect_attributes,
+			token_consumer::parse_keywords,
+			reflect_bundle::reflect_type_specifier,
+			token_consumer::parse_identifier,
+			store_event::store_reflected_data);
+		break;
 	case reflect_bundle::reflect_func:
-	{
-		queue(reflect_bundle::parse_attributes,
+		queue(reflect_bundle::reflect_attributes,
 			token_consumer::parse_keywords,
 			reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_func,
 			token_consumer::skip_to_opening_parentheses,
-			token_consumer::check_for_next_parameter
-		);
+			token_consumer::check_for_next_parameter);
 		break;
-	}
 	case reflect_bundle::reflect_parameter:
-	{
 		queue(reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
 			store_event::store_parameter);
 		break;
-	}
-	case reflect_bundle::reflect_base:
-	{
-		queue(token_consumer::parse_access_specifier,
-			reflect_bundle::reflect_type_specifier,
-			store_event::store_base);
-		break;
-	}
 	case reflect_bundle::reflect_type_specifier:
 		queue(token_consumer::parse_type_specifier_pre_identifier,
 			token_consumer::parse_type_specifier_post_identifier);
 		break;
-	case reflect_bundle::parse_attributes:
-	{
+	case reflect_bundle::reflect_attributes:
 		queue(token_consumer::skip_to_opening_parentheses,
 			token_consumer::parse_attributes);
 		break;
-	}
 	default:
 		std::unreachable();
 	}
@@ -364,181 +354,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 {
 	switch (consumer)
 	{
-	case token_consumer::parse_keywords:
-	{
-		auto add_flag =
-			[&](parsed_keywords keyword)
-			{
-				m_most_recently_parsed.m_keywords = m_most_recently_parsed.m_keywords | keyword;
-			};
-
-		if (it->m_flag == token::flag::white_space ||
-			it->m_flag == token::flag::attribute ||
-			it->m_flag == token::flag::comment)
-		{
-			return true;
-		}
-
-		if (it->m_str == "static")
-		{
-			add_flag(parsed_keywords::static_keyword);
-			return true;
-		}
-
-		if (it->m_str == "inline")
-		{
-			add_flag(parsed_keywords::inline_keyword);
-			return true;
-		}
-
-		if (it->m_str == "virtual")
-		{
-			add_flag(parsed_keywords::virtual_keyword);
-			return true;
-		}
-
-		if (it->m_str == "export")
-		{
-			add_flag(parsed_keywords::export_keyword);
-			return true;
-		}
-
-		// Assume it's a macro if it's all caps
-		if (std::ranges::all_of(it->m_str, [](char ch){ return std::isupper(static_cast<unsigned char>(ch)); }))
-		{
-			return true;
-		}
-
-		complete_state();
-		return false;
-	}
-	case token_consumer::skip_to_opening_parentheses:
-	{
-		if (it->m_str == "(")
-		{
-			complete_state();
-		}
-		return true;
-	}
-	case token_consumer::parse_identifier:
-	{
-		if (it->m_flag == token::flag::valid_identifier)
-		{
-			m_most_recently_parsed.m_identifier = it->m_str;
-			complete_state();
-			return true;
-		}
-	
-		if (it->m_str == "{"
-			|| it->m_str == "}"
-			|| it->m_str == "("
-			|| it->m_str == ")"
-			|| it->m_str == ";")
-		{
-			complete_state();
-			return false;
-		}
-
-		return true;
-	}
-	case token_consumer::parse_attributes:
-	{
-		if (it.parentheses_count() == 0
-			&& it->m_str == ")")
-		{
-			complete_state();
-			return true;
-		}
-
-		m_most_recently_parsed.m_attributes += it->m_str;
-		return true;
-	}
-	case token_consumer::parse_type_specifier_pre_identifier:
-	{
-		// Trim leading whitespace
-		if (m_most_recently_parsed.m_type.empty()
-			&& it->m_flag == token::flag::white_space)
-		{
-			return true;
-		}
-
-		if (is_type_qualifier_ish(it->m_str)
-			|| it->m_flag == token::flag::white_space)
-		{
-			m_most_recently_parsed.m_type += it->m_str;
-			return true;
-		}
-
-		if (it->m_flag != token::flag::valid_identifier)
-		{
-			report_error("No valid type found");
-			return false;
-		}
-
-		m_most_recently_parsed.m_type += it->m_str;
-		complete_state();
-		return true;
-	}
-	case token_consumer::parse_type_specifier_post_identifier:
-	{
-		if (it.template_bracket_count() == 0
-			&& it->m_str != ">"
-			&& !is_type_qualifier_ish(it->m_str)
-			&& it->m_flag != token::flag::white_space
-			&& it->m_str != "::"
-			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type.ends_with("::")))
-		{
-			// Trim ending whitespace
-			m_most_recently_parsed.m_type.erase(std::find_if(m_most_recently_parsed.m_type.rbegin(), m_most_recently_parsed.m_type.rend(),
-				[](char ch)
-				{
-					return !std::isspace(static_cast<unsigned char>(ch));
-				}).base(), m_most_recently_parsed.m_type.end());
-
-			complete_state();
-			return false;
-		}
-
-		m_most_recently_parsed.m_type += it->m_str;
-		return true;
-	}
-	case token_consumer::parse_type_type:
-	{
-		if (it->m_str == "class")
-		{
-			m_most_recently_parsed.m_type_type = parsed_type_type::class_type;
-			complete_state();
-			return true;
-		}
-
-		if (it->m_str == "struct")
-		{
-			m_most_recently_parsed.m_type_type = parsed_type_type::struct_type;
-			complete_state();
-			return true;
-		}
-
-		return true;
-	}
-	case token_consumer::parse_access_specifier:
-	{
-		std::optional<parsed_access_specifier> access = get_access_specifier_from_string(it->m_str);
-
-		if (access.has_value())
-		{
-			m_most_recently_parsed.m_access_specifier = std::move(access);
-			complete_state();
-			return true;
-		}
-
-		if (it->m_flag == token::flag::white_space)
-		{
-			return true;
-		}
-
-		complete_state();
-		return false;
-	}
 	case token_consumer::none:
 	{
 		if (it->m_str == s_refl_data)
@@ -590,6 +405,195 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 
 		return true;
 	}
+	case token_consumer::parse_attributes:
+	{
+		if (it.parentheses_count() == 0
+			&& it->m_str == ")")
+		{
+			complete_state();
+			return true;
+		}
+
+		m_most_recently_parsed.m_attributes += it->m_str;
+		return true;
+	}
+	case token_consumer::parse_keywords:
+	{
+		auto add_flag =
+			[&](parsed_keywords keyword)
+			{
+				m_most_recently_parsed.m_keywords = m_most_recently_parsed.m_keywords | keyword;
+			};
+
+		if (it->m_flag == token::flag::white_space ||
+			it->m_flag == token::flag::attribute ||
+			it->m_flag == token::flag::comment)
+		{
+			return true;
+		}
+
+		if (it->m_str == "static")
+		{
+			add_flag(parsed_keywords::static_keyword);
+			return true;
+		}
+
+		if (it->m_str == "inline")
+		{
+			add_flag(parsed_keywords::inline_keyword);
+			return true;
+		}
+
+		if (it->m_str == "virtual")
+		{
+			add_flag(parsed_keywords::virtual_keyword);
+			return true;
+		}
+
+		if (it->m_str == "export")
+		{
+			add_flag(parsed_keywords::export_keyword);
+			return true;
+		}
+
+		// Assume it's a macro if it's all caps
+		if (std::ranges::all_of(it->m_str, [](char ch) { return std::isupper(static_cast<unsigned char>(ch)); }))
+		{
+			return true;
+		}
+
+		complete_state();
+		return false;
+	}
+	case token_consumer::parse_identifier:
+	{
+		if (it->m_flag == token::flag::valid_identifier)
+		{
+			m_most_recently_parsed.m_identifier = it->m_str;
+			complete_state();
+			return true;
+		}
+
+		if (it->m_str == "{"
+			|| it->m_str == "}"
+			|| it->m_str == "("
+			|| it->m_str == ")"
+			|| it->m_str == ";")
+		{
+			complete_state();
+			return false;
+		}
+
+		return true;
+	}
+	case token_consumer::parse_type_specifier_pre_identifier:
+	{
+		// Trim leading whitespace
+		if (m_most_recently_parsed.m_type.empty()
+			&& it->m_flag == token::flag::white_space)
+		{
+			return true;
+		}
+
+		if (is_type_qualifier_ish(it->m_str)
+			|| it->m_flag == token::flag::white_space)
+		{
+			m_most_recently_parsed.m_type += it->m_str;
+			return true;
+		}
+
+		if (it->m_flag != token::flag::valid_identifier)
+		{
+			report_error("No valid type found");
+			return false;
+		}
+
+		m_most_recently_parsed.m_type += it->m_str;
+		complete_state();
+		return true;
+	}
+	case token_consumer::parse_type_specifier_post_identifier:
+	{
+		if (it.template_bracket_count() == 0
+			&& it->m_str != ">"
+			&& !is_type_qualifier_ish(it->m_str)
+			&& it->m_flag != token::flag::white_space
+			&& it->m_str != "::"
+			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type.ends_with("::")))
+		{
+			// Trim ending whitespace
+			m_most_recently_parsed.m_type.erase(std::find_if(m_most_recently_parsed.m_type.rbegin(), m_most_recently_parsed.m_type.rend(),
+				[](char ch)
+				{
+					return !std::isspace(static_cast<unsigned char>(ch));
+				}).base(), m_most_recently_parsed.m_type.end());
+
+			complete_state();
+			return false;
+		}
+
+		m_most_recently_parsed.m_type += it->m_str;
+		return true;
+	}
+	case token_consumer::parse_access_specifier:
+	{
+		std::optional<parsed_access_specifier> access = get_access_specifier_from_string(it->m_str);
+
+		if (access.has_value())
+		{
+			m_most_recently_parsed.m_access_specifier = std::move(access);
+			complete_state();
+			return true;
+		}
+
+		if (it->m_flag == token::flag::white_space)
+		{
+			return true;
+		}
+
+		complete_state();
+		return false;
+	}
+	case token_consumer::parse_type_type:
+	{
+		if (it->m_str == "class")
+		{
+			m_most_recently_parsed.m_type_type = parsed_type_type::class_type;
+			complete_state();
+			return true;
+		}
+
+		if (it->m_str == "struct")
+		{
+			m_most_recently_parsed.m_type_type = parsed_type_type::struct_type;
+			complete_state();
+			return true;
+		}
+
+		return true;
+	}
+	case token_consumer::check_for_next_base:
+	{
+		if (it.template_bracket_count() != 0)
+		{
+			return true;
+		}
+
+		if (it->m_str == "{")
+		{
+			complete_state();
+			return true;
+		}
+
+		if (it->m_str == ":"
+			|| it->m_str == ",")
+		{
+			complete_state();
+			push_state(reflect_bundle::reflect_base);
+			return true;
+		}
+		return true;
+	}
 	case token_consumer::check_for_next_parameter:
 	{
 		// TODO check for curly/template bracket
@@ -621,25 +625,11 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 
 		return true;
 	}
-	case token_consumer::check_for_next_base:
+	case token_consumer::skip_to_opening_parentheses:
 	{
-		if (it.template_bracket_count() != 0)
-		{
-			return true;
-		}
-
-		if (it->m_str == "{")
+		if (it->m_str == "(")
 		{
 			complete_state();
-			return true;
-		}
-
-		if (it->m_str == ":"
-			|| it->m_str == ",")
-		{
-			complete_state();
-			push_state(reflect_bundle::reflect_base);
-			return true;
 		}
 		return true;
 	}
@@ -760,10 +750,10 @@ void ge::parser::store(store_event event)
 			report_error(std::format("{} has a parameter without a type", s_refl_func));
 			break;
 		}
-	
+
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
 		parsed_parameter& param = func.m_parameters.emplace_back();
-		
+
 		param.m_type = m_most_recently_parsed.m_type;
 		param.m_name = m_most_recently_parsed.m_identifier;
 
@@ -783,7 +773,7 @@ std::optional<ge::parsed_access_specifier> ge::parser::get_access_specifier_from
 	{
 		return parsed_access_specifier::private_access;
 	}
-	
+
 	if (keyword == "protected")
 	{
 		return parsed_access_specifier::protected_access;
