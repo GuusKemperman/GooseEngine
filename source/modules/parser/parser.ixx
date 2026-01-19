@@ -3,8 +3,8 @@ export module parser;
 export import :tokeniser;
 import utils;
 
-// TODO: Consider splitting enums into separate ones
 // TODO: Consider removing the '{' counter in the scopestack entry, and instead infer it from the size of the stack
+// TODO: Move comment/attribute logic from tokeniser to parser
 
 namespace ge
 {
@@ -115,31 +115,37 @@ namespace ge
 		API parsed_file parse(std::string_view file);
 
 	private:
-		enum class parse_state : std::uint32_t
-		{
-			none,
-			complete_next_state_immediately,
+		using enum_type = std::uint8_t;
 
+		enum class reflect_bundle : enum_type
+		{
 			reflect_namespace,
-			reflect_type,
+			reflect_type_definition,
 			reflect_base,
 			reflect_data,
 			reflect_func,
 			reflect_parameter,
+			reflect_type_specifier,
+			parse_attributes,
+		};
 
+		enum class token_consumer : enum_type
+		{
+			none,
 			check_for_next_parameter,
 			check_for_next_base,
-
 			skip_to_opening_parentheses,
-
-			parse_type,
-			parse_type_after_identifier_start_found,
+			parse_type_specifier_pre_identifier,
+			parse_type_specifier_post_identifier,
 			parse_type_type, // check for the 'struct' or 'class' keyword
 			parse_keywords,
 			parse_identifier,
 			parse_attributes,
 			parse_access_specifier,
+		};
 
+		enum class store_event : enum_type
+		{
 			store_reflected_namespace,
 			store_reflected_type,
 			store_base,
@@ -147,6 +153,15 @@ namespace ge
 			store_reflected_func,
 			store_parameter,
 		};
+
+		union parse_state
+		{
+			enum_type m_value{};
+			token_consumer m_token_consumer;
+			store_event m_store_event;
+		};
+
+		static constexpr enum_type s_next_item_is_store_event = std::numeric_limits<enum_type>::max();
 
 		struct scope_stack_entry
 		{
@@ -162,17 +177,16 @@ namespace ge
 			std::print("error: {}\n", reason);
 			
 			m_state_stack = {};
-			m_state_stack.emplace(parse_state::none);
+			push_state(token_consumer::none);
 		}
 
-		void push_state(parse_state state);
-		void switch_state(parse_state state);
+		void push_state(reflect_bundle bundle);
+		void push_state(token_consumer consumer);
+		void push_state(store_event event);
 
-		void on_event(parse_state state);
-		
-		void on_state_push_requested(parse_state state);
-		bool on_state_receive_token(parse_state state, token_iterator it);
-		void on_state_completed(parse_state state);
+		bool receive_token(token_consumer consumer, token_iterator it);
+
+		void store(store_event event);
 
 		// Keyword being private, protected, or public
 		static std::optional<parsed_access_specifier> get_access_specifier_from_string(std::string_view keyword);
@@ -182,12 +196,15 @@ namespace ge
 		std::stack<parse_state> m_state_stack{};
 		std::stack<scope_stack_entry> m_scope_stack{};
 
-		std::string m_most_recently_parsed_attributes{};
-		std::string m_most_recently_parsed_type{};
-		std::string m_most_recently_parsed_identifier{};
-		parsed_keywords m_most_recently_parsed_keywords{};
-		parsed_type_type m_most_recently_parsed_type_type{};
-		std::optional<parsed_access_specifier> m_most_recently_parsed_access_specifier{};
+		struct
+		{
+			std::string m_attributes{};
+			std::string m_type{};
+			std::string m_identifier{};
+			parsed_keywords m_keywords{};
+			parsed_type_type m_type_type{};
+			std::optional<parsed_access_specifier> m_access_specifier{};
+		} m_most_recently_parsed{};
 	};
 }
 
@@ -197,7 +214,7 @@ ge::parsed_file ge::parser::parse(std::string_view file)
 	parsed_file parsed_file{};
 
 	m_scope_stack.emplace(parsed_file, -1);
-	push_state(parse_state::none);
+	push_state(token_consumer::none);
 
 	for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
 	{
@@ -209,7 +226,7 @@ ge::parsed_file ge::parser::parse(std::string_view file)
 
 		while (true)
 		{
-			if (bool was_token_consumed = on_state_receive_token(m_state_stack.top(), it))
+			if (bool was_token_consumed = receive_token(m_state_stack.top().m_token_consumer, it))
 			{
 				break;
 			}
@@ -229,32 +246,19 @@ ge::parsed_file ge::parser::parse(std::string_view file)
 	return parsed_file;
 }
 
-void ge::parser::on_state_push_requested(parse_state state)
+void ge::parser::push_state(reflect_bundle bundle)
 {
-	auto queue_single =
-		[&](parse_state sub_state)
-		{
-			if (sub_state == state)
-			{
-				m_state_stack.push(state);
-			}
-			else
-			{
-				push_state(sub_state);
-			}
-		};
-
 	auto queue_multi =
 		[&](const auto& self, auto sub_state, auto... sub_states)
 		{
 			if constexpr (sizeof...(sub_states) == 0)
 			{
-				queue_single(sub_state);
+				push_state(sub_state);
 			}
 			else
 			{
 				self(self, sub_states...);
-				queue_single(sub_state);
+				push_state(sub_state);
 			}
 		};
 
@@ -264,154 +268,108 @@ void ge::parser::on_state_push_requested(parse_state state)
 			queue_multi(queue_multi, states...);
 		};
 
-	switch (state)
+	switch (bundle)
 	{
-	case parse_state::reflect_namespace:
+	case reflect_bundle::reflect_namespace:
 	{
-		queue(parse_state::parse_identifier,
-			parse_state::complete_next_state_immediately,
-			parse_state::store_reflected_namespace);
+		queue(token_consumer::parse_identifier,
+			store_event::store_reflected_namespace);
 		break;
 	}
-	case parse_state::reflect_data:
+	case reflect_bundle::reflect_data:
 	{
-		queue(parse_state::parse_attributes, 
-			parse_state::parse_keywords, 
-			parse_state::parse_type,
-			parse_state::parse_identifier,
-			parse_state::complete_next_state_immediately,
-			parse_state::store_reflected_data);
+		queue(reflect_bundle::parse_attributes,
+			token_consumer::parse_keywords, 
+			reflect_bundle::reflect_type_specifier,
+			token_consumer::parse_identifier,
+			store_event::store_reflected_data);
 		break;
 	}
-	case parse_state::reflect_type:
+	case reflect_bundle::reflect_type_definition:
 	{
-		queue(parse_state::parse_attributes,
-			parse_state::parse_type_type,
-			parse_state::parse_identifier,
-			parse_state::complete_next_state_immediately,
-			parse_state::store_reflected_type,
-			parse_state::check_for_next_base);
+		queue(reflect_bundle::parse_attributes,
+			token_consumer::parse_type_type,
+			token_consumer::parse_identifier,
+			store_event::store_reflected_type,
+			token_consumer::check_for_next_base);
 		break;
 	}
-	case parse_state::reflect_func:
+	case reflect_bundle::reflect_func:
 	{
-		queue(parse_state::parse_attributes,
-			parse_state::parse_keywords,
-			parse_state::parse_type,
-			parse_state::parse_identifier,
-			parse_state::complete_next_state_immediately,
-			parse_state::store_reflected_func,
-			parse_state::skip_to_opening_parentheses,
-			parse_state::check_for_next_parameter
+		queue(reflect_bundle::parse_attributes,
+			token_consumer::parse_keywords,
+			reflect_bundle::reflect_type_specifier,
+			token_consumer::parse_identifier,
+			store_event::store_reflected_func,
+			token_consumer::skip_to_opening_parentheses,
+			token_consumer::check_for_next_parameter
 		);
 		break;
 	}
-	case parse_state::reflect_parameter:
+	case reflect_bundle::reflect_parameter:
 	{
-		queue(parse_state::parse_type,
-			parse_state::parse_identifier,
-			parse_state::complete_next_state_immediately,
-			parse_state::store_parameter);
+		queue(reflect_bundle::reflect_type_specifier,
+			token_consumer::parse_identifier,
+			store_event::store_parameter);
 		break;
 	}
-	case parse_state::reflect_base:
+	case reflect_bundle::reflect_base:
 	{
-		queue(parse_state::parse_access_specifier,
-			parse_state::parse_type,
-			parse_state::complete_next_state_immediately,
-			parse_state::store_base);
+		queue(token_consumer::parse_access_specifier,
+			reflect_bundle::reflect_type_specifier,
+			store_event::store_base);
 		break;
 	}
-	case parse_state::parse_attributes:
+	case reflect_bundle::reflect_type_specifier:
+		queue(token_consumer::parse_type_specifier_pre_identifier,
+			token_consumer::parse_type_specifier_post_identifier);
+		break;
+	case reflect_bundle::parse_attributes:
 	{
-		m_most_recently_parsed_attributes.clear();
-		queue(parse_state::skip_to_opening_parentheses,
-			parse_state::parse_attributes);
+		queue(token_consumer::skip_to_opening_parentheses,
+			token_consumer::parse_attributes);
 		break;
 	}
-	case parse_state::parse_type:
-	{
-		m_most_recently_parsed_type.clear();
-		queue(parse_state::parse_type);
-		break;
-	}
-	case parse_state::parse_type_type:
-	{
-		m_most_recently_parsed_type_type = {};
-		queue(parse_state::parse_type_type);
-		break;
-	}
-	case parse_state::parse_access_specifier:
-	{
-		m_most_recently_parsed_access_specifier.reset();
-		queue(parse_state::parse_access_specifier);
-		break;
-	}
-	case parse_state::parse_keywords:
-	{
-		m_most_recently_parsed_keywords = {};
-		queue(parse_state::parse_keywords);
-		break;
-	}
-	case parse_state::parse_identifier:
-	{
-		m_most_recently_parsed_identifier.clear();
-		queue(parse_state::parse_identifier);
-		break;
-	}
-	case parse_state::none:
-	case parse_state::check_for_next_parameter:
-	case parse_state::check_for_next_base:
-	case parse_state::skip_to_opening_parentheses:
-	case parse_state::parse_type_after_identifier_start_found:
-	case parse_state::complete_next_state_immediately:
-	case parse_state::store_reflected_namespace:
-	case parse_state::store_reflected_type:
-	case parse_state::store_base:
-	case parse_state::store_reflected_data:
-	case parse_state::store_reflected_func:
-	case parse_state::store_parameter:
-		queue(state);
-		break;
 	default:
 		std::unreachable();
 	}
 }
 
+void ge::parser::push_state(token_consumer consumer)
+{
+	m_state_stack.emplace().m_token_consumer = consumer;
+}
+
+void ge::parser::push_state(store_event event)
+{
+	m_state_stack.emplace().m_store_event = event;
+	m_state_stack.emplace(s_next_item_is_store_event);
+}
+
 void ge::parser::complete_state()
 {
-	parse_state completed = m_state_stack.top();
 	m_state_stack.pop();
-	on_state_completed(completed);
 
-	if (m_state_stack.top() == parse_state::complete_next_state_immediately)
+	if (m_state_stack.top().m_value == s_next_item_is_store_event)
 	{
 		m_state_stack.pop();
+
+		store_event event = m_state_stack.top().m_store_event;
 		complete_state();
+		store(event);
 	}
 }
 
-void ge::parser::push_state(parse_state state)
+bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 {
-	on_state_push_requested(state);
-}
-
-void ge::parser::switch_state(parse_state state)
-{
-	complete_state();
-	on_state_push_requested(state);
-}
-
-bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
-{
-	switch (state)
+	switch (consumer)
 	{
-	case parse_state::parse_keywords:
+	case token_consumer::parse_keywords:
 	{
 		auto add_flag =
 			[&](parsed_keywords keyword)
 			{
-				m_most_recently_parsed_keywords = m_most_recently_parsed_keywords | keyword;
+				m_most_recently_parsed.m_keywords = m_most_recently_parsed.m_keywords | keyword;
 			};
 
 		if (it->m_flag == token::flag::white_space ||
@@ -454,7 +412,7 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		complete_state();
 		return false;
 	}
-	case parse_state::skip_to_opening_parentheses:
+	case token_consumer::skip_to_opening_parentheses:
 	{
 		if (it->m_str == "(")
 		{
@@ -462,12 +420,13 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		}
 		return true;
 	}
-	case parse_state::parse_identifier:
+	case token_consumer::parse_identifier:
 	{
 		if (it->m_flag == token::flag::valid_identifier)
 		{
-			m_most_recently_parsed_identifier = it->m_str;
+			m_most_recently_parsed.m_identifier = it->m_str;
 			complete_state();
+			return true;
 		}
 	
 		if (it->m_str == "{"
@@ -482,7 +441,7 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 
 		return true;
 	}
-	case parse_state::parse_attributes:
+	case token_consumer::parse_attributes:
 	{
 		if (it.parentheses_count() == 0
 			&& it->m_str == ")")
@@ -491,13 +450,13 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			return true;
 		}
 
-		m_most_recently_parsed_attributes += it->m_str;
+		m_most_recently_parsed.m_attributes += it->m_str;
 		return true;
 	}
-	case parse_state::parse_type:
+	case token_consumer::parse_type_specifier_pre_identifier:
 	{
 		// Trim leading whitespace
-		if (m_most_recently_parsed_type.empty()
+		if (m_most_recently_parsed.m_type.empty()
 			&& it->m_flag == token::flag::white_space)
 		{
 			return true;
@@ -506,7 +465,7 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		if (is_type_qualifier_ish(it->m_str)
 			|| it->m_flag == token::flag::white_space)
 		{
-			m_most_recently_parsed_type += it->m_str;
+			m_most_recently_parsed.m_type += it->m_str;
 			return true;
 		}
 
@@ -516,60 +475,58 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			return false;
 		}
 
-		m_most_recently_parsed_type += it->m_str;
+		m_most_recently_parsed.m_type += it->m_str;
 		complete_state();
-		push_state(parse_state::parse_type_after_identifier_start_found);
 		return true;
 	}
-	case parse_state::parse_type_after_identifier_start_found:
+	case token_consumer::parse_type_specifier_post_identifier:
 	{
-		// Check keywords
 		if (it.template_bracket_count() == 0
 			&& it->m_str != ">"
 			&& !is_type_qualifier_ish(it->m_str)
 			&& it->m_flag != token::flag::white_space
 			&& it->m_str != "::"
-			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed_type.ends_with("::")))
+			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type.ends_with("::")))
 		{
 			// Trim ending whitespace
-			m_most_recently_parsed_type.erase(std::find_if(m_most_recently_parsed_type.rbegin(), m_most_recently_parsed_type.rend(),
+			m_most_recently_parsed.m_type.erase(std::find_if(m_most_recently_parsed.m_type.rbegin(), m_most_recently_parsed.m_type.rend(),
 				[](char ch)
 				{
 					return !std::isspace(static_cast<unsigned char>(ch));
-				}).base(), m_most_recently_parsed_type.end());
+				}).base(), m_most_recently_parsed.m_type.end());
 
 			complete_state();
 			return false;
 		}
 
-		m_most_recently_parsed_type += it->m_str;
+		m_most_recently_parsed.m_type += it->m_str;
 		return true;
 	}
-	case parse_state::parse_type_type:
+	case token_consumer::parse_type_type:
 	{
 		if (it->m_str == "class")
 		{
-			m_most_recently_parsed_type_type = parsed_type_type::class_type;
+			m_most_recently_parsed.m_type_type = parsed_type_type::class_type;
 			complete_state();
 			return true;
 		}
 
 		if (it->m_str == "struct")
 		{
-			m_most_recently_parsed_type_type = parsed_type_type::struct_type;
+			m_most_recently_parsed.m_type_type = parsed_type_type::struct_type;
 			complete_state();
 			return true;
 		}
 
 		return true;
 	}
-	case parse_state::parse_access_specifier:
+	case token_consumer::parse_access_specifier:
 	{
 		std::optional<parsed_access_specifier> access = get_access_specifier_from_string(it->m_str);
 
 		if (access.has_value())
 		{
-			m_most_recently_parsed_access_specifier = std::move(access);
+			m_most_recently_parsed.m_access_specifier = std::move(access);
 			complete_state();
 			return true;
 		}
@@ -582,29 +539,29 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		complete_state();
 		return false;
 	}
-	case parse_state::none:
+	case token_consumer::none:
 	{
 		if (it->m_str == s_refl_data)
 		{
-			push_state(parse_state::reflect_data);
+			push_state(reflect_bundle::reflect_data);
 			return true;
 		}
 
 		if (it->m_str == s_refl_func)
 		{
-			push_state(parse_state::reflect_func);
+			push_state(reflect_bundle::reflect_func);
 			return true;
 		}
 
 		if (it->m_str == s_refl_class)
 		{
-			push_state(parse_state::reflect_type);
+			push_state(reflect_bundle::reflect_type_definition);
 			return true;
 		}
 
 		if (it->m_str == "namespace")
 		{
-			push_state(parse_state::reflect_namespace);
+			push_state(reflect_bundle::reflect_namespace);
 			return true;
 		}
 
@@ -633,7 +590,7 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 
 		return true;
 	}
-	case parse_state::check_for_next_parameter:
+	case token_consumer::check_for_next_parameter:
 	{
 		// TODO check for curly/template bracket
 		if (it.parentheses_count() == 0
@@ -648,7 +605,7 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 		if (func.m_parameters.empty())
 		{
 			complete_state();
-			push_state(parse_state::reflect_parameter);
+			push_state(reflect_bundle::reflect_parameter);
 			return false;
 		}
 
@@ -658,13 +615,13 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			&& it->m_str == ",")
 		{
 			complete_state();
-			push_state(parse_state::reflect_parameter);
+			push_state(reflect_bundle::reflect_parameter);
 			return true;
 		}
 
 		return true;
 	}
-	case parse_state::check_for_next_base:
+	case token_consumer::check_for_next_base:
 	{
 		if (it.template_bracket_count() != 0)
 		{
@@ -681,47 +638,33 @@ bool ge::parser::on_state_receive_token(parse_state state, token_iterator it)
 			|| it->m_str == ",")
 		{
 			complete_state();
-			push_state(parse_state::reflect_base);
+			push_state(reflect_bundle::reflect_base);
 			return true;
 		}
 		return true;
 	}
-
 	default:
-	case parse_state::reflect_namespace:
-	case parse_state::reflect_type:
-	case parse_state::reflect_data:
-	case parse_state::reflect_func:
-	case parse_state::reflect_parameter:
-	case parse_state::reflect_base:
-	case parse_state::complete_next_state_immediately:
-	case parse_state::store_reflected_namespace:
-	case parse_state::store_reflected_type:
-	case parse_state::store_base:
-	case parse_state::store_reflected_data:
-	case parse_state::store_reflected_func:
-	case parse_state::store_parameter:
 		std::unreachable();
 	}
 }
 
-void ge::parser::on_state_completed(parse_state state)
+void ge::parser::store(store_event event)
 {
-	switch (state)
+	switch (event)
 	{
-	case parse_state::store_reflected_namespace:
+	case store_event::store_reflected_namespace:
 	{
 		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
 		parsed_scope& new_namespace = parent.m_namespaces.emplace_back(make_unique_ref<parsed_scope>());
 
-		new_namespace.m_name = m_most_recently_parsed_identifier;
+		new_namespace.m_name = m_most_recently_parsed.m_identifier;
 
 		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 		break;
 	}
-	case parse_state::store_reflected_type:
+	case store_event::store_reflected_type:
 	{
-		if (m_most_recently_parsed_identifier.empty())
+		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_error(std::format("{} requires a named type, but no valid identifier could be found.", s_refl_class));
 			break;
@@ -730,9 +673,9 @@ void ge::parser::on_state_completed(parse_state state)
 		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
 		parsed_type& new_type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
 
-		new_type.m_name = m_most_recently_parsed_identifier;
-		new_type.m_type = m_most_recently_parsed_type_type;
-		new_type.m_attributes = m_most_recently_parsed_attributes;
+		new_type.m_name = m_most_recently_parsed.m_identifier;
+		new_type.m_type = m_most_recently_parsed.m_type_type;
+		new_type.m_attributes = m_most_recently_parsed.m_attributes;
 
 		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 
@@ -749,9 +692,9 @@ void ge::parser::on_state_completed(parse_state state)
 		}
 		break;
 	}
-	case parse_state::store_base:
+	case store_event::store_base:
 	{
-		if (m_most_recently_parsed_type.empty())
+		if (m_most_recently_parsed.m_type.empty())
 		{
 			report_error(std::format("{} has a base type, but no valid typename could be parsed.", s_refl_class));
 			break;
@@ -760,21 +703,21 @@ void ge::parser::on_state_completed(parse_state state)
 		parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
 		parsed_base& base = type.m_base_types.emplace_back();
 
-		base.m_name = m_most_recently_parsed_type;
-		base.m_access = m_most_recently_parsed_access_specifier;
+		base.m_name = m_most_recently_parsed.m_type;
+		base.m_access = m_most_recently_parsed.m_access_specifier;
 
-		push_state(parse_state::check_for_next_base);
+		push_state(token_consumer::check_for_next_base);
 		break;
 	}
-	case parse_state::store_reflected_data:
+	case store_event::store_reflected_data:
 	{
-		if (m_most_recently_parsed_type.empty())
+		if (m_most_recently_parsed.m_type.empty())
 		{
 			report_error(std::format("{} was not followed by a type", s_refl_data));
 			break;
 		}
 
-		if (m_most_recently_parsed_identifier.empty())
+		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_error(std::format("{} requires a named variable, but no valid identifier could be found.", s_refl_data));
 			break;
@@ -782,21 +725,21 @@ void ge::parser::on_state_completed(parse_state state)
 
 		parsed_data& data = m_scope_stack.top().m_parsed_scope.get().m_data.emplace_back();
 		data.m_access = m_scope_stack.top().m_current_access_level;
-		data.m_name = m_most_recently_parsed_identifier;
-		data.m_type = m_most_recently_parsed_type;
-		data.m_attributes = m_most_recently_parsed_attributes;
-		data.m_keywords = m_most_recently_parsed_keywords;
+		data.m_name = m_most_recently_parsed.m_identifier;
+		data.m_type = m_most_recently_parsed.m_type;
+		data.m_attributes = m_most_recently_parsed.m_attributes;
+		data.m_keywords = m_most_recently_parsed.m_keywords;
 		break;
 	}
-	case parse_state::store_reflected_func:
+	case store_event::store_reflected_func:
 	{
-		if (m_most_recently_parsed_type.empty())
+		if (m_most_recently_parsed.m_type.empty())
 		{
 			report_error(std::format("{} was not followed by a return type", s_refl_func));
 			break;
 		}
 
-		if (m_most_recently_parsed_identifier.empty())
+		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_error(std::format("{} requires a named function, but no valid identifier could be found.", s_refl_func));
 			break;
@@ -804,15 +747,15 @@ void ge::parser::on_state_completed(parse_state state)
 
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.emplace_back();
 		func.m_access = m_scope_stack.top().m_current_access_level;
-		func.m_name = m_most_recently_parsed_identifier;
-		func.m_return_type = m_most_recently_parsed_type;
-		func.m_attributes = m_most_recently_parsed_attributes;
-		func.m_keywords = m_most_recently_parsed_keywords;
+		func.m_name = m_most_recently_parsed.m_identifier;
+		func.m_return_type = m_most_recently_parsed.m_type;
+		func.m_attributes = m_most_recently_parsed.m_attributes;
+		func.m_keywords = m_most_recently_parsed.m_keywords;
 		break;
 	}
-	case parse_state::store_parameter:
+	case store_event::store_parameter:
 	{
-		if (m_most_recently_parsed_type.empty())
+		if (m_most_recently_parsed.m_type.empty())
 		{
 			report_error(std::format("{} has a parameter without a type", s_refl_func));
 			break;
@@ -821,34 +764,17 @@ void ge::parser::on_state_completed(parse_state state)
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
 		parsed_parameter& param = func.m_parameters.emplace_back();
 		
-		param.m_type = m_most_recently_parsed_type;
-		param.m_name = m_most_recently_parsed_identifier;
+		param.m_type = m_most_recently_parsed.m_type;
+		param.m_name = m_most_recently_parsed.m_identifier;
 
-		push_state(parse_state::check_for_next_parameter);
+		push_state(token_consumer::check_for_next_parameter);
 		break;
 	}
-	case parse_state::parse_type:
-	case parse_state::parse_type_after_identifier_start_found:
-	case parse_state::parse_keywords:
-	case parse_state::skip_to_opening_parentheses:
-	case parse_state::parse_identifier:
-	case parse_state::parse_type_type:
-	case parse_state::parse_access_specifier:
-	case parse_state::parse_attributes:
-	case parse_state::check_for_next_parameter:
-	case parse_state::check_for_next_base:
 	default:
-		break;
-	case parse_state::none:
-	case parse_state::complete_next_state_immediately:
-	case parse_state::reflect_namespace:
-	case parse_state::reflect_data:
-	case parse_state::reflect_type:
-	case parse_state::reflect_base:
-	case parse_state::reflect_func:
-	case parse_state::reflect_parameter:
 		std::unreachable();
 	}
+
+	m_most_recently_parsed = {};
 }
 
 std::optional<ge::parsed_access_specifier> ge::parser::get_access_specifier_from_string(std::string_view keyword)
