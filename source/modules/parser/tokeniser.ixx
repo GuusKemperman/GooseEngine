@@ -4,6 +4,8 @@ export import std;
 
 namespace ge
 {
+	using namespace std::string_view_literals;
+
 	export struct token
 	{
 		enum class flag
@@ -168,65 +170,65 @@ ge::token_iterator& ge::token_iterator::operator++()
 	if (white_space_found)
 	{
 		m_token = {};
-		m_token.m_str = " ";
+		m_token.m_str = " "sv;
 		m_token.m_flag = token::flag::white_space;
 		return *this;
 	}
 
-	if (remaining_file().starts_with("[["))
+	if (remaining_file().starts_with("[["sv))
 	{
 		discard_char(2);
 
 		start_token();
 		m_token.m_flag = token::flag::attribute;
-		add_to_token_until_match("]]");
+		add_to_token_until_match("]]"sv);
 
 		discard_char(2);
 		return *this;
 	}
 
-	if (remaining_file().starts_with("/*"))
+	if (remaining_file().starts_with("/*"sv))
 	{
 		discard_char(2);
 		start_token();
 		m_token.m_flag = token::flag::comment;
-		add_to_token_until_match("*/");
+		add_to_token_until_match("*/"sv);
 		discard_char(2);
 		return *this;
 	}
 
-	if (remaining_file().starts_with("//"))
+	if (remaining_file().starts_with("//"sv))
 	{
 		discard_char(2);
 		start_token();
 		m_token.m_flag = token::flag::comment;
-		add_to_token_until_match("\n");
+		add_to_token_until_match("\n"sv);
 		discard_char();
 		return *this;
 	}
 
-	if (remaining_file().starts_with("R\"(")
-		|| remaining_file().starts_with("LR\"")
-		|| remaining_file().starts_with("u8R\"")
-		|| remaining_file().starts_with("uR\"")
-		|| remaining_file().starts_with("UR\""))
+	if (remaining_file().starts_with("R\"("sv)
+		|| remaining_file().starts_with("LR\""sv)
+		|| remaining_file().starts_with("u8R\""sv)
+		|| remaining_file().starts_with("uR\""sv)
+		|| remaining_file().starts_with("UR\""sv))
 	{
 		start_token();
-		add_to_token_until_match(")\"");
+		add_to_token_until_match(")\""sv);
 		add_to_token(2);
 		return *this;
 	}
 
-	if (remaining_file().starts_with("\"")
-		|| remaining_file().starts_with("L\"")
-		|| remaining_file().starts_with("u8\"")
-		|| remaining_file().starts_with("u\"")
-		|| remaining_file().starts_with("U\""))
+	if (remaining_file().starts_with("\""sv)
+		|| remaining_file().starts_with("L\""sv)
+		|| remaining_file().starts_with("u8\""sv)
+		|| remaining_file().starts_with("u\""sv)
+		|| remaining_file().starts_with("U\""sv))
 	{
 		start_token();
 
 		// Find the opening quote
-		add_to_token_until_match("\"");
+		add_to_token_until_match("\""sv);
 		add_to_token();
 
 		while (!remaining_file().empty())
@@ -242,24 +244,24 @@ ge::token_iterator& ge::token_iterator::operator++()
 		return *this;
 	}
 
-	if (remaining_file().starts_with("::")
-		|| remaining_file().starts_with("->")
-		|| remaining_file().starts_with("&&"))
+	if (remaining_file().starts_with("::"sv)
+		|| remaining_file().starts_with("->"sv)
+		|| remaining_file().starts_with("&&"sv))
 	{
 		start_token();
 		add_to_token(2);
 		return *this;
 	}
 
-	static constexpr std::string_view identifier_start_characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
-	static constexpr std::string_view identifier_characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789";
+	static constexpr std::string_view identifier_start_characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
+	static constexpr std::string_view identifier_characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789"sv;
 
-	static constexpr std::string_view number_literal_start_characters = "0123456789.";
-	static constexpr std::string_view number_literal_characters = "0123456789'.-eEb";
-	static constexpr std::string_view hex_characters = "0123456789'abcdefABCDEF";
+	static constexpr std::string_view number_literal_start_characters = "0123456789."sv;
+	static constexpr std::string_view number_literal_characters = "0123456789'.-eEb"sv;
+	static constexpr std::string_view hex_characters = "0123456789'abcdefABCDEF"sv;
 
-	if (remaining_file().starts_with("0x")
-		|| remaining_file().starts_with("0X"))
+	if (remaining_file().starts_with("0x"sv)
+		|| remaining_file().starts_with("0X"sv))
 	{
 		start_token();
 		add_to_token_until_pred(
@@ -297,27 +299,27 @@ ge::token_iterator& ge::token_iterator::operator++()
 	start_token();
 	add_to_token();
 
-	if (m_token.m_str == "<")
+	if (m_token.m_str == "<"sv)
 	{
 		m_template_brackets_count++;
 	}
-	else if (m_token.m_str == ">")
+	else if (m_token.m_str == ">"sv)
 	{
 		m_template_brackets_count--;
 	}
-	else if (m_token.m_str == "(")
+	else if (m_token.m_str == "("sv)
 	{
 		m_parentheses_count++;
 	}
-	else if (m_token.m_str == ")")
+	else if (m_token.m_str == ")"sv)
 	{
 		m_parentheses_count--;
 	}
-	else if (m_token.m_str == "{")
+	else if (m_token.m_str == "{"sv)
 	{
 		m_curly_brackets_count++;
 	}
-	else if (m_token.m_str == "}")
+	else if (m_token.m_str == "}"sv)
 	{
 		m_curly_brackets_count--;
 	}

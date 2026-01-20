@@ -3,13 +3,13 @@ export module parser;
 export import :tokeniser;
 import utils;
 
-// TODO: Consider removing the '{' counter in the scopestack entry, and instead infer it from the size of the stack
-// TODO: Move comment/attribute logic from tokeniser to parser
 // TODO: Error handling
 // TODO: Member function 'this' type
 
 namespace ge
 {
+	using namespace std::string_view_literals;
+
 	export enum class parsed_keywords
 	{
 		inline_keyword = 1 << 1,
@@ -110,9 +110,9 @@ namespace ge
 	export class parser
 	{
 	public:
-		static constexpr std::string_view s_refl_func = "REFL_FUNC";
-		static constexpr std::string_view s_refl_data = "REFL_DATA";
-		static constexpr std::string_view s_refl_class = "REFL_TYPE";
+		static constexpr std::string_view s_refl_func = "REFL_FUNC"sv;
+		static constexpr std::string_view s_refl_data = "REFL_DATA"sv;
+		static constexpr std::string_view s_refl_class = "REFL_TYPE"sv;
 
 		API parsed_file parse(std::string_view file);
 
@@ -158,6 +158,7 @@ namespace ge
 			store_reflected_func,
 			store_parameter,
 		};
+		static constexpr enum_type s_next_item_is_store_event = std::numeric_limits<enum_type>::max();
 
 		union parse_state
 		{
@@ -166,12 +167,10 @@ namespace ge
 			store_event m_store_event;
 		};
 
-		static constexpr enum_type s_next_item_is_store_event = std::numeric_limits<enum_type>::max();
-
 		struct scope_stack_entry
 		{
 			std::reference_wrapper<parsed_scope> m_parsed_scope;
-			int m_curly_brackets_count_before_scope{};
+			std::int64_t m_curly_brackets_count_before_scope{};
 			parsed_access_specifier m_current_access_level{};
 		};
 
@@ -179,7 +178,7 @@ namespace ge
 
 		void report_error(std::string reason)
 		{
-			std::print("error: {}\n", reason);
+			std::print("error: {}\n"sv, reason);
 
 			m_state_stack = {};
 			push_state(token_consumer::none);
@@ -218,7 +217,7 @@ ge::parsed_file ge::parser::parse(std::string_view file)
 	tokeniser tokeniser{ file };
 	parsed_file parsed_file{};
 
-	m_scope_stack.emplace(parsed_file, -1);
+	m_scope_stack.emplace(parsed_file, -1ll);
 	push_state(token_consumer::none);
 
 	for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
@@ -374,7 +373,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
-		if (it->m_str == "namespace")
+		if (it->m_str == "namespace"sv)
 		{
 			push_state(reflect_bundle::reflect_namespace);
 			return true;
@@ -386,7 +385,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
-		if (it->m_str == "}")
+		if (it->m_str == "}"sv)
 		{
 			if (it.curly_bracket_count() != m_scope_stack.top().m_curly_brackets_count_before_scope)
 			{
@@ -408,7 +407,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	case token_consumer::parse_attributes:
 	{
 		if (it.parentheses_count() == 0
-			&& it->m_str == ")")
+			&& it->m_str == ")"sv)
 		{
 			complete_state();
 			return true;
@@ -432,25 +431,25 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
-		if (it->m_str == "static")
+		if (it->m_str == "static"sv)
 		{
 			add_flag(parsed_keywords::static_keyword);
 			return true;
 		}
 
-		if (it->m_str == "inline")
+		if (it->m_str == "inline"sv)
 		{
 			add_flag(parsed_keywords::inline_keyword);
 			return true;
 		}
 
-		if (it->m_str == "virtual")
+		if (it->m_str == "virtual"sv)
 		{
 			add_flag(parsed_keywords::virtual_keyword);
 			return true;
 		}
 
-		if (it->m_str == "export")
+		if (it->m_str == "export"sv)
 		{
 			add_flag(parsed_keywords::export_keyword);
 			return true;
@@ -474,11 +473,11 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
-		if (it->m_str == "{"
-			|| it->m_str == "}"
-			|| it->m_str == "("
-			|| it->m_str == ")"
-			|| it->m_str == ";")
+		if (it->m_str == "{"sv
+			|| it->m_str == "}"sv
+			|| it->m_str == "("sv
+			|| it->m_str == ")"sv
+			|| it->m_str == ";"sv)
 		{
 			complete_state();
 			return false;
@@ -515,11 +514,11 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	case token_consumer::parse_type_specifier_post_identifier:
 	{
 		if (it.template_bracket_count() == 0
-			&& it->m_str != ">"
+			&& it->m_str != ">"sv
 			&& !is_type_qualifier_ish(it->m_str)
 			&& it->m_flag != token::flag::white_space
-			&& it->m_str != "::"
-			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type.ends_with("::")))
+			&& it->m_str != "::"sv
+			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type.ends_with("::"sv)))
 		{
 			// Trim ending whitespace
 			m_most_recently_parsed.m_type.erase(std::find_if(m_most_recently_parsed.m_type.rbegin(), m_most_recently_parsed.m_type.rend(),
@@ -556,14 +555,14 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	}
 	case token_consumer::parse_type_type:
 	{
-		if (it->m_str == "class")
+		if (it->m_str == "class"sv)
 		{
 			m_most_recently_parsed.m_type_type = parsed_type_type::class_type;
 			complete_state();
 			return true;
 		}
 
-		if (it->m_str == "struct")
+		if (it->m_str == "struct"sv)
 		{
 			m_most_recently_parsed.m_type_type = parsed_type_type::struct_type;
 			complete_state();
@@ -579,14 +578,14 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
-		if (it->m_str == "{")
+		if (it->m_str == "{"sv)
 		{
 			complete_state();
 			return true;
 		}
 
-		if (it->m_str == ":"
-			|| it->m_str == ",")
+		if (it->m_str == ":"sv
+			|| it->m_str == ","sv)
 		{
 			complete_state();
 			push_state(reflect_bundle::reflect_base);
@@ -598,7 +597,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	{
 		// TODO check for curly/template bracket
 		if (it.parentheses_count() == 0
-			&& it->m_str == ")")
+			&& it->m_str == ")"sv)
 		{
 			complete_state();
 			return true;
@@ -616,7 +615,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		if (it.parentheses_count() == 1
 			&& it.template_bracket_count() == 0
 			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
-			&& it->m_str == ",")
+			&& it->m_str == ","sv)
 		{
 			complete_state();
 			push_state(reflect_bundle::reflect_parameter);
@@ -627,7 +626,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	}
 	case token_consumer::skip_to_opening_parentheses:
 	{
-		if (it->m_str == "(")
+		if (it->m_str == "("sv)
 		{
 			complete_state();
 		}
@@ -656,7 +655,7 @@ void ge::parser::store(store_event event)
 	{
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
-			report_error(std::format("{} requires a named type, but no valid identifier could be found.", s_refl_class));
+			report_error(std::format("{} requires a named type, but no valid identifier could be found."sv, s_refl_class));
 			break;
 		}
 
@@ -686,7 +685,7 @@ void ge::parser::store(store_event event)
 	{
 		if (m_most_recently_parsed.m_type.empty())
 		{
-			report_error(std::format("{} has a base type, but no valid typename could be parsed.", s_refl_class));
+			report_error(std::format("{} has a base type, but no valid typename could be parsed."sv, s_refl_class));
 			break;
 		}
 
@@ -703,13 +702,13 @@ void ge::parser::store(store_event event)
 	{
 		if (m_most_recently_parsed.m_type.empty())
 		{
-			report_error(std::format("{} was not followed by a type", s_refl_data));
+			report_error(std::format("{} was not followed by a type"sv, s_refl_data));
 			break;
 		}
 
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
-			report_error(std::format("{} requires a named variable, but no valid identifier could be found.", s_refl_data));
+			report_error(std::format("{} requires a named variable, but no valid identifier could be found."sv, s_refl_data));
 			break;
 		}
 
@@ -725,13 +724,13 @@ void ge::parser::store(store_event event)
 	{
 		if (m_most_recently_parsed.m_type.empty())
 		{
-			report_error(std::format("{} was not followed by a return type", s_refl_func));
+			report_error(std::format("{} was not followed by a return type"sv, s_refl_func));
 			break;
 		}
 
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
-			report_error(std::format("{} requires a named function, but no valid identifier could be found.", s_refl_func));
+			report_error(std::format("{} requires a named function, but no valid identifier could be found."sv, s_refl_func));
 			break;
 		}
 
@@ -747,7 +746,7 @@ void ge::parser::store(store_event event)
 	{
 		if (m_most_recently_parsed.m_type.empty())
 		{
-			report_error(std::format("{} has a parameter without a type", s_refl_func));
+			report_error(std::format("{} has a parameter without a type"sv, s_refl_func));
 			break;
 		}
 
@@ -769,17 +768,17 @@ void ge::parser::store(store_event event)
 
 std::optional<ge::parsed_access_specifier> ge::parser::get_access_specifier_from_string(std::string_view keyword)
 {
-	if (keyword == "private")
+	if (keyword == "private"sv)
 	{
 		return parsed_access_specifier::private_access;
 	}
 
-	if (keyword == "protected")
+	if (keyword == "protected"sv)
 	{
 		return parsed_access_specifier::protected_access;
 	}
 
-	if (keyword == "public")
+	if (keyword == "public"sv)
 	{
 		return parsed_access_specifier::public_access;
 	}
@@ -789,9 +788,9 @@ std::optional<ge::parsed_access_specifier> ge::parser::get_access_specifier_from
 
 bool ge::parser::is_type_qualifier_ish(std::string_view keyword)
 {
-	return keyword == "&"
-		|| keyword == "&&"
-		|| keyword == "*"
-		|| keyword == "const"
-		|| keyword == "volatile";
+	return keyword == "&"sv
+		|| keyword == "&&"sv
+		|| keyword == "*"sv
+		|| keyword == "const"sv
+		|| keyword == "volatile"sv;
 }
