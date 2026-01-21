@@ -43,10 +43,17 @@ namespace ge
 		protected_access,
 	};
 
-	export enum class parsed_type_type
+	export enum class parsed_type_key
 	{
 		class_type,
 		struct_type,
+	};
+
+	export enum class parsed_enum_key
+	{
+		enum_class_key,
+		enum_struct_key,
+		enum_key,
 	};
 
 	export struct parsed_type;
@@ -78,12 +85,21 @@ namespace ge
 		parsed_access_specifier m_access{};
 	};
 
+	export struct parsed_enum
+	{
+		std::string m_attributes{};
+		std::string m_name{};
+		std::vector<std::string> m_entries{};
+		parsed_enum_key m_key{};
+	};
+
 	export struct parsed_scope
 	{
 		std::string m_name{};
 
 		std::vector<parsed_func> m_funcs{};
 		std::vector<parsed_data> m_data{};
+		std::vector<parsed_enum> m_enums{};
 
 		std::vector<unique_ref<parsed_scope>> m_namespaces{};
 		std::vector<unique_ref<parsed_type>> m_types{};
@@ -98,7 +114,7 @@ namespace ge
 	struct parsed_type : parsed_scope
 	{
 		std::string m_attributes{};
-		parsed_type_type m_type{};
+		parsed_type_key m_key{};
 		std::vector<parsed_base> m_base_types{};
 		parsed_access_specifier m_access{};
 	};
@@ -110,8 +126,9 @@ namespace ge
 	export class parser
 	{
 	public:
-		static constexpr std::string_view s_refl_func = "REFL_FUNC"sv;
 		static constexpr std::string_view s_refl_data = "REFL_DATA"sv;
+		static constexpr std::string_view s_refl_func = "REFL_FUNC"sv;
+		static constexpr std::string_view s_refl_enum = "REFL_ENUM"sv;
 		static constexpr std::string_view s_refl_class = "REFL_TYPE"sv;
 
 		API parsed_file parse(std::string_view file);
@@ -124,6 +141,8 @@ namespace ge
 			reflect_namespace,
 			reflect_type_definition,
 			reflect_base,
+			reflect_enum,
+			reflect_enum_entry,
 			reflect_data,
 			reflect_func,
 			reflect_parameter,
@@ -141,12 +160,15 @@ namespace ge
 			parse_type_specifier_pre_identifier,
 			parse_type_specifier_post_identifier,
 			parse_access_specifier,
-			parse_type_type, // check for the 'struct' or 'class' keyword
+			parse_type_key,
+			parse_enum_key,
 
 			check_for_next_base,
 			check_for_next_parameter,
+			check_for_next_enum_entry,
 
 			skip_to_opening_parentheses,
+			skip_to_opening_curly_bracket,
 		};
 
 		enum class store_event : enum_type
@@ -154,6 +176,8 @@ namespace ge
 			store_reflected_namespace,
 			store_reflected_type,
 			store_base,
+			store_reflected_enum,
+			store_enum_entry,
 			store_reflected_data,
 			store_reflected_func,
 			store_parameter,
@@ -178,10 +202,7 @@ namespace ge
 
 		void report_error(std::string reason)
 		{
-			std::print("error: {}\n"sv, reason);
-
-			m_state_stack = {};
-			push_state(token_consumer::none);
+			throw std::runtime_error{ reason };
 		}
 
 		void push_state(reflect_bundle bundle);
@@ -206,7 +227,8 @@ namespace ge
 			std::string m_type{};
 			std::string m_identifier{};
 			parsed_keywords m_keywords{};
-			parsed_type_type m_type_type{};
+			parsed_type_key m_type_key{};
+			parsed_enum_key m_enum_key{};
 			std::optional<parsed_access_specifier> m_access_specifier{};
 		} m_most_recently_parsed{};
 	};
@@ -280,7 +302,7 @@ void ge::parser::push_state(reflect_bundle bundle)
 		break;
 	case reflect_bundle::reflect_type_definition:
 		queue(reflect_bundle::reflect_attributes,
-			token_consumer::parse_type_type,
+			token_consumer::parse_type_key,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_type,
 			token_consumer::check_for_next_base);
@@ -288,8 +310,24 @@ void ge::parser::push_state(reflect_bundle bundle)
 	case reflect_bundle::reflect_base:
 		queue(token_consumer::parse_access_specifier,
 			reflect_bundle::reflect_type_specifier,
-			store_event::store_base);
+			store_event::store_base,
+			token_consumer::check_for_next_base);
 		break;
+	case reflect_bundle::reflect_enum:
+		queue(reflect_bundle::reflect_attributes,
+			token_consumer::parse_enum_key,
+			token_consumer::parse_identifier,
+			store_event::store_reflected_enum,
+			token_consumer::skip_to_opening_curly_bracket,
+			token_consumer::check_for_next_enum_entry);
+		break;
+	case reflect_bundle::reflect_enum_entry:
+	{
+		queue(token_consumer::parse_identifier,
+			store_event::store_enum_entry,
+			token_consumer::check_for_next_enum_entry);
+		break;
+	}
 	case reflect_bundle::reflect_data:
 		queue(reflect_bundle::reflect_attributes,
 			token_consumer::parse_keywords,
@@ -309,7 +347,8 @@ void ge::parser::push_state(reflect_bundle bundle)
 	case reflect_bundle::reflect_parameter:
 		queue(reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
-			store_event::store_parameter);
+			store_event::store_parameter,
+			token_consumer::check_for_next_parameter);
 		break;
 	case reflect_bundle::reflect_type_specifier:
 		queue(token_consumer::parse_type_specifier_pre_identifier,
@@ -364,6 +403,12 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		if (it->m_str == s_refl_func)
 		{
 			push_state(reflect_bundle::reflect_func);
+			return true;
+		}
+
+		if (it->m_str == s_refl_enum)
+		{
+			push_state(reflect_bundle::reflect_enum);
 			return true;
 		}
 
@@ -553,20 +598,51 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		complete_state();
 		return false;
 	}
-	case token_consumer::parse_type_type:
+	case token_consumer::parse_type_key:
 	{
 		if (it->m_str == "class"sv)
 		{
-			m_most_recently_parsed.m_type_type = parsed_type_type::class_type;
+			m_most_recently_parsed.m_type_key = parsed_type_key::class_type;
 			complete_state();
 			return true;
 		}
 
 		if (it->m_str == "struct"sv)
 		{
-			m_most_recently_parsed.m_type_type = parsed_type_type::struct_type;
+			m_most_recently_parsed.m_type_key = parsed_type_key::struct_type;
 			complete_state();
 			return true;
+		}
+
+		return true;
+	}
+	case token_consumer::parse_enum_key:
+	{
+		if (it->m_str == "enum"sv)
+		{
+			m_most_recently_parsed.m_enum_key = parsed_enum_key::enum_key;
+			return true;
+		}
+
+		if (it->m_str == "class"sv)
+		{
+			m_most_recently_parsed.m_enum_key = parsed_enum_key::enum_class_key;
+			complete_state();
+			return true;
+		}
+
+		if (it->m_str == "struct"sv)
+		{
+			m_most_recently_parsed.m_enum_key = parsed_enum_key::enum_struct_key;
+			complete_state();
+			return true;
+		}
+
+		if (it->m_flag != token::flag::white_space
+			&& m_most_recently_parsed.m_enum_key == parsed_enum_key::enum_key)
+		{
+			complete_state();
+			return false;
 		}
 
 		return true;
@@ -595,8 +671,9 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	}
 	case token_consumer::check_for_next_parameter:
 	{
-		// TODO check for curly/template bracket
 		if (it.parentheses_count() == 0
+			&& it.template_bracket_count() == 0
+			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
 			&& it->m_str == ")"sv)
 		{
 			complete_state();
@@ -605,7 +682,8 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
 
-		if (func.m_parameters.empty())
+		if (func.m_parameters.empty()
+			&& it->m_flag == token::flag::valid_identifier)
 		{
 			complete_state();
 			push_state(reflect_bundle::reflect_parameter);
@@ -619,7 +697,38 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		{
 			complete_state();
 			push_state(reflect_bundle::reflect_parameter);
+		}
+
+		return true;
+	}
+	case token_consumer::check_for_next_enum_entry:
+	{
+		if (it.parentheses_count() == 0
+			&& it.template_bracket_count() == 0
+			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
+			&& it->m_str == "}"sv)
+		{
+			complete_state();
 			return true;
+		}
+
+		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.back();
+
+		if (parsed_enum.m_entries.empty()
+			&& it->m_flag == token::flag::valid_identifier)
+		{
+			complete_state();
+			push_state(reflect_bundle::reflect_enum_entry);
+			return false;
+		}
+
+		if (it.parentheses_count() == 0
+			&& it.template_bracket_count() == 0
+			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 2
+			&& it->m_str == ","sv)
+		{
+			complete_state();
+			push_state(reflect_bundle::reflect_enum_entry);
 		}
 
 		return true;
@@ -627,6 +736,14 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	case token_consumer::skip_to_opening_parentheses:
 	{
 		if (it->m_str == "("sv)
+		{
+			complete_state();
+		}
+		return true;
+	}
+	case token_consumer::skip_to_opening_curly_bracket:
+	{
+		if (it->m_str == "{"sv)
 		{
 			complete_state();
 		}
@@ -663,17 +780,17 @@ void ge::parser::store(store_event event)
 		parsed_type& new_type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
 
 		new_type.m_name = m_most_recently_parsed.m_identifier;
-		new_type.m_type = m_most_recently_parsed.m_type_type;
+		new_type.m_key = m_most_recently_parsed.m_type_key;
 		new_type.m_attributes = m_most_recently_parsed.m_attributes;
 
 		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 
-		switch (new_type.m_type)
+		switch (new_type.m_key)
 		{
-		case parsed_type_type::class_type:
+		case parsed_type_key::class_type:
 			new_entry.m_current_access_level = parsed_access_specifier::private_access;
 			break;
-		case parsed_type_type::struct_type:
+		case parsed_type_key::struct_type:
 			new_entry.m_current_access_level = parsed_access_specifier::public_access;
 			break;
 		default:
@@ -694,8 +811,31 @@ void ge::parser::store(store_event event)
 
 		base.m_name = m_most_recently_parsed.m_type;
 		base.m_access = m_most_recently_parsed.m_access_specifier;
+		break;
+	}
+	case store_event::store_reflected_enum:
+	{
+		if (m_most_recently_parsed.m_identifier.empty())
+		{
+			report_error(std::format("{} requires a named enum, but no valid identifier could be found"sv, s_refl_enum));
+			break;
+		}
 
-		push_state(token_consumer::check_for_next_base);
+		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.emplace_back();
+		parsed_enum.m_attributes = m_most_recently_parsed.m_attributes;
+		parsed_enum.m_name = m_most_recently_parsed.m_identifier;
+		break;
+	}	
+	case store_event::store_enum_entry:
+	{
+		if (m_most_recently_parsed.m_identifier.empty())
+		{
+			report_error("Attempted to store enum entry, but no valid identifier could be found.");
+			break;
+		}
+
+		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.back();
+		parsed_enum.m_entries.emplace_back(m_most_recently_parsed.m_identifier);
 		break;
 	}
 	case store_event::store_reflected_data:
@@ -755,8 +895,6 @@ void ge::parser::store(store_event event)
 
 		param.m_type = m_most_recently_parsed.m_type;
 		param.m_name = m_most_recently_parsed.m_identifier;
-
-		push_state(token_consumer::check_for_next_parameter);
 		break;
 	}
 	default:

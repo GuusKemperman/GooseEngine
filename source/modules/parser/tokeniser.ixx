@@ -219,7 +219,7 @@ ge::token_iterator& ge::token_iterator::operator++()
 		return *this;
 	}
 
-	if (remaining_file().starts_with("\""sv)
+	if (remaining_file().starts_with('\"')
 		|| remaining_file().starts_with("L\""sv)
 		|| remaining_file().starts_with("u8\""sv)
 		|| remaining_file().starts_with("u\""sv)
@@ -239,6 +239,23 @@ ge::token_iterator& ge::token_iterator::operator++()
 				break;
 			}
 			add_to_token();
+		}
+
+		return *this;
+	}
+
+	if (remaining_file().starts_with('\''))
+	{
+		start_token();
+		add_to_token();
+
+		if (remaining_file().starts_with(R"(\'')"))
+		{
+			add_to_token(3);
+		}
+		else
+		{
+			add_to_token(2);
 		}
 
 		return *this;

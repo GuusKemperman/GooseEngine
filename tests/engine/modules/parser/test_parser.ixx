@@ -160,6 +160,29 @@ UNIT_TEST(parser, simple_data)
     is_eq(file.m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword);
 }
 
+UNIT_TEST(parser, no_param_func)
+{
+    ge::parser parser{};
+
+    std::string_view src =
+        "REFL_FUNC()\n"
+        "void do_thing( /*with comment*/);\n"
+        "REFL_FUNC()\n"
+        "void do_thing_again();";
+
+    ge::parsed_file file = parser.parse(src);
+
+    is_eq(file.m_funcs.at(0).m_attributes, "");
+    is_eq(file.m_funcs.at(0).m_return_type, "void");
+    is_eq(file.m_funcs.at(0).m_name, "do_thing");
+    is_eq(file.m_funcs.at(0).m_parameters.size(), 0ull);
+
+    is_eq(file.m_funcs.at(1).m_attributes, "");
+    is_eq(file.m_funcs.at(1).m_return_type, "void");
+    is_eq(file.m_funcs.at(1).m_name, "do_thing_again");
+    is_eq(file.m_funcs.at(1).m_parameters.size(), 0ull);
+}
+
 UNIT_TEST(parser, simple_func)
 {
     ge::parser parser{};
@@ -282,7 +305,7 @@ UNIT_TEST(parser, simple_class)
         "\n"
         "    public:\n"
         "        REFL_FUNC(hi)\n"
-        "            bool is_alpha(char al = ')') -> bool { return al == '}'; }\n"
+        "            bool is_alpha(char al = ')', char ot = '\\'') -> bool { return al == '}'; }\n"
         "    };\n"
         "}\n"
         ;
@@ -299,7 +322,7 @@ UNIT_TEST(parser, simple_class)
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(2).m_access, ge::parsed_access_specifier::protected_access);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(3).m_name, "barfoo");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(3).m_access, std::nullopt);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_type, ge::parsed_type_type::class_type);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_key, ge::parsed_type_key::class_type);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_name, "vecy");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_name, "vecy");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_attributes, "me_is_data!");
@@ -311,6 +334,62 @@ UNIT_TEST(parser, simple_class)
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_return_type, "bool");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_type, "char");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_name, "al");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.size(), 1ull);
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(1).m_type, "char");
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(1).m_name, "ot");
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.size(), 2ull);
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_access, ge::parsed_access_specifier::public_access);
+}
+
+UNIT_TEST(parser, enums)
+{
+    ge::parser parser{};
+
+    std::string_view src =
+		"REFL_ENUM(attry!)\n"
+        "        enum empty\n"
+        "	    {\n"
+        "	    };\n"
+        "\n"
+		"REFL_ENUM(attry!)\n"
+        "	    enum class empty_class {};\n"
+        "\n"
+		"REFL_ENUM(attry!)\n"
+        "	    enum simple_entries\n"
+        "	    {\n"
+        "	        hello,\n"
+        "	        world\n"
+        "	    };\n"
+        "\n"
+		"REFL_ENUM(attry!)\n"
+        "	    enum class complex_entries : std::uint64_t\n"
+        "	    {\n"
+        "	        hello = 1,\n"
+        "	        world = hello, /*,*/\n"
+        "	        goodnight = some_struct<simple_entries, hello>::size<1, 2>(int test = { hello }),\n"
+        "	        darling\n"
+        "	    };\n";
+
+    ge::parsed_file file = parser.parse(src);
+
+    is_eq(file.m_enums.at(0).m_name, "empty");
+    is_eq(file.m_enums.at(0).m_attributes, "attry!");
+    is_eq(file.m_enums.at(0).m_entries.size(), 0ull);
+
+    is_eq(file.m_enums.at(1).m_name, "empty_class");
+    is_eq(file.m_enums.at(1).m_attributes, "attry!");
+    is_eq(file.m_enums.at(1).m_entries.size(), 0ull);
+
+    is_eq(file.m_enums.at(2).m_name, "simple_entries");
+    is_eq(file.m_enums.at(2).m_attributes, "attry!");
+    is_eq(file.m_enums.at(2).m_entries.at(0), "hello");
+    is_eq(file.m_enums.at(2).m_entries.at(1), "world");
+    is_eq(file.m_enums.at(2).m_entries.size(), 2ull);
+
+    is_eq(file.m_enums.at(3).m_name, "complex_entries");
+    is_eq(file.m_enums.at(3).m_attributes, "attry!");
+    is_eq(file.m_enums.at(3).m_entries.at(0), "hello");
+    is_eq(file.m_enums.at(3).m_entries.at(1), "world");
+    is_eq(file.m_enums.at(3).m_entries.at(2), "goodnight");
+    is_eq(file.m_enums.at(3).m_entries.at(3), "darling");
+    is_eq(file.m_enums.at(3).m_entries.size(), 4ull);
 }
