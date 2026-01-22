@@ -318,7 +318,7 @@ UNIT_TEST(parser, simple_class)
         "\n"
         "    public:\n"
         "        REFL_FUNC(hi)\n"
-        "            bool is_alpha(char al = ')', char ot = '\\'') -> bool { return al == '}'; }\n"
+        "            bool is_alpha(char al = ')', char ot = '\\'') const & -> bool { return al == '}'; }\n"
         "    };\n"
         "}\n"
         ;
@@ -345,6 +345,7 @@ UNIT_TEST(parser, simple_class)
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_attributes, "hi");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_name, "is_alpha");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_return_type, "bool");
+    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_trailing_qualifiers, "const &");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_type, "char");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_name, "al");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(1).m_type, "char");

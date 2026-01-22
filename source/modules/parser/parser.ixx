@@ -4,13 +4,9 @@ export import :tokeniser;
 import utils;
 import error_handling;
 
-// TODO: Member function 'this' type
-
 namespace ge
 {
-	using namespace std::string_view_literals;
-
-	export enum class parsed_keywords
+	export enum class parsed_keywords : std::uint8_t
 	{
 		inline_keyword = 1 << 1,
 		static_keyword = 1 << 2,
@@ -36,20 +32,20 @@ namespace ge
 		return lhs;
 	}
 
-	export enum class parsed_access_specifier
+	export enum class parsed_access_specifier : std::uint8_t
 	{
 		public_access,
 		private_access,
 		protected_access,
 	};
 
-	export enum class parsed_type_key
+	export enum class parsed_type_key : std::uint8_t
 	{
 		class_type,
 		struct_type,
 	};
 
-	export enum class parsed_enum_key
+	export enum class parsed_enum_key : std::uint8_t
 	{
 		enum_class_key,
 		enum_struct_key,
@@ -79,6 +75,7 @@ namespace ge
 		std::string m_attributes{};
 		std::string m_name{};
 		std::string m_return_type{};
+		std::string m_trailing_qualifiers{};
 		std::vector<parsed_parameter> m_parameters{};
 
 		parsed_keywords m_keywords{};
@@ -125,6 +122,8 @@ namespace ge
 
 	export API std::expected<parsed_file, std::string> parse(std::string_view file);
 
+	using namespace std::string_view_literals;
+
 	class parser
 	{
 	public:
@@ -148,6 +147,7 @@ namespace ge
 			reflect_data,
 			reflect_func,
 			reflect_parameter,
+			reflect_trailing_qualifiers,
 			reflect_type_specifier,
 			reflect_attributes,
 		};
@@ -161,6 +161,7 @@ namespace ge
 			parse_identifier,
 			parse_type_specifier_pre_identifier,
 			parse_type_specifier_post_identifier,
+			parse_trailing_qualifiers,
 			parse_access_specifier,
 			parse_type_key,
 			parse_enum_key,
@@ -183,6 +184,7 @@ namespace ge
 			store_reflected_data,
 			store_reflected_func,
 			store_parameter,
+			store_trailing_qualifiers,
 		};
 		static constexpr enum_type s_next_item_is_store_event = std::numeric_limits<enum_type>::max();
 
@@ -213,10 +215,9 @@ namespace ge
 		[[noreturn]] static void report_failure(std::string_view reason);
 		static std::string format_error(std::string_view file, token_iterator error_location, std::string_view reason);
 
-		// Keyword being private, protected, or public
 		static std::optional<parsed_access_specifier> get_access_specifier_from_string(std::string_view keyword);
-
 		static bool is_type_qualifier_ish(std::string_view keyword);
+		static void trim_trailing_whitespace(std::string& str);
 
 		std::stack<parse_state> m_state_stack{};
 		std::stack<scope_stack_entry> m_scope_stack{};
@@ -334,12 +335,10 @@ void ge::parser::push_state(reflect_bundle bundle)
 			token_consumer::check_for_next_enum_entry);
 		break;
 	case reflect_bundle::reflect_enum_entry:
-	{
 		queue(token_consumer::parse_identifier,
 			store_event::store_enum_entry,
 			token_consumer::check_for_next_enum_entry);
 		break;
-	}
 	case reflect_bundle::reflect_data:
 		queue(reflect_bundle::reflect_attributes,
 			token_consumer::parse_keywords,
@@ -354,13 +353,18 @@ void ge::parser::push_state(reflect_bundle bundle)
 			token_consumer::parse_identifier,
 			store_event::store_reflected_func,
 			token_consumer::skip_to_opening_parentheses,
-			token_consumer::check_for_next_parameter);
+			token_consumer::check_for_next_parameter,
+			reflect_bundle::reflect_trailing_qualifiers);
 		break;
 	case reflect_bundle::reflect_parameter:
 		queue(reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
 			store_event::store_parameter,
 			token_consumer::check_for_next_parameter);
+		break;
+	case reflect_bundle::reflect_trailing_qualifiers:
+		queue(token_consumer::parse_trailing_qualifiers,
+			store_event::store_trailing_qualifiers);
 		break;
 	case reflect_bundle::reflect_type_specifier:
 		queue(token_consumer::parse_type_specifier_pre_identifier,
@@ -543,7 +547,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	}
 	case token_consumer::parse_type_specifier_pre_identifier:
 	{
-		// Trim leading whitespace
 		if (m_most_recently_parsed.m_type_specifier.empty()
 			&& it->m_flag == token::flag::white_space)
 		{
@@ -575,13 +578,26 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			&& it->m_str != "::"sv
 			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type_specifier.ends_with("::"sv)))
 		{
-			// Trim ending whitespace
-			m_most_recently_parsed.m_type_specifier.erase(std::find_if(m_most_recently_parsed.m_type_specifier.rbegin(), m_most_recently_parsed.m_type_specifier.rend(),
-				[](char ch)
-				{
-					return !std::isspace(static_cast<unsigned char>(ch));
-				}).base(), m_most_recently_parsed.m_type_specifier.end());
+			trim_trailing_whitespace(m_most_recently_parsed.m_type_specifier);
+			complete_state();
+			return false;
+		}
 
+		m_most_recently_parsed.m_type_specifier += it->m_str;
+		return true;
+	}
+	case token_consumer::parse_trailing_qualifiers:
+	{
+		if (m_most_recently_parsed.m_type_specifier.empty()
+			&& it->m_flag == token::flag::white_space)
+		{
+			return true;
+		}
+
+		if (it->m_flag != token::flag::white_space
+			&& !is_type_qualifier_ish(it->m_str))
+		{
+			trim_trailing_whitespace(m_most_recently_parsed.m_type_specifier);
 			complete_state();
 			return false;
 		}
@@ -773,7 +789,7 @@ void ge::parser::store(store_event event)
 		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
 		parsed_scope& new_namespace = parent.m_namespaces.emplace_back(make_unique_ref<parsed_scope>());
 
-		new_namespace.m_name = m_most_recently_parsed.m_identifier;
+		new_namespace.m_name = std::move(m_most_recently_parsed.m_identifier);
 
 		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 		break;
@@ -783,15 +799,14 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_failure("Expected identifier"sv);
-			break;
 		}
 
 		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
 		parsed_type& new_type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
 
-		new_type.m_name = m_most_recently_parsed.m_identifier;
+		new_type.m_name = std::move(m_most_recently_parsed.m_identifier);
+		new_type.m_attributes = std::move(m_most_recently_parsed.m_attributes);
 		new_type.m_key = m_most_recently_parsed.m_type_key;
-		new_type.m_attributes = m_most_recently_parsed.m_attributes;
 
 		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 
@@ -813,14 +828,13 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_type_specifier.empty())
 		{
 			report_failure("Expected base type"sv);
-			break;
 		}
 
 		parsed_type& type = static_cast<parsed_type&>(m_scope_stack.top().m_parsed_scope.get());
 		parsed_base& base = type.m_base_types.emplace_back();
 
-		base.m_name = m_most_recently_parsed.m_type_specifier;
-		base.m_access = m_most_recently_parsed.m_access_specifier;
+		base.m_name = std::move(m_most_recently_parsed.m_type_specifier);
+		base.m_access = std::move(m_most_recently_parsed.m_access_specifier);
 		break;
 	}
 	case store_event::store_reflected_enum:
@@ -828,12 +842,11 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_failure("Expected identifier"sv);
-			break;
 		}
 
 		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.emplace_back();
-		parsed_enum.m_attributes = m_most_recently_parsed.m_attributes;
-		parsed_enum.m_name = m_most_recently_parsed.m_identifier;
+		parsed_enum.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		parsed_enum.m_name = std::move(m_most_recently_parsed.m_identifier);
 		break;
 	}	
 	case store_event::store_enum_entry:
@@ -841,11 +854,10 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_failure("Expected identifier"sv);
-			break;
 		}
 
 		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.back();
-		parsed_enum.m_entries.emplace_back(m_most_recently_parsed.m_identifier);
+		parsed_enum.m_entries.emplace_back(std::move(m_most_recently_parsed.m_identifier));
 		break;
 	}
 	case store_event::store_reflected_data:
@@ -853,21 +865,19 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_type_specifier.empty())
 		{
 			report_failure("Expected valid type specifier"sv);
-			break;
 		}
 
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_failure("Expected identifier"sv);
-			break;
 		}
 
 		parsed_data& data = m_scope_stack.top().m_parsed_scope.get().m_data.emplace_back();
-		data.m_access = m_scope_stack.top().m_current_access_level;
-		data.m_name = m_most_recently_parsed.m_identifier;
-		data.m_type = m_most_recently_parsed.m_type_specifier;
-		data.m_attributes = m_most_recently_parsed.m_attributes;
+		data.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		data.m_name = std::move(m_most_recently_parsed.m_identifier);
+		data.m_type = std::move(m_most_recently_parsed.m_type_specifier);
 		data.m_keywords = m_most_recently_parsed.m_keywords;
+		data.m_access = m_scope_stack.top().m_current_access_level;
 		break;
 	}
 	case store_event::store_reflected_func:
@@ -875,21 +885,19 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_type_specifier.empty())
 		{
 			report_failure("Expected return type"sv);
-			break;
 		}
 
 		if (m_most_recently_parsed.m_identifier.empty())
 		{
 			report_failure("Expected identifier"sv);
-			break;
 		}
 
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.emplace_back();
-		func.m_access = m_scope_stack.top().m_current_access_level;
-		func.m_name = m_most_recently_parsed.m_identifier;
-		func.m_return_type = m_most_recently_parsed.m_type_specifier;
-		func.m_attributes = m_most_recently_parsed.m_attributes;
+		func.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		func.m_name = std::move(m_most_recently_parsed.m_identifier);
+		func.m_return_type = std::move(m_most_recently_parsed.m_type_specifier);
 		func.m_keywords = m_most_recently_parsed.m_keywords;
+		func.m_access = m_scope_stack.top().m_current_access_level;
 		break;
 	}
 	case store_event::store_parameter:
@@ -897,14 +905,19 @@ void ge::parser::store(store_event event)
 		if (m_most_recently_parsed.m_type_specifier.empty())
 		{
 			report_failure("Expected parameter type"sv);
-			break;
 		}
 
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
 		parsed_parameter& param = func.m_parameters.emplace_back();
 
-		param.m_type = m_most_recently_parsed.m_type_specifier;
-		param.m_name = m_most_recently_parsed.m_identifier;
+		param.m_type = std::move(m_most_recently_parsed.m_type_specifier);
+		param.m_name = std::move(m_most_recently_parsed.m_identifier);
+		break;
+	}
+	case store_event::store_trailing_qualifiers:
+	{
+		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.back();
+		func.m_trailing_qualifiers = std::move(m_most_recently_parsed.m_type_specifier);
 		break;
 	}
 	default:
@@ -932,10 +945,10 @@ std::string ge::parser::format_error(std::string_view file, token_iterator error
 
 	for (auto [index, line] : lines 
 		| std::views::drop(start_line) 
-		| std::views::transform([](auto&& sub_range) { return std::string_view{ sub_range.begin(), sub_range.end() }; }) 
 		| std::views::enumerate)
 	{
-		error += std::format("{:6} | {}\n"sv, start_line + index, line);
+		error += std::format("{:6} | {}\n"sv, start_line + index, 
+			std::string_view{ line.begin(), line.end() });
 	}
 
 	// + to account for us inserting the line number, and - since that spot will be taken by the '^'
@@ -973,4 +986,13 @@ bool ge::parser::is_type_qualifier_ish(std::string_view keyword)
 		|| keyword == "*"sv
 		|| keyword == "const"sv
 		|| keyword == "volatile"sv;
+}
+
+void ge::parser::trim_trailing_whitespace(std::string& str)
+{
+	str.erase(std::find_if(str.rbegin(), str.rend(),
+		[](char ch)
+		{
+			return !std::isspace(static_cast<unsigned char>(ch));
+		}).base(), str.end());
 }
