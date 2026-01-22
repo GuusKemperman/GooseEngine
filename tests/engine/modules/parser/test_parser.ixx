@@ -8,19 +8,27 @@ import test_core;
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
-namespace
+static void print_tokens(std::string_view file)
 {
-	void print_tokens(std::string_view file)
+    ge::logger logger{};
+
+    logger.log(ge::verbose, "Parsing {}", file);
+
+    for (ge::token token : ge::tokeniser{ file })
+    {
+        logger.log(ge::verbose, "{} - {}", static_cast<int>(token.m_flag), token.m_str);
+    }
+}
+
+static ge::parsed_file parse_file(std::string_view file)
+{
+    std::expected<ge::parsed_file, std::string> result = ge::parse(file);
+
+	if (result.has_value())
 	{
-        ge::logger logger{};
-
-        logger.log(ge::verbose, "Parsing {}", file);
-
-        for (ge::token token : ge::tokeniser{ file })
-        {
-            logger.log(ge::verbose, "{} - {}", static_cast<int>(token.m_flag), token.m_str);
-        }
+        return *std::move(result);
 	}
+    failure(result.error());
 }
 
 UNIT_TEST(tokeniser, complex_function_no_crash)
@@ -73,11 +81,26 @@ UNIT_TEST(tokeniser, iterators)
     is_eq(it, tokeniser.end());
 }
 
+UNIT_TEST(parser, invalid_file)
+{
+    std::string_view src =
+        "REFL_DATA()\n"
+        "int ? = 5;\n"
+        "\n"
+        "REFL_DATA()\n"
+        "int valid = 69;\n";
+
+    ge::logger logger{};
+    std::expected<ge::parsed_file, std::string> result = ge::parse(src);
+
+    is_false(result.has_value());
+    is_false(result.error().empty());
+    logger.log_raw(ge::severity::message, result.error());
+}
+
 UNIT_TEST(parser, complex_function_no_crash)
 {
-    ge::parser parser{};
-
-    [[maybe_unused]] ge::parsed_file file = parser.parse(
+    ge::parsed_file file = parse_file(
         "        REFL_FUNC(DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable)\n"
         "        // Hello we are reflect*/ing this\n"
         "        /*\n"
@@ -127,8 +150,6 @@ UNIT_TEST(tokeniser, simple_func)
 
 UNIT_TEST(parser, simple_namespace)
 {
-    ge::parser parser{};
-
     std::string_view src =
         "namespace hello\n"
         "{\n"
@@ -136,7 +157,7 @@ UNIT_TEST(parser, simple_namespace)
         "}\n"
         "namespace {}\n";
 
-    ge::parsed_file file = parser.parse(src);
+    ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_namespaces.at(0).get().m_name, "hello");
     is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_name, "world");
@@ -146,13 +167,11 @@ UNIT_TEST(parser, simple_namespace)
 
 UNIT_TEST(parser, simple_data)
 {
-    ge::parser parser{};
-
     std::string_view src =
         "REFL_DATA(attry!, attry2!)\n"
         "static int global_data = 5;";
 
-    ge::parsed_file file = parser.parse(src);
+    ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_data.at(0).m_attributes, "attry!, attry2!");
     is_eq(file.m_data.at(0).m_type, "int");
@@ -162,15 +181,13 @@ UNIT_TEST(parser, simple_data)
 
 UNIT_TEST(parser, no_param_func)
 {
-    ge::parser parser{};
-
     std::string_view src =
         "REFL_FUNC()\n"
         "void do_thing( /*with comment*/);\n"
         "REFL_FUNC()\n"
         "void do_thing_again();";
 
-    ge::parsed_file file = parser.parse(src);
+    ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_funcs.at(0).m_attributes, "");
     is_eq(file.m_funcs.at(0).m_return_type, "void");
@@ -185,13 +202,13 @@ UNIT_TEST(parser, no_param_func)
 
 UNIT_TEST(parser, simple_func)
 {
-    ge::parser parser{};
+
 
     std::string_view src =
         "REFL_FUNC(attry!, attry2!)\n"
         "static std::vector<int> global_func(std::array<int, 2> p1 = { 1, 2 }, std::array<int, 3> p2 = std::array<int, 3>(1, 2, 3));";
 
-    ge::parsed_file file = parser.parse(src);
+    ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_funcs.at(0).m_attributes, "attry!, attry2!");
     is_eq(file.m_funcs.at(0).m_return_type, "std::vector<int>");
@@ -206,8 +223,6 @@ UNIT_TEST(parser, simple_func)
 
 UNIT_TEST(parser, complete_file)
 {
-    ge::parser parser{};
-
     std::string_view src =
 
         "REFL_FUNC()\n"
@@ -252,7 +267,7 @@ UNIT_TEST(parser, complete_file)
         "    int anon() { return 6; }\n"
         "}";
     print_tokens(src);
-	ge::parsed_file file = parser.parse(src);
+	ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_funcs.at(0).m_return_type, "int");
     is_eq(file.m_funcs.at(0).m_name, "global");
@@ -291,8 +306,6 @@ UNIT_TEST(parser, complete_file)
 
 UNIT_TEST(parser, simple_class)
 {
-    ge::parser parser{};
-
     std::string_view src =
         "namespace my_name_spacey\n"
         "{\n"
@@ -310,7 +323,7 @@ UNIT_TEST(parser, simple_class)
         "}\n"
         ;
 
-    ge::parsed_file file = parser.parse(src);
+    ge::parsed_file file = parse_file(src);
     is_eq(file.m_namespaces.at(0)->m_name, "my_name_spacey");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_name, "__myClassName");
     is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_attributes, "i_am_an_attribute = 5");
@@ -342,8 +355,6 @@ UNIT_TEST(parser, simple_class)
 
 UNIT_TEST(parser, enums)
 {
-    ge::parser parser{};
-
     std::string_view src =
 		"REFL_ENUM(attry!)\n"
         "        enum empty\n"
@@ -369,7 +380,7 @@ UNIT_TEST(parser, enums)
         "	        darling\n"
         "	    };\n";
 
-    ge::parsed_file file = parser.parse(src);
+    ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_enums.at(0).m_name, "empty");
     is_eq(file.m_enums.at(0).m_attributes, "attry!");

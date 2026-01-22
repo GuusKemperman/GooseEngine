@@ -60,7 +60,7 @@ namespace ge
 ge::exception::exception(logger* a_logger, std::string_view a_msg, const std::source_location& a_src,
 	std::stacktrace a_stacktrace) :
 	m_stack_trace(std::move(a_stacktrace)),
-	m_msg(std::format("exception thrown: ", a_msg))
+	m_msg(std::format("exception thrown: {}", a_msg))
 {
 	if (a_logger == nullptr)
 	{

@@ -59,6 +59,8 @@ namespace ge
 		API int curly_bracket_count() const { return m_curly_brackets_count; }
 		API int template_bracket_count() const { return m_template_brackets_count; }
 
+		API size_t num_characters_parsed() const { return m_num_characters_parsed; }
+
 	private:
 		std::string_view m_file{};
 		size_t m_num_characters_parsed{};
