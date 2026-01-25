@@ -2,7 +2,7 @@ export module test_parser;
 
 import std;
 import logger;
-import parser;
+import static_reflection;
 import test_core;
 
 using namespace ge::test_core;

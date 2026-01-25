@@ -1,4 +1,4 @@
-export module parser;
+export module static_reflection:parser;
 
 export import :tokeniser;
 

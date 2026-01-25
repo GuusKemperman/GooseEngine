@@ -1,3 +1,3 @@
 add_subdirectory("core")
-add_subdirectory("parser")
+add_subdirectory("static_reflection")
 add_subdirectory("utils")

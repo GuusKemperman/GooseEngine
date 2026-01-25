@@ -1,4 +1,4 @@
-export module parser:tokeniser;
+export module static_reflection:tokeniser;
 
 export import std;
 
