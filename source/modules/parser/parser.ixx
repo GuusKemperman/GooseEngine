@@ -1,8 +1,6 @@
 export module parser;
 
 export import :tokeniser;
-import utils;
-import error_handling;
 
 namespace ge
 {
@@ -98,8 +96,8 @@ namespace ge
 		std::vector<parsed_data> m_data{};
 		std::vector<parsed_enum> m_enums{};
 
-		std::vector<unique_ref<parsed_scope>> m_namespaces{};
-		std::vector<unique_ref<parsed_type>> m_types{};
+		std::list<parsed_scope> m_namespaces{};
+		std::list<parsed_type> m_types{};
 	};
 
 	export struct parsed_base
@@ -787,7 +785,7 @@ void ge::parser::store(store_event event)
 	case store_event::store_reflected_namespace:
 	{
 		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-		parsed_scope& new_namespace = parent.m_namespaces.emplace_back(make_unique_ref<parsed_scope>());
+		parsed_scope& new_namespace = parent.m_namespaces.emplace_back();
 
 		new_namespace.m_name = std::move(m_most_recently_parsed.m_identifier);
 
@@ -802,7 +800,7 @@ void ge::parser::store(store_event event)
 		}
 
 		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-		parsed_type& new_type = parent.m_types.emplace_back(make_unique_ref<parsed_type>());
+		parsed_type& new_type = parent.m_types.emplace_back();
 
 		new_type.m_name = std::move(m_most_recently_parsed.m_identifier);
 		new_type.m_attributes = std::move(m_most_recently_parsed.m_attributes);
@@ -929,7 +927,7 @@ void ge::parser::store(store_event event)
 
 void ge::parser::report_failure(std::string_view reason)
 {
-	throw exception{ nullptr, reason.data() };
+	throw std::exception{ reason.data() };
 }
 
 std::string ge::parser::format_error(std::string_view file, token_iterator error_location, std::string_view reason)

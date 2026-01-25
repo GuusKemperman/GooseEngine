@@ -31,6 +31,14 @@ static ge::parsed_file parse_file(std::string_view file)
     failure(result.error());
 }
 
+template<typename T>
+static const T& list_at(const std::list<T>& list, size_t index)
+{
+    auto it = list.begin();
+    std::advance(it, index);
+    return *it;
+}
+
 UNIT_TEST(tokeniser, complex_function_no_crash)
 {
     print_tokens(
@@ -159,9 +167,9 @@ UNIT_TEST(parser, simple_namespace)
 
     ge::parsed_file file = parse_file(src);
 
-    is_eq(file.m_namespaces.at(0).get().m_name, "hello");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_name, "world");
-    is_eq(file.m_namespaces.at(1).get().m_name, "");
+    is_eq(list_at(file.m_namespaces, 0).m_name, "hello");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 0).m_name, "world");
+    is_eq(list_at(file.m_namespaces, 1).m_name, "");
     is_eq(file.m_namespaces.size(), 2ull);
 }
 
@@ -274,34 +282,34 @@ UNIT_TEST(parser, complete_file)
     is_eq(file.m_data.at(0).m_type, "int");
     is_eq(file.m_data.at(0).m_name, "global_data");
 	
-	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_type, "std::vector<std::string<char>>");
-	is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_name, "global_data");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
+	is_eq(list_at(file.m_namespaces, 0).m_data.at(0).m_type, "std::vector<std::string<char>>");
+	is_eq(list_at(file.m_namespaces, 0).m_data.at(0).m_name, "global_data");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
 
-    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_type, "std::vector<std::string<char>>");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_name, "global_data_2");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(1).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(1).m_type, "std::vector<std::string<char>>");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(1).m_name, "global_data_2");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(1).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
 
-    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_type, "std::vector<std::string<char>>");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
-    is_eq(file.m_namespaces.at(0).get().m_data.at(2).m_name, "global_data_3");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(2).m_type, "std::vector<std::string<char>>");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(2).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(2).m_name, "global_data_3");
 
-    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_type, "std::vector<std::string<char>>");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_name, "global_data_4");
-    is_eq(file.m_namespaces.at(0).get().m_data.at(3).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(3).m_type, "std::vector<std::string<char>>");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(3).m_name, "global_data_4");
+    is_eq(list_at(file.m_namespaces, 0).m_data.at(3).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword);
 
-	is_eq(file.m_namespaces.at(0).get().m_name, "first");
-    is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
-    is_eq(file.m_namespaces.at(0).get().m_funcs.at(0).m_name, "first_func");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_name, "second");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_funcs.at(0).m_return_type, "int");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(0).get().m_funcs.at(0).m_name, "second");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(1).get().m_name, "third");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(1).get().m_funcs.at(0).m_return_type, "int");
-    is_eq(file.m_namespaces.at(0).get().m_namespaces.at(1).get().m_funcs.at(0).m_name, "third");
-    is_eq(file.m_namespaces.at(1).get().m_name, "");
-    is_eq(file.m_namespaces.at(1).get().m_funcs.at(0).m_return_type, "int");
-    is_eq(file.m_namespaces.at(1).get().m_funcs.at(0).m_name, "anon");
+	is_eq(list_at(file.m_namespaces, 0).m_name, "first");
+    is_eq(list_at(file.m_namespaces, 0).m_funcs.at(0).m_return_type, "int");
+    is_eq(list_at(file.m_namespaces, 0).m_funcs.at(0).m_name, "first_func");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 0).m_name, "second");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 0).m_funcs.at(0).m_return_type, "int");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 0).m_funcs.at(0).m_name, "second");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 1).m_name, "third");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 1).m_funcs.at(0).m_return_type, "int");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_namespaces, 1).m_funcs.at(0).m_name, "third");
+    is_eq(list_at(file.m_namespaces, 1).m_name, "");
+    is_eq(list_at(file.m_namespaces, 1).m_funcs.at(0).m_return_type, "int");
+    is_eq(list_at(file.m_namespaces, 1).m_funcs.at(0).m_name, "anon");
 }
 
 UNIT_TEST(parser, simple_class)
@@ -324,34 +332,34 @@ UNIT_TEST(parser, simple_class)
         ;
 
     ge::parsed_file file = parse_file(src);
-    is_eq(file.m_namespaces.at(0)->m_name, "my_name_spacey");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_name, "__myClassName");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_attributes, "i_am_an_attribute = 5");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(0).m_name, "foo");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(0).m_access, ge::parsed_access_specifier::public_access);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(1).m_name, "bar");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(1).m_access, ge::parsed_access_specifier::private_access);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(2).m_name, "_foobar<foo, bar>");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(2).m_access, ge::parsed_access_specifier::protected_access);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(3).m_name, "barfoo");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_base_types.at(3).m_access, std::nullopt);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_key, ge::parsed_type_key::class_type);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_name, "vecy");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_name, "vecy");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_attributes, "me_is_data!");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_type, "std::vector<char>");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_data.at(0).m_access, ge::parsed_access_specifier::private_access);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_name, "is_alpha");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_attributes, "hi");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_name, "is_alpha");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_return_type, "bool");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_trailing_qualifiers, "const &");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_type, "char");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(0).m_name, "al");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(1).m_type, "char");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.at(1).m_name, "ot");
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_parameters.size(), 2ull);
-    is_eq(file.m_namespaces.at(0)->m_types.at(0)->m_funcs.at(0).m_access, ge::parsed_access_specifier::public_access);
+    is_eq(list_at(file.m_namespaces, 0).m_name, "my_name_spacey");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_name, "__myClassName");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_attributes, "i_am_an_attribute = 5");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(0).m_name, "foo");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(0).m_access, ge::parsed_access_specifier::public_access);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(1).m_name, "bar");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(1).m_access, ge::parsed_access_specifier::private_access);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(2).m_name, "_foobar<foo, bar>");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(2).m_access, ge::parsed_access_specifier::protected_access);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(3).m_name, "barfoo");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_base_types.at(3).m_access, std::nullopt);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_key, ge::parsed_type_key::class_type);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_data.at(0).m_name, "vecy");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_data.at(0).m_name, "vecy");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_data.at(0).m_attributes, "me_is_data!");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_data.at(0).m_type, "std::vector<char>");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_data.at(0).m_access, ge::parsed_access_specifier::private_access);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_name, "is_alpha");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_attributes, "hi");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_name, "is_alpha");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_return_type, "bool");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_trailing_qualifiers, "const &");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_parameters.at(0).m_type, "char");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_parameters.at(0).m_name, "al");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_parameters.at(1).m_type, "char");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_parameters.at(1).m_name, "ot");
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_parameters.size(), 2ull);
+    is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_access, ge::parsed_access_specifier::public_access);
 }
 
 UNIT_TEST(parser, enums)
