@@ -54,7 +54,7 @@ namespace ge
 
 	export struct parsed_data
 	{
-		std::string m_attributes{};
+		std::string m_traits{};
 		std::string m_name{};
 		std::string m_type{};
 
@@ -70,7 +70,7 @@ namespace ge
 
 	export struct parsed_func
 	{
-		std::string m_attributes{};
+		std::string m_traits{};
 		std::string m_name{};
 		std::string m_return_type{};
 		std::string m_trailing_qualifiers{};
@@ -82,7 +82,7 @@ namespace ge
 
 	export struct parsed_enum
 	{
-		std::string m_attributes{};
+		std::string m_traits{};
 		std::string m_name{};
 		std::vector<std::string> m_entries{};
 		parsed_enum_key m_key{};
@@ -108,7 +108,7 @@ namespace ge
 
 	export struct parsed_type : parsed_scope
 	{
-		std::string m_attributes{};
+		std::string m_traits{};
 		parsed_type_key m_key{};
 		std::vector<parsed_base> m_base_types{};
 		parsed_access_specifier m_access{};
@@ -147,14 +147,14 @@ namespace ge
 			reflect_parameter,
 			reflect_trailing_qualifiers,
 			reflect_type_specifier,
-			reflect_attributes,
+			reflect_traits,
 		};
 
 		enum class token_consumer : enum_type
 		{
 			none,
 
-			parse_attributes,
+			parse_traits,
 			parse_keywords,
 			parse_identifier,
 			parse_type_specifier_pre_identifier,
@@ -222,7 +222,7 @@ namespace ge
 
 		struct
 		{
-			std::string m_attributes{};
+			std::string m_traits{};
 			std::string m_type_specifier{};
 			std::string m_identifier{};
 			parsed_keywords m_keywords{};
@@ -312,7 +312,7 @@ void ge::parser::push_state(reflect_bundle bundle)
 			store_event::store_reflected_namespace);
 		break;
 	case reflect_bundle::reflect_type_definition:
-		queue(reflect_bundle::reflect_attributes,
+		queue(reflect_bundle::reflect_traits,
 			token_consumer::parse_type_key,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_type,
@@ -325,7 +325,7 @@ void ge::parser::push_state(reflect_bundle bundle)
 			token_consumer::check_for_next_base);
 		break;
 	case reflect_bundle::reflect_enum:
-		queue(reflect_bundle::reflect_attributes,
+		queue(reflect_bundle::reflect_traits,
 			token_consumer::parse_enum_key,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_enum,
@@ -338,14 +338,14 @@ void ge::parser::push_state(reflect_bundle bundle)
 			token_consumer::check_for_next_enum_entry);
 		break;
 	case reflect_bundle::reflect_data:
-		queue(reflect_bundle::reflect_attributes,
+		queue(reflect_bundle::reflect_traits,
 			token_consumer::parse_keywords,
 			reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_data);
 		break;
 	case reflect_bundle::reflect_func:
-		queue(reflect_bundle::reflect_attributes,
+		queue(reflect_bundle::reflect_traits,
 			token_consumer::parse_keywords,
 			reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
@@ -368,9 +368,9 @@ void ge::parser::push_state(reflect_bundle bundle)
 		queue(token_consumer::parse_type_specifier_pre_identifier,
 			token_consumer::parse_type_specifier_post_identifier);
 		break;
-	case reflect_bundle::reflect_attributes:
+	case reflect_bundle::reflect_traits:
 		queue(token_consumer::skip_to_opening_parentheses,
-			token_consumer::parse_attributes);
+			token_consumer::parse_traits);
 		break;
 	default:
 		std::unreachable();
@@ -462,7 +462,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 
 		return true;
 	}
-	case token_consumer::parse_attributes:
+	case token_consumer::parse_traits:
 	{
 		if (it.parentheses_count() == 0
 			&& it->m_str == ")"sv)
@@ -471,7 +471,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
-		m_most_recently_parsed.m_attributes += it->m_str;
+		m_most_recently_parsed.m_traits += it->m_str;
 		return true;
 	}
 	case token_consumer::parse_keywords:
@@ -803,7 +803,7 @@ void ge::parser::store(store_event event)
 		parsed_type& new_type = parent.m_types.emplace_back();
 
 		new_type.m_name = std::move(m_most_recently_parsed.m_identifier);
-		new_type.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		new_type.m_traits = std::move(m_most_recently_parsed.m_traits);
 		new_type.m_key = m_most_recently_parsed.m_type_key;
 
 		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
@@ -843,7 +843,7 @@ void ge::parser::store(store_event event)
 		}
 
 		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.emplace_back();
-		parsed_enum.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		parsed_enum.m_traits = std::move(m_most_recently_parsed.m_traits);
 		parsed_enum.m_name = std::move(m_most_recently_parsed.m_identifier);
 		break;
 	}	
@@ -871,7 +871,7 @@ void ge::parser::store(store_event event)
 		}
 
 		parsed_data& data = m_scope_stack.top().m_parsed_scope.get().m_data.emplace_back();
-		data.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		data.m_traits = std::move(m_most_recently_parsed.m_traits);
 		data.m_name = std::move(m_most_recently_parsed.m_identifier);
 		data.m_type = std::move(m_most_recently_parsed.m_type_specifier);
 		data.m_keywords = m_most_recently_parsed.m_keywords;
@@ -891,7 +891,7 @@ void ge::parser::store(store_event event)
 		}
 
 		parsed_func& func = m_scope_stack.top().m_parsed_scope.get().m_funcs.emplace_back();
-		func.m_attributes = std::move(m_most_recently_parsed.m_attributes);
+		func.m_traits = std::move(m_most_recently_parsed.m_traits);
 		func.m_name = std::move(m_most_recently_parsed.m_identifier);
 		func.m_return_type = std::move(m_most_recently_parsed.m_type_specifier);
 		func.m_keywords = m_most_recently_parsed.m_keywords;
