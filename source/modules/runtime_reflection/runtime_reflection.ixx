@@ -288,12 +288,19 @@ namespace ge::refl::detail
 		std::span<const func_data> m_funcs{};
 	};
 
+	struct module_data
+	{
+		std::reference_wrapper<const registry_data> m_reg;
 
+		std::string_view m_name{};
+
+		std::span<const type_data> m_types{};
+		std::span<const func_data> m_funcs{};
+	};
 
 	struct func_data
 	{
 		std::reference_wrapper<const registry_data> m_reg;
-
 	};
 
 	struct registry_data
@@ -321,7 +328,53 @@ namespace ge::refl::detail
 			return *type_data;
 		}
 
+		template<size_t Max, typename T>
+		T& alloc(T* buffer, size_t& count)
+		{
+			if (count >= Max)
+			{
+				// TODO should be assert
+				throw std::runtime_error{ "Buffer too small" };
+			}
+			T& value = buffer[count++];
+			return value;
+		}
+
+
+		API detail::module_data& alloc_module()
+		{
+			return alloc<sMaxNumModules>(m_modules, m_modules_size);
+		}
+
+		API value& alloc_value()
+		{
+			return alloc<sMaxNumValues>(m_values, m_values_size);
+		}
+
+		API detail::type_data& alloc_type()
+		{
+			return alloc<sMaxNumTypes>(m_types, m_types_size);
+		}
+		API detail::data_data& alloc_data()
+		{
+			return alloc<sMaxNumData>(m_datas, m_data_size);
+		}
+		API detail::func_data& alloc_func()
+		{
+			return alloc<sMaxNumFuncs>(m_funcs, m_func_size);
+		}
+
+		auto get_modules() const { return std::span< const module_data>{ m_modules, m_modules_size }; }
+		auto get_types() const { return std::span< const type_data>{ m_types, m_types_size }; }
+		auto get_values() const { return std::span< const value>{ m_values, m_values_size }; }
+		auto get_funcs() const { return std::span< const func_data>{ m_funcs, m_data_size }; }
+
 		// TODO these should be done using containers/custom allocators
+
+		static constexpr size_t sMaxNumModules = 64;
+		module_data* m_modules = (module_data*)std::malloc(sMaxNumModules * sizeof(module_data));
+		size_t m_modules_size{};
+
 		static constexpr size_t sMaxNumTypes = 1024;
 		type_data* m_types = (type_data*)std::malloc(sMaxNumTypes * sizeof(type_data));
 		size_t m_types_size{};
@@ -338,29 +391,67 @@ namespace ge::refl::detail
 		data_data* m_datas = (data_data*)std::malloc(sMaxNumData * sizeof(data_data));
 		size_t m_data_size{};
 	};
+
+	template<typename To, typename From >
+	auto convert_from_to(const From& from)
+	{
+		return To(from);
+	}
+
+	template<typename To, typename From>
+	auto view_as_public_handles(std::span< const From > data) requires std::constructible_from<To, const From&>
+	{
+		return data | std::ranges::views::transform(convert_from_to<To, From>);
+	}
 }
 
 namespace ge::refl
 {
-
-	export class data
+	export class data_handle
 	{
 	public:
+		API data_handle(const detail::data_data& data) : m_data(data) {}
 
 	private:
 		std::reference_wrapper<const detail::data_data> m_data;
 	};
 
-	export class type
+	export class func_handle
 	{
 	public:
-		API type(const detail::type_data& data) : m_data(data) {}
+		API func_handle(const detail::func_data& data) : m_data(data) {}
+
+	private:
+		std::reference_wrapper<const detail::func_data> m_data;
+	};
+
+	export class type_handle
+	{
+	public:
+		API type_handle(const detail::type_data& data) : m_data(data) {}
 
 		API const type_info& get_info() const { return m_data.get().m_info; }
 		API std::string_view get_name() const { return m_data.get().m_name; }
 
+		API auto types() const { return detail::view_as_public_handles<data_handle>(m_data.get().m_data); }
+		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data.get().m_funcs); }
+
 	private:
 		std::reference_wrapper<const detail::type_data> m_data;
+	};
+
+	export class module_handle
+	{
+	public:
+		API module_handle(const detail::module_data& data) : m_data(data) {}
+
+		API std::string_view get_name() const { return m_data.get().m_name; }
+
+		API auto types() const { return detail::view_as_public_handles<type_handle>(m_data.get().m_types); }
+		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data.get().m_funcs); }
+
+	private:
+		std::reference_wrapper<const detail::module_data> m_data;
 	};
 
 	export class registry
@@ -369,10 +460,9 @@ namespace ge::refl
 		registry(std::unique_ptr<const detail::registry_data> data) :
 			m_data(std::move(data))
 		{
-
 		}
 
-		API std::optional<type> try_get_type(std::string_view name) const
+		API std::optional<type_handle> try_get_type(std::string_view name) const
 		{
 			auto end = m_data->m_types + m_data->m_types_size;
 			auto it = std::find_if(m_data->m_types, end,
@@ -385,8 +475,12 @@ namespace ge::refl
 			{
 				return std::nullopt;
 			}
-			return type{ *it };
+			return type_handle{ *it };
 		}
+
+		API auto modules() const { return detail::view_as_public_handles<module_handle>(m_data->get_modules()); }
+		API auto types() const { return detail::view_as_public_handles<type_handle>(m_data->get_types()); }
+		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data->get_funcs()); }
 
 	private:
 		std::unique_ptr<const detail::registry_data> m_data;
@@ -397,41 +491,27 @@ namespace ge::refl
 		template<typename T, typename Prev>
 		class type_builder;
 
-		class builder_destination
-		{
-		public:
-			virtual ~builder_destination() = default;
-
-			// Allocates pointer-stable object in contiguous buffer
-			virtual value& alloc_value() = 0;
-			virtual detail::type_data& alloc_type() = 0;
-			virtual detail::data_data& alloc_data() = 0;
-			virtual detail::func_data& alloc_func() = 0;
-
-			virtual const detail::registry_data& get_reg() = 0;
-		};
-
 		class builder_base
 		{
 		protected:
-			API builder_base(builder_destination& reg) :
-				m_destination(reg)
+			API builder_base(detail::registry_data& reg) :
+				m_registry(reg)
 			{
 
 			}
 
-			API builder_destination& get_destination() const
+			API detail::registry_data& get_registry() const
 			{
-				return m_destination;
+				return m_registry;
 			}
 
-			API static builder_destination& get_destination(const builder_base& other)
+			API static detail::registry_data& get_registry(const builder_base& other)
 			{
-				return other.get_destination();
+				return other.get_registry();
 			}
 
 		private:
-			builder_destination& m_destination;
+			detail::registry_data& m_registry;
 		};
 
 		template<typename Derived>
@@ -453,7 +533,7 @@ namespace ge::refl
 		};
 
 		template<typename TraitT>
-		TraitT& trait(builder_destination& dest, std::span<const value>& traits, TraitT&& trait)
+		TraitT& trait(detail::registry_data& dest, std::span<const value>& traits, TraitT&& trait)
 		{
 			value& data = dest.alloc_value();
 
@@ -467,39 +547,47 @@ namespace ge::refl
 				traits = { traits.data(), traits.size() + 1 };
 			}
 
-			const detail::registry_data& reg = dest.get_reg();
-			data = value{ reg, std::forward<TraitT>(trait) };
+			data = value{ dest, std::forward<TraitT>(trait) };
 			return *static_cast<TraitT*>( data.mutable_data() );
 		}
+
+		export class registry_builder;
 	
-		template<typename DestinationT>
 		class module_builder :
 			public builder_base,
-			public type_part<module_builder<DestinationT>>
+			public type_part<module_builder>
 		{
 		public:
-			module_builder(DestinationT& destination) :
-				builder_base(destination)
+			module_builder(registry_builder& prev, detail::registry_data& destination, std::string_view name) :
+				builder_base(destination),
+				m_prev(prev),
+				m_target( destination.alloc_module() )
 			{
+				m_target.m_name = name;
+				m_target.m_funcs = { destination.m_funcs + destination.m_func_size, 0ull };
+				m_target.m_types = { destination.m_types + destination.m_types_size, 0ull };
 			}
 
-			DestinationT& end_module()
+			registry_builder& end_module()
 			{
-				return static_cast<DestinationT&>(get_destination());
+				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs - m_target.m_funcs.data()) };
+				m_target.m_types = { m_target.m_types.data(), static_cast<size_t>(get_registry().m_types - m_target.m_types.data()) };
+				return m_prev;
 			}
 
 		private:
-
+			registry_builder& m_prev;
+			detail::module_data& m_target;
 		};
 
-		export class registry_builder : public builder_destination
+		export class registry_builder
 		{
 		public:
 			virtual ~registry_builder() = default;
 
-			API auto begin_module()
+			API auto begin_module(std::string_view name)
 			{
-				return module_builder{ *this };
+				return module_builder{ *this, *m_reg, name };
 			}
 
 			API registry build()
@@ -509,40 +597,6 @@ namespace ge::refl
 
 		protected:
 			std::unique_ptr<detail::registry_data> m_reg = std::make_unique<detail::registry_data>();
-
-			template<size_t Max, typename T>
-			T& alloc(T* buffer, size_t& count)
-			{
-				if (count >= Max)
-				{
-					// TODO should be assert
-					throw std::runtime_error{ "Buffer too small" };
-				}
-				T& value = buffer[count++];
-				return value;
-			}
-
-			API value& alloc_value() override
-			{
-				return alloc<detail::registry_data::sMaxNumValues>(m_reg->m_values, m_reg->m_values_size);
-			}
-
-			API detail::type_data& alloc_type() override
-			{
-				return alloc<detail::registry_data::sMaxNumTypes>(m_reg->m_types, m_reg->m_types_size);
-			}
-			API detail::data_data& alloc_data() override
-			{
-				return alloc<detail::registry_data::sMaxNumData>(m_reg->m_datas, m_reg->m_data_size);
-			}
-			API detail::func_data& alloc_func() override
-			{
-				return alloc<detail::registry_data::sMaxNumFuncs>(m_reg->m_funcs, m_reg->m_func_size);
-			}
-			API const detail::registry_data& get_reg() override
-			{
-				return *m_reg;
-			}
 		};
 
 		template<typename T, typename Prev>
@@ -555,17 +609,17 @@ namespace ge::refl
 			using type = T;
 
 			type_builder(prev& prev, std::string_view name) :
-				builder_base(builder_base::get_destination(prev)),
+				builder_base(builder_base::get_registry(prev)),
 				m_prev(prev),
-				m_target(get_destination().alloc_type())
+				m_target(get_registry().alloc_type())
 			{
-				m_target = detail::type_data{ .m_reg = get_destination().get_reg(), .m_info = type_info::get_type_info<T>(), .m_name = name };
+				m_target = detail::type_data{ .m_reg = get_registry(), .m_info = type_info::get_type_info<T>(), .m_name = name };
 			}
 
 			template<std::derived_from<type_trait> TraitT>
 			decltype(auto) trait(TraitT&& trait)
 			{
-				builder::trait<T>(get_destination(), m_target.m_traits, std::forward<TraitT>(trait));
+				builder::trait<T>(get_registry(), m_target.m_traits, std::forward<TraitT>(trait));
 				return *this;
 			}
 
@@ -590,17 +644,17 @@ namespace ge::refl
 			// TODO maybe add support for global variables. Would probably have to be a new builderl
 
 			data_builder(prev& prev, std::string_view name) :
-				builder_base(builder_base::get_destination(prev)),
+				builder_base(builder_base::get_registry(prev)),
 				m_prev(prev),
-				m_target(get_destination().alloc_data())
+				m_target(get_registry().alloc_data())
 			{
-				m_target = detail::data_data{ .m_reg = get_destination().get_reg(), .m_name = name };
+				m_target = detail::data_data{ .m_reg = get_registry().get_reg(), .m_name = name };
 			}
 
 			template<std::derived_from<data_trait> TraitT>
 			decltype(auto) trait(TraitT&& trait)
 			{
-				data_trait& trait = builder::trait(get_destination(), m_target.m_traits, std::forward<TraitT>(trait));
+				data_trait& trait = builder::trait(get_registry(), m_target.m_traits, std::forward<TraitT>(trait));
 				return *this;
 			}
 

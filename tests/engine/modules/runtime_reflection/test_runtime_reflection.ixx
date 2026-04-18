@@ -20,21 +20,40 @@ UNIT_TEST( building_tests, basic )
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module()
+			.begin_module("basic")
 				.begin_type<type_1>("type_1")
 				.end_type()
 			.end_module()
 		.build();
 
-	std::optional<ge::refl::type> type = reg.try_get_type("type_1");
-	is_true(type.has_value());
+	std::optional<ge::refl::type_handle> type_handle = reg.try_get_type("type_1");
+	is_true(type_handle.has_value());
 
-	is_eq(type->get_name(), "type_1");
+	is_eq(type_handle->get_name(), "type_1");
 
 	const ge::refl::type_info& expectedInfo = ge::refl::type_info::get_type_info<type_1>();
-	const ge::refl::type_info& actualInfo = type->get_info();
+	const ge::refl::type_info& actualInfo = type_handle->get_info();
 
 	is_eq(expectedInfo, actualInfo);
+}
+
+
+UNIT_TEST(building_tests, basic_ranges)
+{
+	ge::refl::registry reg =
+		ge::refl::begin_registry()
+		.begin_module("basic")
+		.begin_type<type_1>("type_1")
+		.end_type()
+		.end_module()
+		.build();
+
+	auto modules = reg.modules();
+	is_eq(modules.size(), 1ull);
+	ge::refl::module_handle mod = *modules.begin();
+
+	is_eq(mod.get_name(), "basic");
+	
 }
 
 static void test_big_five( ge::refl::value value_1, auto check )
