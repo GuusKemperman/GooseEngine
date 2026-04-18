@@ -1,5 +1,5 @@
 export module utils:memory;
-export import std;
+export import stl;
 
 namespace ge
 {

@@ -1,6 +1,6 @@
 export module test_parser;
 
-import std;
+import stl;
 import logger;
 import static_reflection;
 import test_core;

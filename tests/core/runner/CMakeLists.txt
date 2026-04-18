@@ -1,8 +1,10 @@
 add_executable(test_runner "test_runner_main.cpp")
 add_dependencies(test_runner all_modules_target)
 
-target_link_libraries(test_runner core_static_lib)
 target_link_libraries(test_runner test_core)
+target_link_libraries(test_runner stl)
+target_link_libraries(test_runner windows)
+target_link_libraries(test_runner modules)
 
 set_target_properties(test_runner
     PROPERTIES
@@ -18,7 +20,7 @@ function(add_unit_test_module module_name)
         "/FIdefines.h"
     )
 
-    target_link_libraries(${module_name} "test_core")
+    target_link_libraries(${module_name} PRIVATE "test_core")
 
     # Process each source file to find UNIT_TEST macros
     foreach(file IN LISTS ARGN)

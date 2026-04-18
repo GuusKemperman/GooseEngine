@@ -3,7 +3,7 @@ module;
 
 export module runtime_reflection;
 
-export import std;
+export import stl;
 
 /* Requirements:
 

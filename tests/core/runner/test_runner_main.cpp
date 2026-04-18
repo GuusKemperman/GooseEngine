@@ -1,5 +1,5 @@
 
-import std;
+import stl;
 import modules;
 
 import windows;
@@ -29,7 +29,7 @@ int main(int arg_c, char** arg_v)
     getter_t unit_test_getter = reinterpret_cast<getter_t>(module_to_test.get_function_address(get_unit_test_name));
     test_t unit_test = unit_test_getter();
 
-    ge::test_core::context context{ manager };
+    ge::test_core::context context{  };
 
     try
     {

@@ -2,7 +2,7 @@ export module modules:modules_manager;
 
 import :modules_base;
 import :modules_platform;
-import std;
+import stl;
 
 namespace ge::modules
 {

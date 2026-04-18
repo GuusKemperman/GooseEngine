@@ -1,6 +1,6 @@
 export module logger;
 
-import std;
+import stl;
 import modules;
 
 namespace ge

@@ -2,12 +2,10 @@ cmake_minimum_required(VERSION 3.30)
 
 message("Version: ${CMAKE_VERSION}")
 
-set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
 project(GooseEngine LANGUAGES CXX)
 
 enable_testing()
 
-set(CMAKE_CXX_MODULE_STD 1)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -48,6 +46,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 function(add_module module_name)
     add_library(${module_name} SHARED)
+    target_link_libraries("${module_name}" PRIVATE "stl")
 
     add_dependencies(all_modules_target ${module_name})
 
@@ -59,7 +58,7 @@ function(add_module module_name)
     set(generated_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_name}.cpp")
 	file(WRITE ${generated_file} 
         "import ${module_name};\n"
-        "import std;\n"
+        "import stl;\n"
         "\n"
         "namespace ge::modules\n"
         "{\n"

@@ -1,6 +1,6 @@
 export module test_logger;
 
-import std;
+import stl;
 import logger;
 import test_core;
 

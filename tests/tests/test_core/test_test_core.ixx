@@ -1,7 +1,7 @@
 export module test_test_core;
 
 import test_core;
-import std;
+import stl;
 
 using namespace ge::test_core;
 using namespace ge::test_core::assert;

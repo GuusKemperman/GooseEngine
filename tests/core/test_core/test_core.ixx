@@ -1,14 +1,12 @@
 export module test_core;
 
-import modules;
-import std;
+import stl;
 
 namespace ge::test_core
 {
 	export class context
 	{
 	public:
-		std::reference_wrapper<modules::module_manager> m_module_manager;
 	};
 
 	export class test_exception

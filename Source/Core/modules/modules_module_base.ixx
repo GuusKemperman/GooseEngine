@@ -1,6 +1,6 @@
 export module modules:modules_base;
 
-import std;
+import stl;
 
 namespace ge::modules
 {

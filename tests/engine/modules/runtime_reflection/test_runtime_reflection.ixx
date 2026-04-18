@@ -1,6 +1,6 @@
 export module test_runtime_reflection;
 
-import std;
+import stl;
 import logger;
 import runtime_reflection;
 import test_core;

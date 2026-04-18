@@ -1,6 +1,6 @@
 export module utils:dependency_injection;
 
-import std;
+import stl;
 
 namespace
 {

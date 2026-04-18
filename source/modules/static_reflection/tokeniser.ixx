@@ -1,6 +1,6 @@
 export module static_reflection:tokeniser;
 
-export import std;
+export import stl;
 
 namespace ge
 {
