@@ -120,7 +120,7 @@ namespace ge::refl
 		}
 
 		template<typename T>
-		static value create_view(const T& obj)
+		static value create_view(const T& obj) requires (!std::is_pointer_v<T>)
 		{
 			return create_view(&obj);
 		}
@@ -132,7 +132,7 @@ namespace ge::refl
 		}
 
 		template<typename T>
-		static value create_ref(T& value)
+		static value create_ref(T& value) requires (!std::is_pointer_v<T>)
 		{
 			return create_ref(&value);
 		}
@@ -564,14 +564,15 @@ namespace ge::refl
 				m_target( destination.alloc_module() )
 			{
 				m_target.m_name = name;
-				m_target.m_funcs = { destination.m_funcs + destination.m_func_size, 0ull };
+				m_target.m_funcs = { destination.m_funcs + destination.m_func_size, 0ull};
 				m_target.m_types = { destination.m_types + destination.m_types_size, 0ull };
 			}
 
 			registry_builder& end_module()
 			{
-				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs - m_target.m_funcs.data()) };
-				m_target.m_types = { m_target.m_types.data(), static_cast<size_t>(get_registry().m_types - m_target.m_types.data()) };
+				// TODO: pretty ugly
+				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs + get_registry().m_func_size - m_target.m_funcs.data())};
+				m_target.m_types = { m_target.m_types.data(), static_cast<size_t>(get_registry().m_types + get_registry().m_types_size - m_target.m_types.data())};
 				return m_prev;
 			}
 
