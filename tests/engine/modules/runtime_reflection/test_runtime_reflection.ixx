@@ -12,6 +12,8 @@ namespace
 {
 	struct type_1 {};
 	struct type_2 {};
+
+	int add(int a, int b) { return a + b; }
 }
 
 UNIT_TEST( building_tests, basic )
@@ -29,12 +31,11 @@ UNIT_TEST( building_tests, basic )
 
 	is_eq(type_handle->get_name(), "type_1");
 
-	const ge::refl::type_info& expectedInfo = ge::refl::type_info::get_type_info<type_1>();
-	const ge::refl::type_info& actualInfo = type_handle->get_info();
+	ge::refl::type_id expectedInfo = ge::refl::get_type_id<type_1>();
+	ge::refl::type_id actualInfo = type_handle->get_id();
 
 	is_eq(expectedInfo, actualInfo);
 }
-
 
 UNIT_TEST(building_tests, basic_ranges)
 {
@@ -150,18 +151,15 @@ UNIT_TEST(building_tests, empty_module)
 	is_false(reg.try_get_type("anything").has_value());
 }
 
-UNIT_TEST(building_tests, type_info_size_matches)
+UNIT_TEST(building_tests, basic_func)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("basic")
-				.begin_type<type_1>("type_1").end_type()
-			.end_module()
+		.begin_module("single_func")
+		.begin_func<add>("add")
+		.end_func()
+		.end_module()
 		.build();
-
-	std::optional<ge::refl::type_handle> type = reg.try_get_type("type_1");
-	is_true(type.has_value());
-	is_eq(type->get_info().m_size, sizeof(type_1));
 }
 
 static void test_big_five( ge::refl::value value_1, auto check )
