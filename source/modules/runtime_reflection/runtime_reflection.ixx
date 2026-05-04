@@ -139,20 +139,19 @@ namespace ge::refl
 		void on_apply() {}
 	};
 
-	template<typename Base>
+	template<typename Base> requires (sizeof(Base) == sizeof(size_t))
 	class inplace_vtable
 	{
-		using vtable_storage = std::array<std::byte, sizeof(Base)>;
-		vtable_storage m_vtable{};
+		size_t m_vtable{};
 
 	public:
-		const Base* operator->() const { return reinterpret_cast<const Base*>(m_vtable.data());  }
+		const Base* operator->() const { return std::bit_cast<const Base*>(&m_vtable);  }
 
-		template<std::derived_from<Base> Derived>
+		template<std::derived_from<Base> Derived> requires (sizeof(Derived) == sizeof(Base))
 		void set()
 		{
-			alignas(Base) vtable_storage dst {};
-			new (dst.data())Derived();
+			void* dst = &m_vtable;
+			new (dst)Derived();
 		}
 	};
 
@@ -181,7 +180,6 @@ namespace ge::refl
 			{
 				T& obj = *static_cast<T*>(addr);
 				obj.~T();
-				delete& obj;
 			};
 		};
 
@@ -230,7 +228,9 @@ namespace ge::refl
 
 		API value() = default;
 
-		API value(value_ownership ownership, inplace_vtable<vtable> vtable, void* value) :
+		API value(value_ownership ownership, 
+			inplace_vtable<vtable> vtable,
+			void* value) :
 			m_vtable(vtable),
 			m_value(value),
 			m_ownership(ownership)
@@ -256,6 +256,8 @@ namespace ge::refl
 			m_ownership(other.m_ownership)
 		{
 		}
+
+		API operator bool() const { return m_value != nullptr; }
 
 		API value& operator=(const value& other)
 		{
@@ -306,6 +308,7 @@ namespace ge::refl
 			if (m_ownership == value_ownership::owning && m_value != nullptr)
 			{
 				m_vtable->destruct(m_value);
+				std::free(m_value);
 			}
 			m_vtable = {};
 			m_value = nullptr;
@@ -370,6 +373,7 @@ namespace ge::refl::detail
 		
 		type_id m_id{};
 	};
+
 	struct param_data
 	{
 		type_id m_type_id{};
@@ -435,9 +439,9 @@ namespace ge::refl::detail
 			virtual ~vtable() = default;
 			virtual std::span<const param_data> get_params() const = 0;
 			virtual const param_data* get_returns() const = 0;
-			virtual void invoke(void* returnAddress, void** args) const = 0;
+			virtual value invoke(value* args) const = 0;
 		};
-		
+
 		template<auto, typename>
 		struct vtable_impl {};
 
@@ -479,23 +483,47 @@ namespace ge::refl::detail
 				}
 			}
 
-			void invoke(void* returnAddress, void** args) const override
+			value invoke(value* args) const override
 			{
-				[&] <size_t... Indices>(std::index_sequence<Indices...>)
+				return [&]<size_t... Indices>(std::index_sequence<Indices...>)
 				{
-					auto forwardCast =
-						[&]<typename ParamT, size_t Idx>() -> ParamT
+					auto forwardCast = [&]<typename ParamT, size_t Idx>() -> ParamT
 					{
-						return *static_cast<ParamT*>(args[Idx]);
+						static constexpr value_ownership ownership = param_data_helper<ParamT>::data.m_ownership;
+
+						if constexpr (ownership == value_ownership::owning)
+						{
+							void* raw = args[Idx].mutable_data();
+							return std::move(*static_cast<remove_decoration_t<ParamT>*>(raw));
+						}
+						else if constexpr (ownership == value_ownership::referencing)
+						{
+							void* raw = args[Idx].mutable_data();
+
+
+
+							return reinterpret_cast<ParamT>(static_cast<std::remove_reference_t<ParamT>*>(raw));
+						}
+						else if constexpr (ownership == value_ownership::viewing)
+						{
+							const void* raw = args[Idx].const_data();
+							return reinterpret_cast<ParamT>(static_cast<std::remove_reference_t<ParamT>*>(raw));
+						}
+						else
+						{
+							static_assert(false, "Unhandled ownership type");
+						}
 					};
 
 					if constexpr (std::is_same_v<Ret, void>)
 					{
 						FuncPtr(forwardCast.template operator() < Params, Indices > ()...);
+						return value{};
 					}
 					else
 					{
-						new (returnAddress) Ret(FuncPtr(forwardCast.template operator() < Params, Indices > ()...));
+						// TODO support references
+						return value::create_owning(FuncPtr(forwardCast.template operator() < Params, Indices > ()...));
 					}
 				}(std::make_index_sequence<sizeof...(Params)>());
 			}
@@ -571,7 +599,7 @@ namespace ge::refl::detail
 		auto get_modules() const { return std::span< const module_data>{ m_modules, m_modules_size }; }
 		auto get_types() const { return std::span< const type_data>{ m_types, m_types_size }; }
 		auto get_values() const { return std::span< const value>{ m_values, m_values_size }; }
-		auto get_funcs() const { return std::span< const func_data>{ m_funcs, m_data_size }; }
+		auto get_funcs() const { return std::span< const func_data>{ m_funcs, m_func_size }; }
 
 		// TODO these should be done using containers/custom allocators
 
@@ -620,10 +648,28 @@ namespace ge::refl
 		std::reference_wrapper<const detail::data_data> m_data;
 	};
 
+	export template<typename>
+	class func_strong_handle{};
+
 	export class func_handle
 	{
 	public:
 		API func_handle(const detail::func_data& data) : m_data(data) {}
+
+		API std::string_view get_name() const { return m_data.get().m_name; }
+
+		template<typename... Args>
+		value invoke_unchecked(Args&&... args) const
+		{
+			std::array<value, sizeof...(Args)> packed{ std::forward<Args>(args)... };
+			return m_data.get().m_vtable->invoke(packed.data());
+		}
+
+		/*template<typename... Args>
+		value invoke_unchecked(std::span<value> args) const
+		{
+			return m_data.get().m_vtable->invoke(args.data());
+		}*/
 
 	private:
 		std::reference_wrapper<const detail::func_data> m_data;

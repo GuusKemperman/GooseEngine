@@ -13,7 +13,9 @@ namespace
 	struct type_1 {};
 	struct type_2 {};
 
-	int add(int a, int b) { return a + b; }
+	int sub(int a, int b) { return a - b; }
+	void incr(int& a) { a++; }
+	size_t address_of(const int* a) { return std::bit_cast<size_t>(a); }
 }
 
 UNIT_TEST( building_tests, basic )
@@ -155,11 +157,93 @@ UNIT_TEST(building_tests, basic_func)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
+			.begin_module("single_func")
+				.begin_func<sub>("sub")
+				.end_func()
+			.end_module()
+		.build();
+
+	
+	auto funcs = reg.funcs();
+	is_eq(funcs.size(), 1ull);
+	
+	ge::refl::func_handle func = *funcs.begin();
+
+	{
+		ge::refl::value result = func.invoke_unchecked(ge::refl::value::create_owning(1), ge::refl::value::create_owning(2));
+		is_true(result);
+		is_eq(*result.as_constant<int>(), -1);
+	}
+
+	{
+		int value = 1;
+		ge::refl::value result = func.invoke_unchecked(ge::refl::value::create_ref(value), ge::refl::value::create_ref(value));
+		is_true(result);
+		is_eq(*result.as_constant<int>(), 0);
+	}
+
+	{
+		int value = 1;
+		ge::refl::value result = func.invoke_unchecked(ge::refl::value::create_view(value), ge::refl::value::create_view(value));
+		is_true(result);
+		is_eq(*result.as_constant<int>(), 0);
+	}
+}
+
+UNIT_TEST(building_tests, func_that_takes_mutable_reference)
+{
+	ge::refl::registry reg =
+		ge::refl::begin_registry()
 		.begin_module("single_func")
-		.begin_func<add>("add")
+		.begin_func<incr>("incr")
 		.end_func()
 		.end_module()
 		.build();
+
+
+	auto funcs = reg.funcs();
+	is_eq(funcs.size(), 1ull);
+
+	ge::refl::func_handle func = *funcs.begin();
+
+	{
+		int value = 0;
+		ge::refl::value result = func.invoke_unchecked(ge::refl::value::create_ref(value));
+		is_false(result);
+		is_eq(value, 1);
+	}
+}
+
+UNIT_TEST(building_tests, func_that_takes_mutable_pointers)
+{
+	ge::refl::registry reg =
+		ge::refl::begin_registry()
+		.begin_module("single_func")
+		.begin_func<address_of>("address_of")
+		.end_func()
+		.end_module()
+		.build();
+
+
+	auto funcs = reg.funcs();
+	is_eq(funcs.size(), 1ull);
+
+	ge::refl::func_handle func = *funcs.begin();
+
+	{
+		int value = 0;
+		ge::refl::value result = func.invoke_unchecked(ge::refl::value::create_view(&value));
+		is_true(result);
+		is_eq(*result.as_constant<size_t>(), address_of(&value));
+	}
+
+	{
+		int value = 0;
+		int* ptr = &value;
+		ge::refl::value result = func.invoke_unchecked(ge::refl::value::create_view(ptr));
+		is_true(result);
+		is_eq(*result.as_constant<size_t>(), address_of(ptr));
+	}
 }
 
 static void test_big_five( ge::refl::value value_1, auto check )
@@ -313,7 +397,7 @@ UNIT_TEST(value_tests, clear_resets_value)
 UNIT_TEST(value_tests, owning_non_trivial_type)
 {
 	int counter = 0;
-	int inside_scope = 0;
+	int inside_scope;
 
 	struct destruct_tracker
 	{
