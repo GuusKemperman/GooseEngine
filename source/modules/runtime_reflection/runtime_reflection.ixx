@@ -32,10 +32,10 @@ namespace ge::refl
 	// TODO error handling for unsupported types, such as T**
 
 	export template<typename T>
-	concept is_decorated = std::is_pointer_v<T> || std::is_const_v<T> || std::is_reference_v<T> || std::is_volatile_v<T>;
+	concept decorated = std::is_pointer_v<T> || std::is_const_v<T> || std::is_reference_v<T> || std::is_volatile_v<T>;
 
 	export template<typename T>
-	concept is_undecorated = !is_decorated<T>;
+	concept undecorated = !decorated<T>;
 
 
 	// TODO make recursive
@@ -64,20 +64,20 @@ namespace ge::refl
 		}
 	}
 
-	export template<is_undecorated T>
-	consteval type_id get_type_id()
+	export template<undecorated T>
+	consteval type_id make_type_id()
 	{
 		return { detail::hash(__FUNCTION__) };
 	}
 
 	export template<typename>
-		struct func_sig
+	struct func_sig
 	{
 		static_assert(false, "Not a function signature");
 	};
 
 	export template<typename Ret, typename... Params>
-		struct func_sig<Ret(Params...)>
+	struct func_sig<Ret(Params...)>
 	{
 		using type = func_sig;
 	};
@@ -101,29 +101,22 @@ namespace ge::refl
 	};
 
 	export template<typename Ret, typename Class, typename... Params>
-		struct func_sig<Ret(Class::*)(Params...)&&>
+	struct func_sig<Ret(Class::*)(Params...)&&>
 	{
 		using type = func_sig<Ret(Class&&, Params...)>;
 	};
 
 	export template<typename Ret, typename... Params>
-		struct func_sig<Ret(&)(Params...)>
+	struct func_sig<Ret(&)(Params...)>
 	{
 		using type = func_sig<Ret(Params...)>;
 	};
 
-	template<typename T>
+	export template<typename T>
 	using func_sig_t = func_sig<T>::type;
 
 	template<auto FuncPtr>
 	concept is_func = requires { typename func_sig<decltype(FuncPtr)>; };
-
-	export enum class value_ownership : std::uint8_t
-	{
-		viewing, // const-ptr, const-ref
-		referencing, // ptr, ref
-		owning, // value, r-value
-	};
 
 	export class type_trait
 	{
@@ -160,6 +153,7 @@ namespace ge::refl
 		struct vtable
 		{
 			virtual ~vtable() = default;
+			virtual type_id get_type_id() const = 0;
 			virtual size_t get_size() const = 0;
 			virtual bool can_copy() const = 0;
 			virtual void copy_construct(void* dst, const void* src) const = 0;
@@ -168,9 +162,10 @@ namespace ge::refl
 			virtual void destruct(void* addr) const = 0;
 		};
 
-		template<is_undecorated T>
+		template<undecorated T>
 		struct vtable_impl final : vtable
 		{
+			type_id get_type_id() const override { return make_type_id<T>(); }
 			size_t get_size() const override { return sizeof(T); }
 			bool can_copy() const override { return std::is_copy_constructible_v<T>; };
 			void copy_construct(void* dst, const void* src) const override { new (dst)T(*static_cast<const T*>(src)); };
@@ -191,29 +186,48 @@ namespace ge::refl
 			return dst;
 		}
 
-	public:
-		template<typename T>
-		static value create_view(const T* obj)
+		API value(inplace_vtable<vtable> vtable, void* value, bool is_mutable, bool is_owning) : 
+			m_vtable(vtable),
+			m_value(value),
+			m_is_mutable(is_mutable),
+			m_is_owning(is_owning)
 		{
-			return value{ value_ownership::viewing, create_vtable<T>(), const_cast<T*>(obj) };
 		}
 
-		template<typename T>
-		static value create_view(const T& obj) requires (!std::is_pointer_v<T>)
+	public:
+		template<undecorated T>
+		static value create_view(const T* obj) requires !std::is_same_v<remove_decoration_t<T>, value>
+		{
+			return value{ create_vtable<T>(), const_cast<T*>(obj), false, false };
+		}
+
+		template<undecorated T>
+		static value create_view(const T& obj) requires !std::is_same_v<remove_decoration_t<T>, value>
 		{
 			return create_view(&obj);
 		}
 
-		template<typename T>
-		static value create_ref(T* obj)
+		API static value create_view(const value& obj)
 		{
-			return value{ value_ownership::referencing, create_vtable<T>(), obj };
+			return value{ obj.m_vtable, obj.m_value, false, false };
 		}
 
-		template<typename T>
-		static value create_ref(T& value) requires (!std::is_pointer_v<T>)
+		template<undecorated T>
+		static value create_ref(T* obj) requires !std::is_same_v<remove_decoration_t<T>, value>
 		{
-			return create_ref(&value);
+			return value{ create_vtable<T>(), obj, true, false };
+		}
+
+		template<undecorated T>
+		static value create_ref(T& obj) requires !std::is_same_v<remove_decoration_t<T>, value>
+		{
+			return create_ref(&obj);
+		}
+
+		API static value create_ref(value& obj)
+		{
+			assert(obj.m_is_mutable);
+			return value{ obj.m_vtable, obj.m_value, true, false };
 		}
 
 		template<typename T>
@@ -223,26 +237,18 @@ namespace ge::refl
 			using undecorated = remove_decoration_t<T>;
 			void* buffer = std::malloc(sizeof(undecorated));
 			new (buffer)undecorated(std::forward<T>(args));
-			return value{ value_ownership::owning, create_vtable<undecorated>(), buffer };
+			return value{ create_vtable<undecorated>(), buffer, true, true };
 		}
 
 		API value() = default;
 
-		API value(value_ownership ownership, 
-			inplace_vtable<vtable> vtable,
-			void* value) :
-			m_vtable(vtable),
-			m_value(value),
-			m_ownership(ownership)
-		{
-		}
-
 		API value(const value& other) :
 			m_vtable(other.m_vtable),
 			m_value(other.m_value),
-			m_ownership(other.m_ownership)
+			m_is_mutable(other.m_is_mutable),
+			m_is_owning(other.m_is_owning)
 		{
-			if (m_ownership == value_ownership::owning && m_value != nullptr)
+			if (m_is_owning && m_value != nullptr)
 			{
 				assert(m_vtable->can_copy());
 				m_value = std::malloc(m_vtable->get_size());
@@ -251,9 +257,10 @@ namespace ge::refl
 		}
 
 		API value(value&& other) noexcept :
-			m_vtable(std::exchange(other.m_vtable, {})),
+			m_vtable(other.m_vtable),
 			m_value(std::exchange(other.m_value, nullptr)),
-			m_ownership(other.m_ownership)
+			m_is_mutable(other.m_is_mutable),
+			m_is_owning(other.m_is_owning)
 		{
 		}
 
@@ -269,10 +276,11 @@ namespace ge::refl
 			clear();
 
 			m_vtable = other.m_vtable;
-			m_ownership = other.m_ownership;
 			m_value = other.m_value;
+			m_is_mutable = other.m_is_mutable;
+			m_is_owning = other.m_is_owning;
 
-			if (this != &other && m_ownership == value_ownership::owning && m_value != nullptr)
+			if (m_is_owning && m_value != nullptr)
 			{
 				assert(m_vtable->can_copy());
 				m_value = std::malloc(m_vtable->get_size());
@@ -291,9 +299,10 @@ namespace ge::refl
 
 			clear();
 
-			m_vtable = std::exchange(other.m_vtable, {});
-			m_ownership = other.m_ownership;
+			m_vtable = other.m_vtable;
 			m_value = std::exchange(other.m_value, nullptr);
+			m_is_mutable = other.m_is_mutable;
+			m_is_owning = other.m_is_owning;
 
 			return *this;
 		}
@@ -305,20 +314,22 @@ namespace ge::refl
 
 		API void clear()
 		{
-			if (m_ownership == value_ownership::owning && m_value != nullptr)
+			if (m_is_owning && m_value != nullptr)
 			{
 				m_vtable->destruct(m_value);
 				std::free(m_value);
 			}
 			m_vtable = {};
 			m_value = nullptr;
+			m_is_owning = false;
+			m_is_mutable = false;
 		}
 
 		API const void* const_data() const { return m_value; }
 
 		API void* mutable_data()
 		{
-			assert(m_ownership != value_ownership::viewing);
+			assert(m_is_mutable);
 			return m_value;
 		}
 
@@ -334,10 +345,16 @@ namespace ge::refl
 			return static_cast<T*>(mutable_data());
 		}
 
+		API type_id get_type_id() const { return m_vtable->get_type_id(); }
+
+		API bool is_mutable() const { return m_is_mutable; }
+		API bool is_owning() const { return m_is_owning; }
+
 	private:
 		inplace_vtable<vtable> m_vtable{};
 		void* m_value{};
-		value_ownership m_ownership{};
+		std::uint8_t m_is_mutable : 1{};
+		std::uint8_t m_is_owning : 1{};
 	};
 
 	class mutable_copyable_value;
@@ -374,18 +391,6 @@ namespace ge::refl::detail
 		type_id m_id{};
 	};
 
-	struct param_data
-	{
-		type_id m_type_id{};
-
-		value_ownership m_ownership : 2{};
-		std::uint8_t m_can_be_null : 1{};
-
-		// TODO add default argument support
-		// std::uint8_t m_has_default_argument : 1{};
-		// void* m_defaultValue{};
-	};
-
 	struct module_data
 	{
 		std::reference_wrapper<const registry_data> m_reg;
@@ -397,61 +402,43 @@ namespace ge::refl::detail
 	};
 
 	template<typename T>
-	struct param_data_helper
+	struct is_supported_param_type : std::bool_constant<undecorated<T>>
 	{
-		static constexpr param_data data{ .m_type_id = get_type_id<T>(), .m_ownership = value_ownership::owning, .m_can_be_null = false };
 	};
 
-	template<typename T>
-	struct param_data_helper<T&&>
+	template<undecorated T>
+	struct is_supported_param_type<T&> : std::bool_constant<true>
 	{
-		static constexpr param_data data{ .m_type_id = get_type_id<T>(), .m_ownership = value_ownership::owning, .m_can_be_null = false };
 	};
 
-	template<typename T>
-	struct param_data_helper<const T*>
+	template<undecorated T>
+	struct is_supported_param_type<const T&> : std::bool_constant<true>
 	{
-		static constexpr param_data data{ .m_type_id = get_type_id<T>(), .m_ownership = value_ownership::viewing, .m_can_be_null = true };
 	};
 
-	template<typename T>
-	struct param_data_helper<const T&>
-	{
-		static constexpr param_data data{ .m_type_id = get_type_id<T>(), .m_ownership = value_ownership::viewing, .m_can_be_null = false };
-	};
-
-	template<typename T>
-	struct param_data_helper<T*>
-	{
-		static constexpr param_data data{ .m_type_id = get_type_id<T>(), .m_ownership = value_ownership::referencing, .m_can_be_null = true };
-	};
-
-	template<typename T>
-	struct param_data_helper<T&>
-	{
-		static constexpr param_data data{ .m_type_id = get_type_id<T>(), .m_ownership = value_ownership::referencing, .m_can_be_null = false };
-	};
+	export template<typename T>
+	concept supported_param_type = is_supported_param_type<T>::value;
 
 	struct func_data
 	{
 		struct vtable
 		{
 			virtual ~vtable() = default;
-			virtual std::span<const param_data> get_params() const = 0;
-			virtual const param_data* get_returns() const = 0;
+			virtual std::span<const type_id> get_params() const = 0;
+			virtual type_id get_returns() const = 0;
 			virtual value invoke(value* args) const = 0;
 		};
 
 		template<auto, typename>
 		struct vtable_impl {};
 
-		template<auto FuncPtr, typename Ret, typename... Params>
+		template<auto FuncPtr, supported_param_type Ret, supported_param_type... Params>
 		struct vtable_impl<FuncPtr, func_sig<Ret(Params...)>> final : vtable
 		{
-			std::span<const param_data> get_params() const override
+			std::span<const type_id> get_params() const override
 			{
 				static constexpr size_t size = sizeof...(Params);
-				using Arr = std::array<param_data, size>;
+				using Arr = std::array<type_id, size>;
 				static constexpr Arr params = 
 					[]() -> Arr
 					{
@@ -461,7 +448,7 @@ namespace ge::refl::detail
 						{
 							([&param_arr]<typename ParamT, size_t Index>()
 							{
-								param_arr[Index] = param_data_helper<ParamT>::data;
+								param_arr[Index] = make_type_id<remove_decoration_t<ParamT>>();
 							}.template operator() < Params, Indices > (), ...);
 						}(std::make_index_sequence<size>());
 
@@ -471,16 +458,9 @@ namespace ge::refl::detail
 				return { params.data(), size };
 			}
 			
-			const param_data* get_returns() const override
+			type_id get_returns() const override
 			{
-				if constexpr (std::is_same_v<Ret, void>)
-				{
-					return nullptr;
-				}
-				else
-				{
-					return &param_data_helper<Ret>::data;
-				}
+				return make_type_id<remove_decoration_t<Ret>>();
 			}
 
 			value invoke(value* args) const override
@@ -489,29 +469,13 @@ namespace ge::refl::detail
 				{
 					auto forwardCast = [&]<typename ParamT, size_t Idx>() -> ParamT
 					{
-						static constexpr value_ownership ownership = param_data_helper<ParamT>::data.m_ownership;
-
-						if constexpr (ownership == value_ownership::owning)
+						if constexpr (std::is_const_v<ParamT> || undecorated<ParamT>)
 						{
-							void* raw = args[Idx].mutable_data();
-							return std::move(*static_cast<remove_decoration_t<ParamT>*>(raw));
-						}
-						else if constexpr (ownership == value_ownership::referencing)
-						{
-							void* raw = args[Idx].mutable_data();
-
-
-
-							return reinterpret_cast<ParamT>(static_cast<std::remove_reference_t<ParamT>*>(raw));
-						}
-						else if constexpr (ownership == value_ownership::viewing)
-						{
-							const void* raw = args[Idx].const_data();
-							return reinterpret_cast<ParamT>(static_cast<std::remove_reference_t<ParamT>*>(raw));
+							return *static_cast<std::remove_reference_t<std::add_const_t<ParamT>>*>(args[Idx].const_data());
 						}
 						else
 						{
-							static_assert(false, "Unhandled ownership type");
+							return *static_cast<std::remove_reference_t<ParamT>*>(args[Idx].mutable_data());
 						}
 					};
 
@@ -572,8 +536,7 @@ namespace ge::refl::detail
 			return value;
 		}
 
-
-		API detail::module_data& alloc_module()
+		API module_data& alloc_module()
 		{
 			return alloc<sMaxNumModules>(m_modules, m_modules_size);
 		}
@@ -661,17 +624,44 @@ namespace ge::refl
 		template<typename... Args>
 		value invoke_unchecked(Args&&... args) const
 		{
-			std::array<value, sizeof...(Args)> packed{ std::forward<Args>(args)... };
+			std::array<value, sizeof...(Args)> packed{
+				
+				[]<typename Arg>(Arg&& arg) -> value
+				{
+					if constexpr (std::is_same_v<remove_decoration_t<Arg>, value>)
+					{
+						return arg.is_mutable() ? value::create_ref(arg) : value::create_view(arg);
+					}
+					else if constexpr (std::is_const_v<Arg>)
+					{
+						return value::create_view(arg);
+					}
+					else
+					{
+						return value::create_ref(arg);
+					}
+				}.operator()(std::forward<Args>(args))... };
+			assert(check_invoke(packed));
 			return m_data.get().m_vtable->invoke(packed.data());
 		}
 
-		/*template<typename... Args>
-		value invoke_unchecked(std::span<value> args) const
-		{
-			return m_data.get().m_vtable->invoke(args.data());
-		}*/
-
 	private:
+		API bool check_invoke(std::span<const value> args) const
+		{
+			std::span<const type_id> params = m_data.get().m_vtable->get_params();
+
+			assert(params.size() == args.size());
+
+			for (const auto& [arg, param] : std::ranges::zip_view(args, params))
+			{
+				assert(arg && "empty argument provided");
+				// TODO proper is_a.
+				assert(arg.get_type_id() == param && "param type mismatch");
+			}
+
+			return true;
+		}
+
 		std::reference_wrapper<const detail::func_data> m_data;
 	};
 
@@ -738,7 +728,7 @@ namespace ge::refl
 
 	namespace builder
 	{
-		template<is_undecorated T, typename Prev>
+		template<undecorated T, typename Prev>
 		class type_builder;
 
 		template<auto FuncPtr, typename Prev> requires is_func<FuncPtr>
@@ -754,7 +744,6 @@ namespace ge::refl
 			virtual detail::type_data& alloc_type() = 0;
 			virtual detail::data_data& alloc_data() = 0;
 			virtual detail::func_data& alloc_func() = 0;
-			virtual detail::param_data& alloc_params(size_t count) = 0;
 
 			virtual const detail::registry_data& get_reg() = 0;
 		};
@@ -880,7 +869,7 @@ namespace ge::refl
 			std::unique_ptr<detail::registry_data> m_reg = std::make_unique<detail::registry_data>();
 		};
 
-		template<is_undecorated T, typename Prev>
+		template<undecorated T, typename Prev>
 		class type_builder :
 			public builder_base,
 			public type_part<type_builder<T, Prev>>,
@@ -895,7 +884,7 @@ namespace ge::refl
 				m_prev(prev),
 				m_target(get_registry().alloc_type())
 			{
-				m_target = detail::type_data{ .m_reg = get_registry(), .m_name = name,  .m_id = get_type_id<T>() };
+				m_target = detail::type_data{ .m_reg = get_registry(), .m_name = name,  .m_id = make_type_id<T>() };
 			}
 
 			template<std::derived_from<type_trait> TraitT>
