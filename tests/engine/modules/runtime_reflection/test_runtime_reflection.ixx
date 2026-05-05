@@ -59,6 +59,40 @@ namespace
 
 	int& free_select_first(int& a, int&) { return a; }
 	const int& free_select_first_cref(const int& a, const int&) { return a; }
+
+	using namespace ge::refl;
+
+	static_assert(std::is_same_v<func_sig_t<int(*)(int, int)>, func_sig<int(int, int)>>);
+	static_assert(std::is_same_v<func_sig_t<int(&)(int)>, func_sig<int(int)>>);
+	static_assert(std::is_same_v<func_sig_t<void()>, func_sig<void()>>);
+	static_assert(std::is_same_v<func_sig_t<int(int, double, char)>, func_sig<int(int, double, char)>>);
+
+	struct member_func_owner
+	{
+		int mut(int, double) { return 0; }
+		int cst() const { return 0; }
+		int rval() && { return 0; }
+	};
+	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)(int, double)>, func_sig<int(member_func_owner&, int, double)>>);
+	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)() const>, func_sig<int(const member_func_owner&)>>);
+	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)() &&>, func_sig<int(member_func_owner&&)>>);
+
+	static_assert(std::is_same_v<remove_decoration_t<int>, int>);
+	static_assert(std::is_same_v<remove_decoration_t<int&>, int>);
+	static_assert(std::is_same_v<remove_decoration_t<const int&>, int>);
+	static_assert(std::is_same_v<remove_decoration_t<int*>, int>);
+	static_assert(std::is_same_v<remove_decoration_t<const int>, int>);
+	static_assert(std::is_same_v<remove_decoration_t<volatile int>, int>);
+
+	static_assert(make_type_id<int>() == make_type_id<remove_decoration_t<int&>>());
+	static_assert(make_type_id<int>() == make_type_id<remove_decoration_t<const int&>>());
+	static_assert(make_type_id<int>() == make_type_id<remove_decoration_t<int*>>());
+
+	static_assert(detail::supported_param_type<int>);
+	static_assert(detail::supported_param_type<int&>);
+	static_assert(detail::supported_param_type<const int&>);
+	static_assert(!detail::supported_param_type<int*>);
+	static_assert(!detail::supported_param_type<const int*>);
 }
 
 
@@ -447,79 +481,6 @@ UNIT_TEST(value_tests, chain_of_moves)
 	is_null(b.const_data());
 	is_null(c.const_data());
 	is_eq(d.const_data(), static_cast<const void*>(&x));
-}
-
-UNIT_TEST(func_sig_tests, free_function_pointer_resolves_to_signature)
-{
-	using namespace ge::refl;
-	static_assert(std::is_same_v<func_sig_t<int(*)(int, int)>, func_sig<int(int, int)>>);
-}
-
-UNIT_TEST(func_sig_tests, function_reference_resolves_to_signature)
-{
-	using namespace ge::refl;
-	static_assert(std::is_same_v<func_sig_t<int(&)(int)>, func_sig<int(int)>>);
-}
-
-UNIT_TEST(func_sig_tests, function_type_resolves_to_signature)
-{
-	using namespace ge::refl;
-	static_assert(std::is_same_v<func_sig_t<void()>, func_sig<void()>>);
-	static_assert(std::is_same_v<func_sig_t<int(int, double, char)>, func_sig<int(int, double, char)>>);
-}
-
-UNIT_TEST(func_sig_tests, member_function_resolves_with_class_param)
-{
-	using namespace ge::refl;
-	struct foo { int bar(int, double) { return 0; } };
-	static_assert(std::is_same_v<func_sig_t<int(foo::*)(int, double)>, func_sig<int(foo&, int, double)>>);
-}
-
-UNIT_TEST(func_sig_tests, const_member_function_resolves_with_const_class_param)
-{
-	using namespace ge::refl;
-	struct foo { int bar() const { return 0; } };
-	static_assert(std::is_same_v<func_sig_t<int(foo::*)() const>, func_sig<int(const foo&)>>);
-}
-
-UNIT_TEST(func_sig_tests, rvalue_member_function_resolves_with_rvalue_class_param)
-{
-	using namespace ge::refl;
-	struct foo { int bar() && { return 0; } };
-	static_assert(std::is_same_v<func_sig_t<int(foo::*)() &&>, func_sig<int(foo&&)>>);
-}
-
-UNIT_TEST(func_sig_tests, decoration_strips_to_undecorated)
-{
-	using namespace ge::refl;
-	static_assert(std::is_same_v<remove_decoration_t<int>, int>);
-	static_assert(std::is_same_v<remove_decoration_t<int&>, int>);
-	static_assert(std::is_same_v<remove_decoration_t<const int&>, int>);
-	static_assert(std::is_same_v<remove_decoration_t<int*>, int>);
-	static_assert(std::is_same_v<remove_decoration_t<const int>, int>);
-	static_assert(std::is_same_v<remove_decoration_t<volatile int>, int>);
-}
-
-UNIT_TEST(func_sig_tests, type_ids_consistent_across_decorations)
-{
-	using namespace ge::refl;
-	constexpr type_id plain_int = make_type_id<int>();
-	constexpr type_id from_int_ref = make_type_id<remove_decoration_t<int&>>();
-	constexpr type_id from_const_int_ref = make_type_id<remove_decoration_t<const int&>>();
-	constexpr type_id from_int_ptr = make_type_id<remove_decoration_t<int*>>();
-	is_eq(plain_int, from_int_ref);
-	is_eq(plain_int, from_const_int_ref);
-	is_eq(plain_int, from_int_ptr);
-}
-
-UNIT_TEST(func_sig_tests, supported_param_types)
-{
-	using namespace ge::refl::detail;
-	static_assert(supported_param_type<int>);
-	static_assert(supported_param_type<int&>);
-	static_assert(supported_param_type<const int&>);
-	static_assert(!supported_param_type<int*>);
-	static_assert(!supported_param_type<const int*>);
 }
 
 UNIT_TEST(function_tests, building_registers_func_in_module)
@@ -1216,4 +1177,33 @@ UNIT_TEST(invoke_tests, const_ref_return_with_args_picks_first_argument)
 	is_false(result.is_mutable());
 	is_eq(result.const_data(), static_cast<const void*>(&a));
 	is_eq(*result.as_constant<int>(), 5);
+}
+
+UNIT_TEST(invoke_tests, const_view_to_const_ref_param)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_double_cref>("dcr").end_func()
+		.end_module()
+		.build();
+
+	auto handle = *(*reg.modules().begin()).funcs().begin();
+	int x = 7;
+	ge::refl::value view = ge::refl::value::create_view(x);
+	ge::refl::value result = handle.invoke_unchecked(view);
+	is_eq(*result.as_constant<int>(), 14);
+}
+
+UNIT_TEST(invoke_tests, const_qualified_caller_variable)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_square>("square").end_func()
+		.end_module()
+		.build();
+
+	auto handle = *(*reg.modules().begin()).funcs().begin();
+	const int x = 7;
+	ge::refl::value result = handle.invoke_unchecked(x);
+	is_eq(*result.as_constant<int>(), 49);
 }

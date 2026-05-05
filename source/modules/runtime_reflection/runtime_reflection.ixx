@@ -472,7 +472,7 @@ namespace ge::refl::detail
 							return std::invoke(FuncPtr,
 								[args]<typename ParamT, size_t Idx>() -> ParamT
 							{
-								if constexpr (std::is_const_v<ParamT> || undecorated<ParamT>)
+								if constexpr (std::is_const_v<std::remove_reference_t<ParamT>> || undecorated<ParamT>)
 								{
 									return *static_cast<std::remove_reference_t<std::add_const_t<ParamT>>*>(args[Idx].const_data());
 								}
@@ -647,7 +647,7 @@ namespace ge::refl
 					{
 						return arg.is_mutable() ? value::create_ref(arg) : value::create_view(arg);
 					}
-					else if constexpr (std::is_const_v<Arg>)
+					else if constexpr (std::is_const_v<std::remove_reference_t<Arg>>)
 					{
 						return value::create_view(arg);
 					}
