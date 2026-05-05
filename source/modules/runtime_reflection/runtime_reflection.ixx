@@ -67,7 +67,7 @@ namespace ge::refl
 	export template<undecorated T>
 	consteval type_id make_type_id()
 	{
-		return { detail::hash(__FUNCTION__) };
+		return { detail::hash(__FUNCSIG__) };
 	}
 
 	export template<typename>
@@ -467,27 +467,42 @@ namespace ge::refl::detail
 			{
 				return [&]<size_t... Indices>(std::index_sequence<Indices...>)
 				{
-					auto forwardCast = [&]<typename ParamT, size_t Idx>() -> ParamT
-					{
-						if constexpr (std::is_const_v<ParamT> || undecorated<ParamT>)
+					auto invoke = [args]() -> Ret
 						{
-							return *static_cast<std::remove_reference_t<std::add_const_t<ParamT>>*>(args[Idx].const_data());
+							return std::invoke(FuncPtr,
+								[args]<typename ParamT, size_t Idx>() -> ParamT
+							{
+								if constexpr (std::is_const_v<ParamT> || undecorated<ParamT>)
+								{
+									return *static_cast<std::remove_reference_t<std::add_const_t<ParamT>>*>(args[Idx].const_data());
+								}
+								else
+								{
+									return *static_cast<std::remove_reference_t<ParamT>*>(args[Idx].mutable_data());
+								}
+							}.template operator() < Params, Indices > ()...);
+						};
+
+					// TODO clean this up
+					if constexpr (std::is_same_v<Ret, void>)
+					{
+						invoke();
+						return value{};
+					}
+					else if constexpr (std::is_reference_v<Ret>)
+					{
+						if constexpr (std::is_const_v<std::remove_reference_t<Ret>>)
+						{
+							return value::create_view(invoke());
 						}
 						else
 						{
-							return *static_cast<std::remove_reference_t<ParamT>*>(args[Idx].mutable_data());
+							return value::create_ref(invoke());
 						}
-					};
-
-					if constexpr (std::is_same_v<Ret, void>)
-					{
-						FuncPtr(forwardCast.template operator() < Params, Indices > ()...);
-						return value{};
 					}
 					else
 					{
-						// TODO support references
-						return value::create_owning(FuncPtr(forwardCast.template operator() < Params, Indices > ()...));
+						return value::create_owning(invoke());
 					}
 				}(std::make_index_sequence<sizeof...(Params)>());
 			}
