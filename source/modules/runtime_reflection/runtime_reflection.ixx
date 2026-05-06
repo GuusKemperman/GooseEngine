@@ -22,6 +22,10 @@ export import stl;
 
 namespace ge::refl
 {
+	export class type_handle;
+	export class func_handle;
+	export class data_handle;
+
 	export struct type_id
 	{
 		auto operator<=>(const type_id&) const = default;
@@ -118,19 +122,8 @@ namespace ge::refl
 	template<auto FuncPtr>
 	concept is_func = requires { typename func_sig<decltype(FuncPtr)>; };
 
-	export class type_trait
-	{
-	public:
-		template<typename T>
-		void on_apply() { }
-	};
-
-	export class data_trait
-	{
-	public:
-		template<auto PtrToMember>
-		void on_apply() {}
-	};
+	template<auto DataPtr>
+	concept is_data = true; // TODO
 
 	template<typename Base> requires (sizeof(Base) == sizeof(size_t))
 	class inplace_vtable
@@ -509,7 +502,9 @@ namespace ge::refl::detail
 		};
 
 		inplace_vtable<vtable> m_vtable{};
-		
+
+		std::span<const value> m_traits{};
+
 		std::string_view m_name{};
 		std::reference_wrapper<const registry_data> m_reg;
 	};
@@ -561,15 +556,15 @@ namespace ge::refl::detail
 			return alloc<sMaxNumValues>(m_values, m_values_size);
 		}
 
-		API detail::type_data& alloc_type()
+		API type_data& alloc_type()
 		{
 			return alloc<sMaxNumTypes>(m_types, m_types_size);
 		}
-		API detail::data_data& alloc_data()
+		API data_data& alloc_data()
 		{
 			return alloc<sMaxNumData>(m_datas, m_data_size);
 		}
-		API detail::func_data& alloc_func()
+		API func_data& alloc_func()
 		{
 			return alloc<sMaxNumFuncs>(m_funcs, m_func_size);
 		}
@@ -622,12 +617,16 @@ namespace ge::refl
 	public:
 		API data_handle(const detail::data_data& data) : m_data(data) {}
 
+		API type_handle get_type() const;
+
+		// The type this member is located in
+		API type_handle get_outer_type() const;
+
+		API auto traits() const;
+
 	private:
 		std::reference_wrapper<const detail::data_data> m_data;
 	};
-
-	export template<typename>
-	class func_strong_handle{};
 
 	export class func_handle
 	{
@@ -635,6 +634,11 @@ namespace ge::refl
 		API func_handle(const detail::func_data& data) : m_data(data) {}
 
 		API std::string_view get_name() const { return m_data.get().m_name; }
+
+		// The type this member is located in
+		API type_handle get_outer_type() const;
+
+		API auto traits() const;
 
 		template<typename... Args>
 		value invoke_unchecked(Args&&... args) const
@@ -690,7 +694,8 @@ namespace ge::refl
 
 		API auto types() const { return detail::view_as_public_handles<data_handle>(m_data.get().m_data); }
 		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data.get().m_funcs); }
-
+		API auto traits() const;
+		
 	private:
 		std::reference_wrapper<const detail::type_data> m_data;
 	};
@@ -708,6 +713,40 @@ namespace ge::refl
 	private:
 		std::reference_wrapper<const detail::module_data> m_data;
 	};
+
+	export struct type_trait
+	{
+	};
+
+	export struct data_trait
+	{
+	};
+
+	export struct func_trait
+	{
+	};
+
+	// Example of what a trait might look like:
+	//export struct test_trait : func_trait, type_trait, data_trait
+	//{
+	//	template<auto FuncPtr> requires is_func<FuncPtr>
+	//	void on_apply(func_handle handle)
+	//	{
+
+	//	}
+
+	//	template<auto PtrToMember> requires is_data<PtrToMember>
+	//	void on_apply(data_handle handle)
+	//	{
+
+	//	}
+
+	//	template<undecorated T>
+	//	void on_apply(type_handle handle)
+	//	{
+
+	//	}
+	//};
 
 	export class registry
 	{
@@ -808,11 +847,15 @@ namespace ge::refl
 			}
 		};
 
-		template<auto DataPtr>
+		template<auto Derived>
 		class data_part
 		{
 		public:
-
+			template<auto PtrToData> requires is_data<PtrToData>
+			data_builder<PtrToData, Derived> begin_func(std::string_view name)
+			{
+				// TODO not in place yet, but will have same syntax for adding traits as func_builder (but then with data_traits).
+			}
 		};
 
 		template<typename TraitT>
@@ -976,6 +1019,13 @@ namespace ge::refl
 				};
 
 				m_target.m_vtable.set<detail::func_data::vtable_impl<FuncPtr, func_sig_t<decltype(FuncPtr)>>>();
+			}
+
+			template<std::derived_from<func_trait> TraitT>
+			decltype(auto) trait(TraitT&& trait)
+			{
+				builder::trait<TraitT>(get_registry(), m_target.m_traits, std::forward<TraitT>(trait));
+				return *this;
 			}
 
 			prev& end_func()
