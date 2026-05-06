@@ -899,6 +899,8 @@ namespace ge::refl
 				m_prev(prev),
 				m_target(get_registry().alloc_type())
 			{
+				detail::registry_data& reg = get_registry();
+				m_target.m_funcs = { reg.m_funcs + reg.m_func_size, 0ull };
 				m_target = detail::type_data{ .m_reg = get_registry(), .m_name = name,  .m_id = make_type_id<T>() };
 			}
 
@@ -911,6 +913,8 @@ namespace ge::refl
 
 			prev& end_type()
 			{
+				// TODO pretty ugly
+				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs + get_registry().m_func_size - m_target.m_funcs.data()) };
 				return m_prev;
 			}
 
