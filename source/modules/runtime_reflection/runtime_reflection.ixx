@@ -700,7 +700,7 @@ namespace ge::refl
 		API type_id get_id() const { return m_data.get().m_id; }
 		API std::string_view get_name() const { return m_data.get().m_name; }
 
-		API auto types() const { return detail::view_as_public_handles<data_handle>(m_data.get().m_data); }
+		API auto datas() const { return detail::view_as_public_handles<data_handle>(m_data.get().m_data); }
 		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data.get().m_funcs); }
 		API auto traits() const;
 		
@@ -714,7 +714,8 @@ namespace ge::refl
 		API module_handle(const detail::module_data& data) : m_data(data) {}
 
 		API std::string_view get_name() const { return m_data.get().m_name; }
-
+		
+		API auto datas() const;
 		API auto types() const { return detail::view_as_public_handles<type_handle>(m_data.get().m_types); }
 		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data.get().m_funcs); }
 

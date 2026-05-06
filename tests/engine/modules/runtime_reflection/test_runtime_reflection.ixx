@@ -93,6 +93,168 @@ namespace
 	static_assert(detail::supported_param_type<const int&>);
 	static_assert(!detail::supported_param_type<int*>);
 	static_assert(!detail::supported_param_type<const int*>);
+
+	// =====================================================================
+	// Fixtures for the new traits + data API
+	// =====================================================================
+
+	struct entity
+	{
+		int hp;
+		int mp;
+		fpoint pos;
+	};
+
+	int free_get_hp_by_value(const entity& e) { return e.hp; }
+	const int& free_get_hp_cref(const entity& e) { return e.hp; }
+	int free_double_hp(const entity& e) { return e.hp * 2; }
+	void free_set_hp(entity& e, int new_hp) { e.hp = new_hp; }
+	void free_clamp_hp(entity& e, int new_hp)
+	{
+		e.hp = new_hp < 0 ? 0 : (new_hp > 1000 ? 1000 : new_hp);
+	}
+
+	struct empty_type_trait : type_trait {};
+	struct empty_func_trait : func_trait {};
+	struct empty_data_trait : data_trait {};
+
+	struct universal_trait : type_trait, func_trait, data_trait {};
+
+	struct int_type_trait : type_trait { int payload{}; };
+	struct int_func_trait : func_trait { int payload{}; };
+	struct int_data_trait : data_trait { int payload{}; };
+
+	struct point_type_trait : type_trait { fpoint payload{}; };
+	struct string_type_trait : type_trait { std::string label{}; };
+
+	struct destruct_counting_trait : type_trait
+	{
+		int* counter{};
+		destruct_counting_trait() = default;
+		destruct_counting_trait(int* c) : counter(c) {}
+		destruct_counting_trait(const destruct_counting_trait& other) : counter(other.counter) {}
+		destruct_counting_trait& operator=(const destruct_counting_trait& other)
+		{
+			counter = other.counter;
+			return *this;
+		}
+		~destruct_counting_trait()
+		{
+			if (counter) ++*counter;
+		}
+	};
+
+	struct move_only_int_trait : type_trait
+	{
+		std::unique_ptr<int> p;
+		move_only_int_trait() = default;
+		explicit move_only_int_trait(int v) : p(std::make_unique<int>(v)) {}
+		move_only_int_trait(move_only_int_trait&&) noexcept = default;
+		move_only_int_trait& operator=(move_only_int_trait&&) noexcept = default;
+	};
+
+	struct hook_record
+	{
+		int on_apply_type{};
+		int on_apply_func{};
+		int on_apply_data{};
+		int post_build_type{};
+		int post_build_func{};
+		int post_build_data{};
+		int post_build_count_at_first_apply{ -1 };
+		int on_apply_count_at_first_post_build{ -1 };
+		std::string last_type_name{};
+		std::string last_func_name{};
+		std::string last_data_name{};
+		std::string last_data_outer_name{};
+	};
+
+	struct hooked_trait : type_trait, func_trait, data_trait
+	{
+		hook_record* rec{};
+		hooked_trait() = default;
+		hooked_trait(hook_record* r) : rec(r) {}
+
+		template<typename T, typename Prev>
+		void on_apply(builder::type_builder<T, Prev>&)
+		{
+			if (!rec) return;
+			if (rec->post_build_count_at_first_apply == -1)
+			{
+				rec->post_build_count_at_first_apply =
+					rec->post_build_type + rec->post_build_func + rec->post_build_data;
+			}
+			++rec->on_apply_type;
+		}
+
+		template<auto FuncPtr, typename Prev>
+		void on_apply(builder::func_builder<FuncPtr, Prev>&)
+		{
+			if (!rec) return;
+			if (rec->post_build_count_at_first_apply == -1)
+			{
+				rec->post_build_count_at_first_apply =
+					rec->post_build_type + rec->post_build_func + rec->post_build_data;
+			}
+			++rec->on_apply_func;
+		}
+
+		template<auto DataPtr, typename Prev>
+		void on_apply(builder::data_builder<DataPtr, Prev>&)
+		{
+			if (!rec) return;
+			if (rec->post_build_count_at_first_apply == -1)
+			{
+				rec->post_build_count_at_first_apply =
+					rec->post_build_type + rec->post_build_func + rec->post_build_data;
+			}
+			++rec->on_apply_data;
+		}
+
+		void post_build(type_handle h)
+		{
+			if (!rec) return;
+			if (rec->on_apply_count_at_first_post_build == -1)
+			{
+				rec->on_apply_count_at_first_post_build =
+					rec->on_apply_type + rec->on_apply_func + rec->on_apply_data;
+			}
+			++rec->post_build_type;
+			rec->last_type_name = std::string{ h.get_name() };
+		}
+
+		void post_build(func_handle h)
+		{
+			if (!rec) return;
+			if (rec->on_apply_count_at_first_post_build == -1)
+			{
+				rec->on_apply_count_at_first_post_build =
+					rec->on_apply_type + rec->on_apply_func + rec->on_apply_data;
+			}
+			++rec->post_build_func;
+			rec->last_func_name = std::string{ h.get_name() };
+		}
+
+		void post_build(data_handle h)
+		{
+			if (!rec) return;
+			if (rec->on_apply_count_at_first_post_build == -1)
+			{
+				rec->on_apply_count_at_first_post_build =
+					rec->on_apply_type + rec->on_apply_func + rec->on_apply_data;
+			}
+			++rec->post_build_data;
+			rec->last_data_name = std::string{ h.get_name() };
+			rec->last_data_outer_name = std::string{ h.get_outer_type().get_name() };
+		}
+	};
+
+	static_assert(std::is_base_of_v<type_trait, empty_type_trait>);
+	static_assert(std::is_base_of_v<func_trait, empty_func_trait>);
+	static_assert(std::is_base_of_v<data_trait, empty_data_trait>);
+	static_assert(std::is_base_of_v<type_trait, universal_trait>);
+	static_assert(std::is_base_of_v<func_trait, universal_trait>);
+	static_assert(std::is_base_of_v<data_trait, universal_trait>);
 }
 
 
@@ -1206,4 +1368,1405 @@ UNIT_TEST(invoke_tests, const_qualified_caller_variable)
 	const int x = 7;
 	ge::refl::value result = handle.invoke_unchecked(x);
 	is_eq(*result.as_constant<int>(), 49);
+}
+
+// =========================================================================
+// trait_tests — building, retrieving, and lifetime of traits
+// =========================================================================
+
+UNIT_TEST(trait_tests, type_trait_count_zero_when_unused)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").end_type()
+		.end_module()
+		.build();
+	is_eq(reg.try_get_type("t")->traits().size(), 0ull);
+}
+
+UNIT_TEST(trait_tests, type_trait_one_added_count_one)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(empty_type_trait{})
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(reg.try_get_type("t")->traits().size(), 1ull);
+}
+
+UNIT_TEST(trait_tests, type_trait_state_round_trip_int)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 99 })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto traits = reg.try_get_type("t")->traits();
+	const ge::refl::value& v = *traits.begin();
+	is_not_null(v.const_data());
+	is_eq(v.get_type_id(), ge::refl::make_type_id<int_type_trait>());
+	is_eq(v.as_constant<int_type_trait>()->payload, 99);
+}
+
+UNIT_TEST(trait_tests, type_trait_state_round_trip_struct)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(point_type_trait{ fpoint{ 3, 7 } })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto traits = reg.try_get_type("t")->traits();
+	is_eq((*traits.begin()).as_constant<point_type_trait>()->payload, (fpoint{ 3, 7 }));
+}
+
+UNIT_TEST(trait_tests, type_trait_state_round_trip_string_heap)
+{
+	std::string long_label = "hello world long enough to heap allocate definitely yes definitely";
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(string_type_trait{ long_label })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto traits = reg.try_get_type("t")->traits();
+	is_eq(traits.size(), 1ull);
+	is_eq((*traits.begin()).as_constant<string_type_trait>()->label, long_label);
+}
+
+UNIT_TEST(trait_tests, type_trait_three_added_count_three)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(empty_type_trait{})
+				.trait(int_type_trait{ 1 })
+				.trait(point_type_trait{ fpoint{ 5, 6 } })
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(reg.try_get_type("t")->traits().size(), 3ull);
+}
+
+UNIT_TEST(trait_tests, type_trait_order_preserved)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 10 })
+				.trait(int_type_trait{ 20 })
+				.trait(int_type_trait{ 30 })
+			.end_type()
+		.end_module()
+		.build();
+
+	std::vector<int> values;
+	for (const auto& v : reg.try_get_type("t")->traits())
+	{
+		values.push_back(v.as_constant<int_type_trait>()->payload);
+	}
+	is_eq(values.size(), 3ull);
+	is_eq(values[0], 10);
+	is_eq(values[1], 20);
+	is_eq(values[2], 30);
+}
+
+UNIT_TEST(trait_tests, type_trait_independent_across_types_in_same_module)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t1")
+				.trait(int_type_trait{ 1 })
+			.end_type()
+			.begin_type<type_2>("t2")
+				.trait(int_type_trait{ 2 })
+				.trait(int_type_trait{ 3 })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto t1 = reg.try_get_type("t1");
+	auto t2 = reg.try_get_type("t2");
+	is_eq(t1->traits().size(), 1ull);
+	is_eq(t2->traits().size(), 2ull);
+	is_eq((*t1->traits().begin()).as_constant<int_type_trait>()->payload, 1);
+}
+
+UNIT_TEST(trait_tests, type_trait_independent_across_modules)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("a")
+			.begin_type<type_1>("ta")
+				.trait(int_type_trait{ 100 })
+			.end_type()
+		.end_module()
+		.begin_module("b")
+			.begin_type<type_2>("tb")
+				.trait(int_type_trait{ 200 })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto ta = reg.try_get_type("ta");
+	auto tb = reg.try_get_type("tb");
+	is_eq(ta->traits().size(), 1ull);
+	is_eq(tb->traits().size(), 1ull);
+	is_eq((*ta->traits().begin()).as_constant<int_type_trait>()->payload, 100);
+	is_eq((*tb->traits().begin()).as_constant<int_type_trait>()->payload, 200);
+}
+
+UNIT_TEST(trait_tests, type_trait_value_type_id_matches_trait_type)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 5 })
+				.trait(point_type_trait{ fpoint{ 1, 2 } })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto traits = reg.try_get_type("t")->traits();
+	auto it = traits.begin();
+	is_eq((*it).get_type_id(), ge::refl::make_type_id<int_type_trait>());
+	++it;
+	is_eq((*it).get_type_id(), ge::refl::make_type_id<point_type_trait>());
+}
+
+UNIT_TEST(trait_tests, traits_values_are_not_mutable)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(int_type_trait{ 5 }).end_type()
+		.end_module()
+		.build();
+
+	const ge::refl::value& v = *reg.try_get_type("t")->traits().begin();
+	is_false(v.is_mutable());
+}
+
+UNIT_TEST(trait_tests, func_trait_count_zero_when_unused)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_return_42>("ret42").end_func()
+		.end_module()
+		.build();
+
+	auto func = *(*reg.modules().begin()).funcs().begin();
+	is_eq(func.traits().size(), 0ull);
+}
+
+UNIT_TEST(trait_tests, func_trait_one_added)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_return_42>("ret42")
+				.trait(empty_func_trait{})
+			.end_func()
+		.end_module()
+		.build();
+
+	auto func = *(*reg.modules().begin()).funcs().begin();
+	is_eq(func.traits().size(), 1ull);
+}
+
+UNIT_TEST(trait_tests, func_trait_state_round_trip)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_return_42>("ret42")
+				.trait(int_func_trait{ 77 })
+			.end_func()
+		.end_module()
+		.build();
+
+	auto func = *(*reg.modules().begin()).funcs().begin();
+	is_eq((*func.traits().begin()).as_constant<int_func_trait>()->payload, 77);
+}
+
+UNIT_TEST(trait_tests, func_trait_multiple_order_preserved)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_return_42>("ret42")
+				.trait(int_func_trait{ 1 })
+				.trait(int_func_trait{ 2 })
+				.trait(int_func_trait{ 3 })
+			.end_func()
+		.end_module()
+		.build();
+
+	auto func = *(*reg.modules().begin()).funcs().begin();
+	std::vector<int> values;
+	for (const auto& v : func.traits())
+	{
+		values.push_back(v.as_constant<int_func_trait>()->payload);
+	}
+	is_eq(values.size(), 3ull);
+	is_eq(values[0], 1);
+	is_eq(values[1], 2);
+	is_eq(values[2], 3);
+}
+
+UNIT_TEST(trait_tests, func_trait_independent_per_func)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_return_42>("a").trait(int_func_trait{ 10 }).end_func()
+			.begin_func<&free_noop>("b").trait(int_func_trait{ 20 }).trait(int_func_trait{ 30 }).end_func()
+		.end_module()
+		.build();
+
+	auto funcs = (*reg.modules().begin()).funcs();
+	auto it = funcs.begin();
+	auto a = *it; ++it;
+	auto b = *it;
+
+	is_eq(a.traits().size(), 1ull);
+	is_eq(b.traits().size(), 2ull);
+	is_eq((*a.traits().begin()).as_constant<int_func_trait>()->payload, 10);
+}
+
+UNIT_TEST(trait_tests, func_with_traits_still_invokes_correctly)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_subtract>("sub")
+				.trait(int_func_trait{ 5 })
+				.trait(int_func_trait{ 6 })
+			.end_func()
+		.end_module()
+		.build();
+
+	auto func = *(*reg.modules().begin()).funcs().begin();
+	int a = 10, b = 3;
+	is_eq(*func.invoke_unchecked(a, b).as_constant<int>(), 7);
+	is_eq(func.traits().size(), 2ull);
+}
+
+UNIT_TEST(trait_tests, type_and_func_trait_disjoint_in_same_type)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 1 })
+				.begin_func<&free_return_42>("ret").trait(int_func_trait{ 2 }).end_func()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("t");
+	is_eq(t->traits().size(), 1ull);
+	auto f = *t->funcs().begin();
+	is_eq(f.traits().size(), 1ull);
+	is_eq((*t->traits().begin()).as_constant<int_type_trait>()->payload, 1);
+	is_eq((*f.traits().begin()).as_constant<int_func_trait>()->payload, 2);
+}
+
+UNIT_TEST(trait_tests, multi_inherit_trait_attaches_to_type)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(universal_trait{}).end_type()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("t");
+	is_eq(t->traits().size(), 1ull);
+	is_eq((*t->traits().begin()).get_type_id(), ge::refl::make_type_id<universal_trait>());
+}
+
+UNIT_TEST(trait_tests, multi_inherit_trait_attaches_to_func)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_noop>("f").trait(universal_trait{}).end_func()
+		.end_module()
+		.build();
+
+	auto f = *(*reg.modules().begin()).funcs().begin();
+	is_eq(f.traits().size(), 1ull);
+	is_eq((*f.traits().begin()).get_type_id(), ge::refl::make_type_id<universal_trait>());
+}
+
+UNIT_TEST(trait_tests, multi_inherit_trait_distinct_storage_per_target)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(universal_trait{}).end_type()
+			.begin_func<&free_noop>("f").trait(universal_trait{}).end_func()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("t");
+	auto f = *(*reg.modules().begin()).funcs().begin();
+	is_ne((*t->traits().begin()).const_data(), (*f.traits().begin()).const_data());
+}
+
+UNIT_TEST(trait_tests, traits_iteration_yields_typed_values)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 1 })
+				.trait(int_type_trait{ 2 })
+			.end_type()
+		.end_module()
+		.build();
+
+	int sum = 0;
+	for (const auto& v : reg.try_get_type("t")->traits())
+	{
+		is_not_null(v.const_data());
+		is_eq(v.get_type_id(), ge::refl::make_type_id<int_type_trait>());
+		sum += v.as_constant<int_type_trait>()->payload;
+	}
+	is_eq(sum, 3);
+}
+
+UNIT_TEST(trait_tests, traits_outlive_builder_scope)
+{
+	ge::refl::registry reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(int_type_trait{ 42 }).end_type()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("t");
+	is_eq(t->traits().size(), 1ull);
+	is_eq((*t->traits().begin()).as_constant<int_type_trait>()->payload, 42);
+}
+
+UNIT_TEST(trait_tests, traits_pointer_stable_across_handle_copies)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(int_type_trait{ 7 }).end_type()
+		.end_module()
+		.build();
+
+	ge::refl::type_handle h1 = *reg.try_get_type("t");
+	ge::refl::type_handle h2 = h1;
+	is_eq((*h1.traits().begin()).const_data(), (*h2.traits().begin()).const_data());
+}
+
+UNIT_TEST(trait_tests, traits_pointer_stable_after_more_targets_built)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t1").trait(int_type_trait{ 11 }).end_type()
+			.begin_type<type_2>("t2").trait(int_type_trait{ 22 }).end_type()
+			.begin_func<&free_return_42>("f").trait(int_func_trait{ 33 }).end_func()
+		.end_module()
+		.build();
+
+	auto t1 = reg.try_get_type("t1");
+	is_eq(t1->traits().size(), 1ull);
+	is_eq((*t1->traits().begin()).as_constant<int_type_trait>()->payload, 11);
+}
+
+UNIT_TEST(trait_tests, trait_destructor_runs_when_registry_destroyed)
+{
+	int counter = 0;
+	int snapshot_after_build = 0;
+	{
+		auto reg = ge::refl::begin_registry()
+			.begin_module("m")
+				.begin_type<type_1>("t").trait(destruct_counting_trait{ &counter }).end_type()
+			.end_module()
+			.build();
+		snapshot_after_build = counter;
+	}
+	is_gt(counter, snapshot_after_build);
+}
+
+UNIT_TEST(trait_tests, trait_destructor_runs_for_each_added_instance)
+{
+	int counter = 0;
+	int snapshot_after_build = 0;
+	{
+		auto reg = ge::refl::begin_registry()
+			.begin_module("m")
+				.begin_type<type_1>("t")
+					.trait(destruct_counting_trait{ &counter })
+					.trait(destruct_counting_trait{ &counter })
+					.trait(destruct_counting_trait{ &counter })
+				.end_type()
+			.end_module()
+			.build();
+		snapshot_after_build = counter;
+	}
+	is_eq(counter - snapshot_after_build, 3);
+}
+
+UNIT_TEST(trait_tests, move_only_trait_supported)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(move_only_int_trait{ 99 }).end_type()
+		.end_module()
+		.build();
+
+	auto traits = reg.try_get_type("t")->traits();
+	is_eq(traits.size(), 1ull);
+	const move_only_int_trait* p = (*traits.begin()).as_constant<move_only_int_trait>();
+	is_not_null(p);
+	is_not_null(p->p.get());
+	is_eq(*p->p, 99);
+}
+
+UNIT_TEST(trait_tests, registry_with_traits_only_no_funcs_no_data)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(int_type_trait{ 1 }).end_type()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("t");
+	is_eq(t->funcs().size(), 0ull);
+	is_eq(t->datas().size(), 0ull);
+	is_eq(t->traits().size(), 1ull);
+}
+
+UNIT_TEST(trait_tests, many_traits_on_single_type)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 0 }).trait(int_type_trait{ 1 }).trait(int_type_trait{ 2 })
+				.trait(int_type_trait{ 3 }).trait(int_type_trait{ 4 }).trait(int_type_trait{ 5 })
+				.trait(int_type_trait{ 6 }).trait(int_type_trait{ 7 }).trait(int_type_trait{ 8 })
+				.trait(int_type_trait{ 9 }).trait(int_type_trait{ 10 }).trait(int_type_trait{ 11 })
+				.trait(int_type_trait{ 12 }).trait(int_type_trait{ 13 }).trait(int_type_trait{ 14 })
+				.trait(int_type_trait{ 15 })
+			.end_type()
+		.end_module()
+		.build();
+
+	auto traits = reg.try_get_type("t")->traits();
+	is_eq(traits.size(), 16ull);
+	int idx = 0;
+	for (const auto& v : traits)
+	{
+		is_eq(v.as_constant<int_type_trait>()->payload, idx);
+		++idx;
+	}
+}
+
+UNIT_TEST(trait_tests, interleaved_type_traits_in_one_module)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("ta").trait(int_type_trait{ 1 }).end_type()
+			.begin_type<type_2>("tb").trait(int_type_trait{ 2 }).end_type()
+		.end_module()
+		.build();
+
+	auto a = reg.try_get_type("ta");
+	auto b = reg.try_get_type("tb");
+	is_eq(a->traits().size(), 1ull);
+	is_eq(b->traits().size(), 1ull);
+	is_eq((*a->traits().begin()).as_constant<int_type_trait>()->payload, 1);
+	is_eq((*b->traits().begin()).as_constant<int_type_trait>()->payload, 2);
+}
+
+UNIT_TEST(trait_tests, traits_after_many_funcs_alloc_still_pointer_stable)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_subtract>("a").end_func()
+			.begin_func<&free_square>("b").end_func()
+			.begin_type<type_1>("t")
+				.trait(int_type_trait{ 100 })
+				.trait(int_type_trait{ 200 })
+			.end_type()
+			.begin_func<&free_return_42>("c").end_func()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("t");
+	is_eq(t->traits().size(), 2ull);
+	auto it = t->traits().begin();
+	is_eq((*it).as_constant<int_type_trait>()->payload, 100);
+	++it;
+	is_eq((*it).as_constant<int_type_trait>()->payload, 200);
+}
+
+// =========================================================================
+// trait_hook_tests — on_apply / post_build hook ordering and dispatch
+// =========================================================================
+
+UNIT_TEST(trait_hook_tests, on_apply_called_for_type_trait)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(hooked_trait{ &rec }).end_type()
+		.end_module()
+		.build();
+	is_eq(rec.on_apply_type, 1);
+}
+
+UNIT_TEST(trait_hook_tests, on_apply_called_for_func_trait)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_noop>("f").trait(hooked_trait{ &rec }).end_func()
+		.end_module()
+		.build();
+	is_eq(rec.on_apply_func, 1);
+}
+
+UNIT_TEST(trait_hook_tests, on_apply_called_for_data_trait)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").trait(hooked_trait{ &rec }).end_data()
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(rec.on_apply_data, 1);
+}
+
+UNIT_TEST(trait_hook_tests, on_apply_runs_before_any_post_build)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t1").trait(hooked_trait{ &rec }).end_type()
+			.begin_type<type_2>("t2").trait(hooked_trait{ &rec }).end_type()
+		.end_module()
+		.build();
+
+	is_eq(rec.post_build_count_at_first_apply, 0);
+}
+
+UNIT_TEST(trait_hook_tests, all_on_apply_run_before_any_post_build)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t1").trait(hooked_trait{ &rec }).end_type()
+			.begin_type<type_2>("t2").trait(hooked_trait{ &rec }).end_type()
+		.end_module()
+		.build();
+
+	is_eq(rec.on_apply_count_at_first_post_build, 2);
+}
+
+UNIT_TEST(trait_hook_tests, post_build_called_once_per_trait_for_type)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t")
+				.trait(hooked_trait{ &rec })
+				.trait(hooked_trait{ &rec })
+				.trait(hooked_trait{ &rec })
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(rec.post_build_type, 3);
+}
+
+UNIT_TEST(trait_hook_tests, post_build_handle_for_type_has_correct_name)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("particular_name")
+				.trait(hooked_trait{ &rec })
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(rec.last_type_name, std::string{ "particular_name" });
+}
+
+UNIT_TEST(trait_hook_tests, post_build_handle_for_func_has_correct_name)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_func<&free_noop>("specific_func")
+				.trait(hooked_trait{ &rec })
+			.end_func()
+		.end_module()
+		.build();
+	is_eq(rec.last_func_name, std::string{ "specific_func" });
+}
+
+UNIT_TEST(trait_hook_tests, post_build_handle_for_data_has_correct_name_and_outer_type)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity_type")
+				.begin_data<&entity::hp>("specific_data")
+					.trait(hooked_trait{ &rec })
+				.end_data()
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(rec.last_data_name, std::string{ "specific_data" });
+	is_eq(rec.last_data_outer_name, std::string{ "entity_type" });
+}
+
+UNIT_TEST(trait_hook_tests, on_apply_dispatches_to_correct_overload_per_target)
+{
+	hook_record rec;
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").trait(hooked_trait{ &rec }).end_type()
+			.begin_func<&free_noop>("f").trait(hooked_trait{ &rec }).end_func()
+			.begin_type<entity>("e")
+				.begin_data<&entity::hp>("hp").trait(hooked_trait{ &rec }).end_data()
+			.end_type()
+		.end_module()
+		.build();
+	is_eq(rec.on_apply_type, 1);
+	is_eq(rec.on_apply_func, 1);
+	is_eq(rec.on_apply_data, 1);
+	is_eq(rec.post_build_type, 2);
+	is_eq(rec.post_build_func, 1);
+	is_eq(rec.post_build_data, 1);
+}
+
+// =========================================================================
+// data_tests — data builder, accessors, getter/setter, datas() ranges
+// =========================================================================
+
+UNIT_TEST(data_tests, building_data_in_type_registers_one_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("entity");
+	is_true(t.has_value());
+	is_eq(t->datas().size(), 1ull);
+}
+
+UNIT_TEST(data_tests, data_get_name)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq(d.get_name(), "hp");
+}
+
+UNIT_TEST(data_tests, data_multiple_members_count_and_names_in_order)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+				.begin_data<&entity::mp>("mp").end_data()
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto datas = reg.try_get_type("entity")->datas();
+	is_eq(datas.size(), 3ull);
+
+	std::vector<std::string_view> names;
+	for (auto d : datas) names.push_back(d.get_name());
+	is_eq(names[0], "hp");
+	is_eq(names[1], "mp");
+	is_eq(names[2], "pos");
+}
+
+UNIT_TEST(data_tests, data_get_outer_type_id_and_name)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq(d.get_outer_type().get_id(), ge::refl::make_type_id<entity>());
+	is_eq(d.get_outer_type().get_name(), "entity");
+}
+
+UNIT_TEST(data_tests, data_get_type_int_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq(d.get_type().get_id(), ge::refl::make_type_id<int>());
+}
+
+UNIT_TEST(data_tests, data_get_type_struct_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq(d.get_type().get_id(), ge::refl::make_type_id<fpoint>());
+}
+
+UNIT_TEST(data_tests, type_with_no_data_has_empty_datas)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t").end_type()
+		.end_module()
+		.build();
+
+	is_eq(reg.try_get_type("t")->datas().size(), 0ull);
+}
+
+UNIT_TEST(data_tests, data_independent_per_type)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+				.begin_data<&entity::mp>("mp").end_data()
+			.end_type()
+			.begin_type<type_1>("other").end_type()
+		.end_module()
+		.build();
+
+	is_eq(reg.try_get_type("entity")->datas().size(), 2ull);
+	is_eq(reg.try_get_type("other")->datas().size(), 0ull);
+}
+
+UNIT_TEST(data_tests, data_handles_in_iteration_share_outer_but_have_distinct_names)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+				.begin_data<&entity::mp>("mp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto datas = reg.try_get_type("entity")->datas();
+	auto it = datas.begin();
+	auto a = *it; ++it;
+	auto b = *it;
+	is_eq(a.get_name(), "hp");
+	is_eq(b.get_name(), "mp");
+	is_eq(a.get_outer_type().get_id(), b.get_outer_type().get_id());
+}
+
+UNIT_TEST(data_tests, data_independent_across_modules)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("a")
+			.begin_type<entity>("entity_a")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.begin_module("b")
+			.begin_type<entity>("entity_b")
+				.begin_data<&entity::mp>("mp").end_data()
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	is_eq(reg.try_get_type("entity_a")->datas().size(), 1ull);
+	is_eq(reg.try_get_type("entity_b")->datas().size(), 2ull);
+}
+
+UNIT_TEST(data_tests, default_getter_present_when_not_overridden)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_not_null(reinterpret_cast<void*>(d.get_getter()));
+}
+
+UNIT_TEST(data_tests, default_setter_present_when_not_overridden)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_not_null(reinterpret_cast<void*>(d.get_setter()));
+}
+
+UNIT_TEST(data_tests, default_getter_reads_int_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+
+	entity e{ 42, 0, fpoint{ 0, 0 } };
+	ge::refl::value result = getter(ge::refl::value::create_view(e));
+	is_eq(result.get_type_id(), ge::refl::make_type_id<int>());
+	is_eq(*result.as_constant<int>(), 42);
+}
+
+UNIT_TEST(data_tests, default_setter_writes_int_member_only)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto setter = d.get_setter();
+
+	entity e{ 1, 2, fpoint{ 3, 4 } };
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(99));
+	is_eq(e.hp, 99);
+	is_eq(e.mp, 2);
+	is_eq(e.pos.x, 3);
+	is_eq(e.pos.y, 4);
+}
+
+UNIT_TEST(data_tests, default_getter_setter_round_trip_int)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::mp>("mp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+	auto setter = d.get_setter();
+
+	entity e{ 0, 0, fpoint{ 0, 0 } };
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(123));
+	is_eq(*getter(ge::refl::value::create_view(e)).as_constant<int>(), 123);
+}
+
+UNIT_TEST(data_tests, default_getter_struct_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+
+	entity e{ 0, 0, fpoint{ 7, 8 } };
+	ge::refl::value result = getter(ge::refl::value::create_view(e));
+	is_eq(result.get_type_id(), ge::refl::make_type_id<fpoint>());
+	is_eq(*result.as_constant<fpoint>(), (fpoint{ 7, 8 }));
+}
+
+UNIT_TEST(data_tests, default_setter_struct_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto setter = d.get_setter();
+
+	entity e{ 0, 0, fpoint{ 0, 0 } };
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(fpoint{ 11, 22 }));
+	is_eq(e.pos.x, 11);
+	is_eq(e.pos.y, 22);
+}
+
+UNIT_TEST(data_tests, default_setter_then_getter_round_trip_struct)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto setter = d.get_setter();
+	auto getter = d.get_getter();
+
+	entity e{ 0, 0, fpoint{ 0, 0 } };
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(fpoint{ 5, 9 }));
+	ge::refl::value got = getter(ge::refl::value::create_view(e));
+	is_eq(*got.as_constant<fpoint>(), (fpoint{ 5, 9 }));
+}
+
+UNIT_TEST(data_tests, default_setter_repeated_calls_are_independent)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto setter = d.get_setter();
+
+	entity e{ 0, 0, fpoint{ 0, 0 } };
+	for (int i = 0; i < 5; ++i)
+	{
+		setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(i * 10));
+		is_eq(e.hp, i * 10);
+	}
+}
+
+UNIT_TEST(data_tests, default_getter_does_not_alias_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+
+	entity e{ 10, 0, fpoint{ 0, 0 } };
+	ge::refl::value got = getter(ge::refl::value::create_view(e));
+	is_eq(*got.as_constant<int>(), 10);
+	e.hp = 200;
+	is_eq(*got.as_constant<int>(), 10);
+}
+
+UNIT_TEST(data_tests, custom_getter_replaces_default)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").getter<&free_double_hp>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+
+	entity e{ 21, 0, fpoint{ 0, 0 } };
+	ge::refl::value result = getter(ge::refl::value::create_view(e));
+	is_eq(*result.as_constant<int>(), 42);
+}
+
+UNIT_TEST(data_tests, custom_setter_replaces_default)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").setter<&free_clamp_hp>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto setter = d.get_setter();
+
+	entity e{ 0, 0, fpoint{ 0, 0 } };
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(-5));
+	is_eq(e.hp, 0);
+
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(5000));
+	is_eq(e.hp, 1000);
+
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(500));
+	is_eq(e.hp, 500);
+}
+
+UNIT_TEST(data_tests, nullptr_getter_disables_get)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").getter<nullptr>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_null(reinterpret_cast<void*>(d.get_getter()));
+}
+
+UNIT_TEST(data_tests, nullptr_setter_disables_set)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").setter<nullptr>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_null(reinterpret_cast<void*>(d.get_setter()));
+}
+
+UNIT_TEST(data_tests, custom_getter_const_ref_return_signature)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").getter<&free_get_hp_cref>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+
+	entity e{ 7, 0, fpoint{ 0, 0 } };
+	ge::refl::value v = getter(ge::refl::value::create_view(e));
+	is_eq(v.get_type_id(), ge::refl::make_type_id<int>());
+	is_eq(*v.as_constant<int>(), 7);
+	is_false(v.is_mutable());
+}
+
+UNIT_TEST(data_tests, custom_getter_value_return_signature)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").getter<&free_get_hp_by_value>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto getter = d.get_getter();
+
+	entity e{ 17, 0, fpoint{ 0, 0 } };
+	ge::refl::value v = getter(ge::refl::value::create_view(e));
+	is_eq(*v.as_constant<int>(), 17);
+	is_true(v.is_owning());
+}
+
+UNIT_TEST(data_tests, custom_setter_then_default_getter_round_trip)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").setter<&free_set_hp>().end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	auto setter = d.get_setter();
+	auto getter = d.get_getter();
+
+	entity e{ 0, 0, fpoint{ 0, 0 } };
+	setter(ge::refl::value::create_ref(e), ge::refl::value::create_owning(73));
+	is_eq(*getter(ge::refl::value::create_view(e)).as_constant<int>(), 73);
+}
+
+UNIT_TEST(data_tests, data_with_one_trait_count)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp")
+					.trait(empty_data_trait{})
+				.end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq(d.traits().size(), 1ull);
+}
+
+UNIT_TEST(data_tests, data_traits_state_round_trip)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp")
+					.trait(int_data_trait{ 88 })
+				.end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq((*d.traits().begin()).as_constant<int_data_trait>()->payload, 88);
+}
+
+UNIT_TEST(data_tests, data_traits_multiple_order_preserved)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp")
+					.trait(int_data_trait{ 1 })
+					.trait(int_data_trait{ 2 })
+					.trait(int_data_trait{ 3 })
+				.end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	std::vector<int> values;
+	for (const auto& v : d.traits())
+	{
+		values.push_back(v.as_constant<int_data_trait>()->payload);
+	}
+	is_eq(values.size(), 3ull);
+	is_eq(values[0], 1);
+	is_eq(values[1], 2);
+	is_eq(values[2], 3);
+}
+
+UNIT_TEST(data_tests, data_traits_isolated_from_outer_type_traits)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.trait(int_type_trait{ 100 })
+				.begin_data<&entity::hp>("hp")
+					.trait(int_data_trait{ 200 })
+				.end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto t = reg.try_get_type("entity");
+	auto d = *t->datas().begin();
+	is_eq(t->traits().size(), 1ull);
+	is_eq(d.traits().size(), 1ull);
+	is_eq((*t->traits().begin()).as_constant<int_type_trait>()->payload, 100);
+	is_eq((*d.traits().begin()).as_constant<int_data_trait>()->payload, 200);
+}
+
+UNIT_TEST(data_tests, data_traits_isolated_per_data_member)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").trait(int_data_trait{ 1 }).end_data()
+				.begin_data<&entity::mp>("mp").trait(int_data_trait{ 2 }).trait(int_data_trait{ 3 }).end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto datas = reg.try_get_type("entity")->datas();
+	auto it = datas.begin();
+	auto hp = *it; ++it;
+	auto mp = *it;
+	is_eq(hp.traits().size(), 1ull);
+	is_eq(mp.traits().size(), 2ull);
+	is_eq((*hp.traits().begin()).as_constant<int_data_trait>()->payload, 1);
+}
+
+UNIT_TEST(data_tests, data_with_traits_and_custom_getter_chains)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp")
+					.trait(int_data_trait{ 1 })
+					.getter<&free_double_hp>()
+					.trait(int_data_trait{ 2 })
+				.end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto d = *reg.try_get_type("entity")->datas().begin();
+	is_eq(d.traits().size(), 2ull);
+
+	entity e{ 5, 0, fpoint{ 0, 0 } };
+	ge::refl::value v = d.get_getter()(ge::refl::value::create_view(e));
+	is_eq(*v.as_constant<int>(), 10);
+}
+
+// =========================================================================
+// data_tests — module_handle::datas() and type/module-level aggregation
+// =========================================================================
+
+UNIT_TEST(data_tests, module_datas_aggregates_across_types_in_module)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+				.begin_data<&entity::mp>("mp").end_data()
+			.end_type()
+			.begin_type<type_1>("t1").end_type()
+		.end_module()
+		.build();
+
+	auto mod = *reg.modules().begin();
+	is_eq(mod.datas().size(), 2ull);
+}
+
+UNIT_TEST(data_tests, module_datas_zero_when_no_data)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<type_1>("t1").end_type()
+		.end_module()
+		.build();
+
+	is_eq((*reg.modules().begin()).datas().size(), 0ull);
+}
+
+UNIT_TEST(data_tests, module_datas_zero_for_empty_module)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("empty").end_module()
+		.build();
+
+	is_eq((*reg.modules().begin()).datas().size(), 0ull);
+}
+
+UNIT_TEST(data_tests, module_datas_disjoint_across_modules)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("a")
+			.begin_type<entity>("entity_a")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+		.end_module()
+		.begin_module("b")
+			.begin_type<entity>("entity_b")
+				.begin_data<&entity::mp>("mp").end_data()
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto modules = reg.modules();
+	auto it = modules.begin();
+	auto a = *it; ++it;
+	auto b = *it;
+	is_eq(a.datas().size(), 1ull);
+	is_eq(b.datas().size(), 2ull);
+}
+
+UNIT_TEST(data_tests, module_datas_iterates_with_correct_names_in_order)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("entity")
+				.begin_data<&entity::hp>("hp").end_data()
+				.begin_data<&entity::mp>("mp").end_data()
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto mod = *reg.modules().begin();
+	std::vector<std::string_view> names;
+	for (auto d : mod.datas()) names.push_back(d.get_name());
+	is_eq(names.size(), 3ull);
+	is_eq(names[0], "hp");
+	is_eq(names[1], "mp");
+	is_eq(names[2], "pos");
+}
+
+UNIT_TEST(data_tests, module_datas_aggregates_from_multiple_types)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("a")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+			.begin_type<entity>("b")
+				.begin_data<&entity::mp>("mp").end_data()
+				.begin_data<&entity::pos>("pos").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto mod = *reg.modules().begin();
+	is_eq(mod.datas().size(), 3ull);
+	is_eq(reg.try_get_type("a")->datas().size(), 1ull);
+	is_eq(reg.try_get_type("b")->datas().size(), 2ull);
+}
+
+UNIT_TEST(data_tests, module_datas_outer_types_match_owning_type)
+{
+	auto reg = ge::refl::begin_registry()
+		.begin_module("m")
+			.begin_type<entity>("a")
+				.begin_data<&entity::hp>("hp").end_data()
+			.end_type()
+			.begin_type<entity>("b")
+				.begin_data<&entity::mp>("mp").end_data()
+			.end_type()
+		.end_module()
+		.build();
+
+	auto mod = *reg.modules().begin();
+	std::vector<std::string_view> outer_names;
+	for (auto d : mod.datas()) outer_names.push_back(d.get_outer_type().get_name());
+	is_eq(outer_names.size(), 2ull);
+	is_eq(outer_names[0], "a");
+	is_eq(outer_names[1], "b");
 }
