@@ -617,10 +617,18 @@ namespace ge::refl
 	public:
 		API data_handle(const detail::data_data& data) : m_data(data) {}
 
+		API std::string_view get_name() const;
+
 		API type_handle get_type() const;
 
 		// The type this member is located in
 		API type_handle get_outer_type() const;
+		
+		using setter_t = void(*)(value target_object, value new_value);
+		using getter_t = value(*)(value target_object);
+
+		API setter_t get_setter() const;
+		API getter_t get_getter() const;
 
 		API auto traits() const;
 
@@ -726,27 +734,6 @@ namespace ge::refl
 	{
 	};
 
-	// Example of what a trait might look like:
-	//export struct test_trait : func_trait, type_trait, data_trait
-	//{
-	//	template<auto FuncPtr> requires is_func<FuncPtr>
-	//	void on_apply(func_handle handle)
-	//	{
-
-	//	}
-
-	//	template<auto PtrToMember> requires is_data<PtrToMember>
-	//	void on_apply(data_handle handle)
-	//	{
-
-	//	}
-
-	//	template<undecorated T>
-	//	void on_apply(type_handle handle)
-	//	{
-
-	//	}
-	//};
 
 	export class registry
 	{
@@ -985,11 +972,23 @@ namespace ge::refl
 			}
 
 			template<std::derived_from<data_trait> TraitT>
-			decltype(auto) trait(TraitT&& trait)
+			data_builder& trait(TraitT&& trait)
 			{
 				data_trait& trait = builder::trait(get_registry(), m_target.m_traits, std::forward<TraitT>(trait));
 				return *this;
 			}
+
+			// TODO: optional function for setting a custom setter (there is a default generated setter). nullptr removes the option to set the value
+			// Function signature example: void(player&, int)
+			template<auto Setter> requires is_func<Setter> || std::is_same_v<decltype(Setter), std::nullptr_t>
+			data_builder& setter();
+
+			// TODO: optional function for setting a custom setter (there is a default generated getter). nullptr removes the option to get the value.
+			// Function signature example: 
+			//	int(const player&)
+			//	const int&(const player&)
+			template<auto Getter> requires is_func<Getter> requires is_func<Getter> || std::is_same_v<decltype(Getter), std::nullptr_t>
+			data_builder& getter();
 
 			prev& end_type()
 			{
@@ -1037,6 +1036,65 @@ namespace ge::refl
 			prev& m_prev;
 			detail::func_data& m_target;
 		};
+
+
+		export struct example_trait : func_trait, type_trait, data_trait
+		{
+			// on_apply is called immediately, while post_build is guaranteed to be called only after 
+			// the registry is completely build
+
+			template<auto FuncPtr>
+			void on_apply(builder::func_builder<FuncPtr>& builder)
+			{
+
+			}
+
+			template<auto DataPtr>
+			void on_apply(builder::data_builder<DataPtr>& builder)
+			{
+
+			}
+
+			template<typename T>
+			void on_apply(builder::type_builder<T>& builder)
+			{
+
+			}
+
+			template<auto FuncPtr> // template is optional
+			void post_build(func_handle handle)
+			{
+
+			}
+
+			template<auto DataPtr> // template is optional
+			void post_build(data_handle handle)
+			{
+
+			}
+
+			template<typename T> // template is optional
+			void post_build(type_handle handle)
+			{
+
+			}
+
+			void post_build(func_handle handle)
+			{
+
+			}
+
+			void post_build(data_handle handle)
+			{
+
+			}
+
+			void post_build(type_handle handle)
+			{
+
+			}
+		};
+
 	}
 
 	export API builder::registry_builder begin_registry() { return {}; }
