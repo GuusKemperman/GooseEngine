@@ -71,11 +71,11 @@ namespace
 	{
 		int mut(int, double) { return 0; }
 		int cst() const { return 0; }
-		int rval() && { return 0; }
+		int rval()&& { return 0; }
 	};
 	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)(int, double)>, func_sig<int(member_func_owner&, int, double)>>);
 	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)() const>, func_sig<int(const member_func_owner&)>>);
-	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)() &&>, func_sig<int(member_func_owner&&)>>);
+	static_assert(std::is_same_v<func_sig_t<int(member_func_owner::*)()&&>, func_sig<int(member_func_owner&&)>>);
 
 	static_assert(std::is_same_v<remove_decoration_t<int>, int>);
 	static_assert(std::is_same_v<remove_decoration_t<int&>, int>);
@@ -258,14 +258,14 @@ namespace
 }
 
 
-UNIT_TEST( building_tests, basic )
+UNIT_TEST(building_tests, basic)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("basic")
-				.begin_type<type_1>("type_1")
-				.end_type()
-			.end_module()
+		.begin_module("basic")
+		.begin_type<type_1>("type_1")
+		.end_type()
+		.end_module()
 		.build();
 
 	std::optional<ge::refl::type_handle> type_handle = reg.try_get_type("type_1");
@@ -301,10 +301,10 @@ UNIT_TEST(building_tests, try_get_missing_type)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("basic")
-				.begin_type<type_1>("type_1")
-				.end_type()
-			.end_module()
+		.begin_module("basic")
+		.begin_type<type_1>("type_1")
+		.end_type()
+		.end_module()
 		.build();
 
 	std::optional<ge::refl::type_handle> missing = reg.try_get_type("does_not_exist");
@@ -315,10 +315,10 @@ UNIT_TEST(building_tests, multiple_types_in_module)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("basic")
-				.begin_type<type_1>("type_1").end_type()
-				.begin_type<type_2>("type_2").end_type()
-			.end_module()
+		.begin_module("basic")
+		.begin_type<type_1>("type_1").end_type()
+		.begin_type<type_2>("type_2").end_type()
+		.end_module()
 		.build();
 
 	std::optional<ge::refl::type_handle> t1 = reg.try_get_type("type_1");
@@ -339,12 +339,12 @@ UNIT_TEST(building_tests, multiple_modules)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("mod_a")
-				.begin_type<type_1>("a_type").end_type()
-			.end_module()
-			.begin_module("mod_b")
-				.begin_type<type_2>("b_type").end_type()
-			.end_module()
+		.begin_module("mod_a")
+		.begin_type<type_1>("a_type").end_type()
+		.end_module()
+		.begin_module("mod_b")
+		.begin_type<type_2>("b_type").end_type()
+		.end_module()
 		.build();
 
 	auto modules = reg.modules();
@@ -367,12 +367,12 @@ UNIT_TEST(building_tests, registry_types_range)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("mod_a")
-				.begin_type<type_1>("a_type").end_type()
-			.end_module()
-			.begin_module("mod_b")
-				.begin_type<type_2>("b_type").end_type()
-			.end_module()
+		.begin_module("mod_a")
+		.begin_type<type_1>("a_type").end_type()
+		.end_module()
+		.begin_module("mod_b")
+		.begin_type<type_2>("b_type").end_type()
+		.end_module()
 		.build();
 
 	auto types = reg.types();
@@ -383,8 +383,8 @@ UNIT_TEST(building_tests, empty_module)
 {
 	ge::refl::registry reg =
 		ge::refl::begin_registry()
-			.begin_module("empty")
-			.end_module()
+		.begin_module("empty")
+		.end_module()
 		.build();
 
 	auto modules = reg.modules();
@@ -393,7 +393,7 @@ UNIT_TEST(building_tests, empty_module)
 	is_false(reg.try_get_type("anything").has_value());
 }
 
-static void test_big_five( ge::refl::value value_1, auto check )
+static void test_big_five(ge::refl::value value_1, auto check)
 {
 	check(value_1);
 
@@ -412,7 +412,7 @@ static void test_big_five( ge::refl::value value_1, auto check )
 	check(move_assigned);
 }
 
-UNIT_TEST( value_tests, view_lifetime )
+UNIT_TEST(value_tests, view_lifetime)
 {
 	int expected = 42;
 
@@ -649,7 +649,7 @@ UNIT_TEST(function_tests, building_registers_func_in_module)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -664,10 +664,10 @@ UNIT_TEST(function_tests, registry_funcs_includes_funcs_from_all_modules)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m1")
-			.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
 		.end_module()
 		.begin_module("m2")
-			.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_square>("square").end_func()
 		.end_module()
 		.build();
 
@@ -678,9 +678,9 @@ UNIT_TEST(function_tests, multiple_funcs_in_module_preserve_order)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("sub").end_func()
-			.begin_func<&free_square>("square").end_func()
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -702,11 +702,11 @@ UNIT_TEST(function_tests, multiple_modules_each_with_own_func_count)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m1")
-			.begin_func<&free_subtract>("sub").end_func()
-			.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_square>("square").end_func()
 		.end_module()
 		.begin_module("m2")
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -735,7 +735,7 @@ UNIT_TEST(invoke_tests, no_args_returning_int)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -751,7 +751,7 @@ UNIT_TEST(invoke_tests, no_args_void_returns_empty_value)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_noop>("noop").end_func()
+		.begin_func<&free_noop>("noop").end_func()
 		.end_module()
 		.build();
 
@@ -765,7 +765,7 @@ UNIT_TEST(invoke_tests, single_int_arg)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_square>("square").end_func()
 		.end_module()
 		.build();
 
@@ -785,7 +785,7 @@ UNIT_TEST(invoke_tests, two_int_args)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
 		.end_module()
 		.build();
 
@@ -803,7 +803,7 @@ UNIT_TEST(invoke_tests, two_int_args_order_matters)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
 		.end_module()
 		.build();
 
@@ -818,7 +818,7 @@ UNIT_TEST(invoke_tests, three_int_args)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_combine3>("combine3").end_func()
+		.begin_func<&free_combine3>("combine3").end_func()
 		.end_module()
 		.build();
 
@@ -833,7 +833,7 @@ UNIT_TEST(invoke_tests, mutable_ref_propagates_back)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_increment>("inc").end_func()
+		.begin_func<&free_increment>("inc").end_func()
 		.end_module()
 		.build();
 
@@ -854,7 +854,7 @@ UNIT_TEST(invoke_tests, const_ref_does_not_mutate_caller)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_double_cref>("dcr").end_func()
+		.begin_func<&free_double_cref>("dcr").end_func()
 		.end_module()
 		.build();
 
@@ -869,7 +869,7 @@ UNIT_TEST(invoke_tests, by_value_does_not_mutate_caller_struct)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_point_x>("px").end_func()
+		.begin_func<&free_point_x>("px").end_func()
 		.end_module()
 		.build();
 
@@ -885,7 +885,7 @@ UNIT_TEST(invoke_tests, struct_ref_propagates_back)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_translate>("translate").end_func()
+		.begin_func<&free_translate>("translate").end_func()
 		.end_module()
 		.build();
 
@@ -903,7 +903,7 @@ UNIT_TEST(invoke_tests, struct_const_ref_does_not_mutate)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_point_combine>("combine").end_func()
+		.begin_func<&free_point_combine>("combine").end_func()
 		.end_module()
 		.build();
 
@@ -922,7 +922,7 @@ UNIT_TEST(invoke_tests, returns_struct_by_value)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_make_point>("mp").end_func()
+		.begin_func<&free_make_point>("mp").end_func()
 		.end_module()
 		.build();
 
@@ -941,7 +941,7 @@ UNIT_TEST(invoke_tests, returned_owning_outlives_invoke_args)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
 		.end_module()
 		.build();
 
@@ -960,7 +960,7 @@ UNIT_TEST(invoke_tests, returned_struct_is_independent_copy)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_make_point>("mp").end_func()
+		.begin_func<&free_make_point>("mp").end_func()
 		.end_module()
 		.build();
 
@@ -978,7 +978,7 @@ UNIT_TEST(invoke_tests, mixed_param_qualifiers)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_mixed>("mixed").end_func()
+		.begin_func<&free_mixed>("mixed").end_func()
 		.end_module()
 		.build();
 
@@ -1006,7 +1006,7 @@ UNIT_TEST(invoke_tests, repeated_invokes_are_independent)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_square>("square").end_func()
 		.end_module()
 		.build();
 
@@ -1026,7 +1026,7 @@ UNIT_TEST(invoke_tests, void_function_global_side_effect)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_bump_global>("bump").end_func()
+		.begin_func<&free_bump_global>("bump").end_func()
 		.end_module()
 		.build();
 
@@ -1043,7 +1043,7 @@ UNIT_TEST(invoke_tests, accepts_value_argument_by_owning)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_square>("square").end_func()
 		.end_module()
 		.build();
 
@@ -1057,7 +1057,7 @@ UNIT_TEST(invoke_tests, accepts_value_argument_by_ref)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_increment>("inc").end_func()
+		.begin_func<&free_increment>("inc").end_func()
 		.end_module()
 		.build();
 
@@ -1072,8 +1072,8 @@ UNIT_TEST(invoke_tests, chains_invocations_via_returned_value)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_make_point>("mp").end_func()
-			.begin_func<&free_point_x>("px").end_func()
+		.begin_func<&free_make_point>("mp").end_func()
+		.begin_func<&free_point_x>("px").end_func()
 		.end_module()
 		.build();
 
@@ -1095,9 +1095,9 @@ UNIT_TEST(invoke_tests, distinct_funcs_use_distinct_signatures)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("sub").end_func()
-			.begin_func<&free_square>("square").end_func()
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_subtract>("sub").end_func()
+		.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -1119,7 +1119,7 @@ UNIT_TEST(invoke_tests, template_instantiation_is_distinct)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_template_identity<int>>("id_int").end_func()
+		.begin_func<&free_template_identity<int>>("id_int").end_func()
 		.end_module()
 		.build();
 
@@ -1134,8 +1134,8 @@ UNIT_TEST(invoke_tests, return_value_is_owning_and_holds_correct_type_id)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_make_point>("mp").end_func()
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_make_point>("mp").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -1161,8 +1161,8 @@ UNIT_TEST(invoke_tests, invoke_does_not_share_state_between_handles)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("s1").end_func()
-			.begin_func<&free_subtract>("s2").end_func()
+		.begin_func<&free_subtract>("s1").end_func()
+		.begin_func<&free_subtract>("s2").end_func()
 		.end_module()
 		.build();
 
@@ -1186,7 +1186,7 @@ UNIT_TEST(invoke_tests, ref_return_is_non_owning)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_get_ref>("get_ref").end_func()
+		.begin_func<&free_get_ref>("get_ref").end_func()
 		.end_module()
 		.build();
 
@@ -1204,7 +1204,7 @@ UNIT_TEST(invoke_tests, ref_return_is_mutable_and_aliases_target)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_get_ref>("get_ref").end_func()
+		.begin_func<&free_get_ref>("get_ref").end_func()
 		.end_module()
 		.build();
 
@@ -1226,7 +1226,7 @@ UNIT_TEST(invoke_tests, const_ref_return_is_non_owning)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_get_cref>("get_cref").end_func()
+		.begin_func<&free_get_cref>("get_cref").end_func()
 		.end_module()
 		.build();
 
@@ -1244,7 +1244,7 @@ UNIT_TEST(invoke_tests, const_ref_return_is_immutable_view)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_get_cref>("get_cref").end_func()
+		.begin_func<&free_get_cref>("get_cref").end_func()
 		.end_module()
 		.build();
 
@@ -1262,7 +1262,7 @@ UNIT_TEST(invoke_tests, struct_ref_return_is_non_owning)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_get_point_ref>("get_point_ref").end_func()
+		.begin_func<&free_get_point_ref>("get_point_ref").end_func()
 		.end_module()
 		.build();
 
@@ -1284,7 +1284,7 @@ UNIT_TEST(invoke_tests, struct_const_ref_return_is_non_owning_view)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_get_point_cref>("get_point_cref").end_func()
+		.begin_func<&free_get_point_cref>("get_point_cref").end_func()
 		.end_module()
 		.build();
 
@@ -1304,7 +1304,7 @@ UNIT_TEST(invoke_tests, ref_return_with_args_picks_first_argument)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_select_first>("first").end_func()
+		.begin_func<&free_select_first>("first").end_func()
 		.end_module()
 		.build();
 
@@ -1326,7 +1326,7 @@ UNIT_TEST(invoke_tests, const_ref_return_with_args_picks_first_argument)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_select_first_cref>("first_cref").end_func()
+		.begin_func<&free_select_first_cref>("first_cref").end_func()
 		.end_module()
 		.build();
 
@@ -1345,7 +1345,7 @@ UNIT_TEST(invoke_tests, const_view_to_const_ref_param)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_double_cref>("dcr").end_func()
+		.begin_func<&free_double_cref>("dcr").end_func()
 		.end_module()
 		.build();
 
@@ -1360,7 +1360,7 @@ UNIT_TEST(invoke_tests, const_qualified_caller_variable)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_square>("square").end_func()
+		.begin_func<&free_square>("square").end_func()
 		.end_module()
 		.build();
 
@@ -1378,7 +1378,7 @@ UNIT_TEST(trait_tests, type_trait_count_zero_when_unused)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").end_type()
+		.begin_type<type_1>("t").end_type()
 		.end_module()
 		.build();
 	is_eq(reg.try_get_type("t")->traits().size(), 0ull);
@@ -1388,9 +1388,9 @@ UNIT_TEST(trait_tests, type_trait_one_added_count_one)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(empty_type_trait{})
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(empty_type_trait{})
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(reg.try_get_type("t")->traits().size(), 1ull);
@@ -1400,9 +1400,9 @@ UNIT_TEST(trait_tests, type_trait_state_round_trip_int)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 99 })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 99 })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1417,9 +1417,9 @@ UNIT_TEST(trait_tests, type_trait_state_round_trip_struct)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(point_type_trait{ fpoint{ 3, 7 } })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(point_type_trait{ fpoint{ 3, 7 } })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1432,9 +1432,9 @@ UNIT_TEST(trait_tests, type_trait_state_round_trip_string_heap)
 	std::string long_label = "hello world long enough to heap allocate definitely yes definitely";
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(string_type_trait{ long_label })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(string_type_trait{ long_label })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1447,11 +1447,11 @@ UNIT_TEST(trait_tests, type_trait_three_added_count_three)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(empty_type_trait{})
-				.trait(int_type_trait{ 1 })
-				.trait(point_type_trait{ fpoint{ 5, 6 } })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(empty_type_trait{})
+		.trait(int_type_trait{ 1 })
+		.trait(point_type_trait{ fpoint{ 5, 6 } })
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(reg.try_get_type("t")->traits().size(), 3ull);
@@ -1461,11 +1461,11 @@ UNIT_TEST(trait_tests, type_trait_order_preserved)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 10 })
-				.trait(int_type_trait{ 20 })
-				.trait(int_type_trait{ 30 })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 10 })
+		.trait(int_type_trait{ 20 })
+		.trait(int_type_trait{ 30 })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1484,13 +1484,13 @@ UNIT_TEST(trait_tests, type_trait_independent_across_types_in_same_module)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t1")
-				.trait(int_type_trait{ 1 })
-			.end_type()
-			.begin_type<type_2>("t2")
-				.trait(int_type_trait{ 2 })
-				.trait(int_type_trait{ 3 })
-			.end_type()
+		.begin_type<type_1>("t1")
+		.trait(int_type_trait{ 1 })
+		.end_type()
+		.begin_type<type_2>("t2")
+		.trait(int_type_trait{ 2 })
+		.trait(int_type_trait{ 3 })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1505,14 +1505,14 @@ UNIT_TEST(trait_tests, type_trait_independent_across_modules)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("a")
-			.begin_type<type_1>("ta")
-				.trait(int_type_trait{ 100 })
-			.end_type()
+		.begin_type<type_1>("ta")
+		.trait(int_type_trait{ 100 })
+		.end_type()
 		.end_module()
 		.begin_module("b")
-			.begin_type<type_2>("tb")
-				.trait(int_type_trait{ 200 })
-			.end_type()
+		.begin_type<type_2>("tb")
+		.trait(int_type_trait{ 200 })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1528,10 +1528,10 @@ UNIT_TEST(trait_tests, type_trait_value_type_id_matches_trait_type)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 5 })
-				.trait(point_type_trait{ fpoint{ 1, 2 } })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 5 })
+		.trait(point_type_trait{ fpoint{ 1, 2 } })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1546,7 +1546,7 @@ UNIT_TEST(trait_tests, traits_values_are_not_mutable)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(int_type_trait{ 5 }).end_type()
+		.begin_type<type_1>("t").trait(int_type_trait{ 5 }).end_type()
 		.end_module()
 		.build();
 
@@ -1558,7 +1558,7 @@ UNIT_TEST(trait_tests, func_trait_count_zero_when_unused)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("ret42").end_func()
+		.begin_func<&free_return_42>("ret42").end_func()
 		.end_module()
 		.build();
 
@@ -1570,9 +1570,9 @@ UNIT_TEST(trait_tests, func_trait_one_added)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("ret42")
-				.trait(empty_func_trait{})
-			.end_func()
+		.begin_func<&free_return_42>("ret42")
+		.trait(empty_func_trait{})
+		.end_func()
 		.end_module()
 		.build();
 
@@ -1584,9 +1584,9 @@ UNIT_TEST(trait_tests, func_trait_state_round_trip)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("ret42")
-				.trait(int_func_trait{ 77 })
-			.end_func()
+		.begin_func<&free_return_42>("ret42")
+		.trait(int_func_trait{ 77 })
+		.end_func()
 		.end_module()
 		.build();
 
@@ -1598,11 +1598,11 @@ UNIT_TEST(trait_tests, func_trait_multiple_order_preserved)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("ret42")
-				.trait(int_func_trait{ 1 })
-				.trait(int_func_trait{ 2 })
-				.trait(int_func_trait{ 3 })
-			.end_func()
+		.begin_func<&free_return_42>("ret42")
+		.trait(int_func_trait{ 1 })
+		.trait(int_func_trait{ 2 })
+		.trait(int_func_trait{ 3 })
+		.end_func()
 		.end_module()
 		.build();
 
@@ -1622,8 +1622,8 @@ UNIT_TEST(trait_tests, func_trait_independent_per_func)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_return_42>("a").trait(int_func_trait{ 10 }).end_func()
-			.begin_func<&free_noop>("b").trait(int_func_trait{ 20 }).trait(int_func_trait{ 30 }).end_func()
+		.begin_func<&free_return_42>("a").trait(int_func_trait{ 10 }).end_func()
+		.begin_func<&free_noop>("b").trait(int_func_trait{ 20 }).trait(int_func_trait{ 30 }).end_func()
 		.end_module()
 		.build();
 
@@ -1641,10 +1641,10 @@ UNIT_TEST(trait_tests, func_with_traits_still_invokes_correctly)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("sub")
-				.trait(int_func_trait{ 5 })
-				.trait(int_func_trait{ 6 })
-			.end_func()
+		.begin_func<&free_subtract>("sub")
+		.trait(int_func_trait{ 5 })
+		.trait(int_func_trait{ 6 })
+		.end_func()
 		.end_module()
 		.build();
 
@@ -1658,10 +1658,10 @@ UNIT_TEST(trait_tests, type_and_func_trait_disjoint_in_same_type)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 1 })
-				.begin_func<&free_return_42>("ret").trait(int_func_trait{ 2 }).end_func()
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 1 })
+		.begin_func<&free_return_42>("ret").trait(int_func_trait{ 2 }).end_func()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1677,7 +1677,7 @@ UNIT_TEST(trait_tests, multi_inherit_trait_attaches_to_type)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(universal_trait{}).end_type()
+		.begin_type<type_1>("t").trait(universal_trait{}).end_type()
 		.end_module()
 		.build();
 
@@ -1690,7 +1690,7 @@ UNIT_TEST(trait_tests, multi_inherit_trait_attaches_to_func)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_noop>("f").trait(universal_trait{}).end_func()
+		.begin_func<&free_noop>("f").trait(universal_trait{}).end_func()
 		.end_module()
 		.build();
 
@@ -1703,8 +1703,8 @@ UNIT_TEST(trait_tests, multi_inherit_trait_distinct_storage_per_target)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(universal_trait{}).end_type()
-			.begin_func<&free_noop>("f").trait(universal_trait{}).end_func()
+		.begin_type<type_1>("t").trait(universal_trait{}).end_type()
+		.begin_func<&free_noop>("f").trait(universal_trait{}).end_func()
 		.end_module()
 		.build();
 
@@ -1717,10 +1717,10 @@ UNIT_TEST(trait_tests, traits_iteration_yields_typed_values)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 1 })
-				.trait(int_type_trait{ 2 })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 1 })
+		.trait(int_type_trait{ 2 })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1738,7 +1738,7 @@ UNIT_TEST(trait_tests, traits_outlive_builder_scope)
 {
 	ge::refl::registry reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(int_type_trait{ 42 }).end_type()
+		.begin_type<type_1>("t").trait(int_type_trait{ 42 }).end_type()
 		.end_module()
 		.build();
 
@@ -1751,7 +1751,7 @@ UNIT_TEST(trait_tests, traits_pointer_stable_across_handle_copies)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(int_type_trait{ 7 }).end_type()
+		.begin_type<type_1>("t").trait(int_type_trait{ 7 }).end_type()
 		.end_module()
 		.build();
 
@@ -1764,9 +1764,9 @@ UNIT_TEST(trait_tests, traits_pointer_stable_after_more_targets_built)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t1").trait(int_type_trait{ 11 }).end_type()
-			.begin_type<type_2>("t2").trait(int_type_trait{ 22 }).end_type()
-			.begin_func<&free_return_42>("f").trait(int_func_trait{ 33 }).end_func()
+		.begin_type<type_1>("t1").trait(int_type_trait{ 11 }).end_type()
+		.begin_type<type_2>("t2").trait(int_type_trait{ 22 }).end_type()
+		.begin_func<&free_return_42>("f").trait(int_func_trait{ 33 }).end_func()
 		.end_module()
 		.build();
 
@@ -1782,7 +1782,7 @@ UNIT_TEST(trait_tests, trait_destructor_runs_when_registry_destroyed)
 	{
 		auto reg = ge::refl::begin_registry()
 			.begin_module("m")
-				.begin_type<type_1>("t").trait(destruct_counting_trait{ &counter }).end_type()
+			.begin_type<type_1>("t").trait(destruct_counting_trait{ &counter }).end_type()
 			.end_module()
 			.build();
 		snapshot_after_build = counter;
@@ -1797,11 +1797,11 @@ UNIT_TEST(trait_tests, trait_destructor_runs_for_each_added_instance)
 	{
 		auto reg = ge::refl::begin_registry()
 			.begin_module("m")
-				.begin_type<type_1>("t")
-					.trait(destruct_counting_trait{ &counter })
-					.trait(destruct_counting_trait{ &counter })
-					.trait(destruct_counting_trait{ &counter })
-				.end_type()
+			.begin_type<type_1>("t")
+			.trait(destruct_counting_trait{ &counter })
+			.trait(destruct_counting_trait{ &counter })
+			.trait(destruct_counting_trait{ &counter })
+			.end_type()
 			.end_module()
 			.build();
 		snapshot_after_build = counter;
@@ -1813,7 +1813,7 @@ UNIT_TEST(trait_tests, move_only_trait_supported)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(move_only_int_trait{ 99 }).end_type()
+		.begin_type<type_1>("t").trait(move_only_int_trait{ 99 }).end_type()
 		.end_module()
 		.build();
 
@@ -1829,7 +1829,7 @@ UNIT_TEST(trait_tests, registry_with_traits_only_no_funcs_no_data)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(int_type_trait{ 1 }).end_type()
+		.begin_type<type_1>("t").trait(int_type_trait{ 1 }).end_type()
 		.end_module()
 		.build();
 
@@ -1843,14 +1843,14 @@ UNIT_TEST(trait_tests, many_traits_on_single_type)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 0 }).trait(int_type_trait{ 1 }).trait(int_type_trait{ 2 })
-				.trait(int_type_trait{ 3 }).trait(int_type_trait{ 4 }).trait(int_type_trait{ 5 })
-				.trait(int_type_trait{ 6 }).trait(int_type_trait{ 7 }).trait(int_type_trait{ 8 })
-				.trait(int_type_trait{ 9 }).trait(int_type_trait{ 10 }).trait(int_type_trait{ 11 })
-				.trait(int_type_trait{ 12 }).trait(int_type_trait{ 13 }).trait(int_type_trait{ 14 })
-				.trait(int_type_trait{ 15 })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 0 }).trait(int_type_trait{ 1 }).trait(int_type_trait{ 2 })
+		.trait(int_type_trait{ 3 }).trait(int_type_trait{ 4 }).trait(int_type_trait{ 5 })
+		.trait(int_type_trait{ 6 }).trait(int_type_trait{ 7 }).trait(int_type_trait{ 8 })
+		.trait(int_type_trait{ 9 }).trait(int_type_trait{ 10 }).trait(int_type_trait{ 11 })
+		.trait(int_type_trait{ 12 }).trait(int_type_trait{ 13 }).trait(int_type_trait{ 14 })
+		.trait(int_type_trait{ 15 })
+		.end_type()
 		.end_module()
 		.build();
 
@@ -1868,8 +1868,8 @@ UNIT_TEST(trait_tests, interleaved_type_traits_in_one_module)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("ta").trait(int_type_trait{ 1 }).end_type()
-			.begin_type<type_2>("tb").trait(int_type_trait{ 2 }).end_type()
+		.begin_type<type_1>("ta").trait(int_type_trait{ 1 }).end_type()
+		.begin_type<type_2>("tb").trait(int_type_trait{ 2 }).end_type()
 		.end_module()
 		.build();
 
@@ -1885,13 +1885,13 @@ UNIT_TEST(trait_tests, traits_after_many_funcs_alloc_still_pointer_stable)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_subtract>("a").end_func()
-			.begin_func<&free_square>("b").end_func()
-			.begin_type<type_1>("t")
-				.trait(int_type_trait{ 100 })
-				.trait(int_type_trait{ 200 })
-			.end_type()
-			.begin_func<&free_return_42>("c").end_func()
+		.begin_func<&free_subtract>("a").end_func()
+		.begin_func<&free_square>("b").end_func()
+		.begin_type<type_1>("t")
+		.trait(int_type_trait{ 100 })
+		.trait(int_type_trait{ 200 })
+		.end_type()
+		.begin_func<&free_return_42>("c").end_func()
 		.end_module()
 		.build();
 
@@ -1912,7 +1912,7 @@ UNIT_TEST(trait_hook_tests, on_apply_called_for_type_trait)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(hooked_trait{ &rec }).end_type()
+		.begin_type<type_1>("t").trait(hooked_trait{ &rec }).end_type()
 		.end_module()
 		.build();
 	is_eq(rec.on_apply_type, 1);
@@ -1923,7 +1923,7 @@ UNIT_TEST(trait_hook_tests, on_apply_called_for_func_trait)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_noop>("f").trait(hooked_trait{ &rec }).end_func()
+		.begin_func<&free_noop>("f").trait(hooked_trait{ &rec }).end_func()
 		.end_module()
 		.build();
 	is_eq(rec.on_apply_func, 1);
@@ -1934,9 +1934,11 @@ UNIT_TEST(trait_hook_tests, on_apply_called_for_data_trait)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").trait(hooked_trait{ &rec }).end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").trait(hooked_trait{ &rec }).end_data()
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(rec.on_apply_data, 1);
@@ -1947,8 +1949,8 @@ UNIT_TEST(trait_hook_tests, on_apply_runs_before_any_post_build)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t1").trait(hooked_trait{ &rec }).end_type()
-			.begin_type<type_2>("t2").trait(hooked_trait{ &rec }).end_type()
+		.begin_type<type_1>("t1").trait(hooked_trait{ &rec }).end_type()
+		.begin_type<type_2>("t2").trait(hooked_trait{ &rec }).end_type()
 		.end_module()
 		.build();
 
@@ -1960,8 +1962,8 @@ UNIT_TEST(trait_hook_tests, all_on_apply_run_before_any_post_build)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t1").trait(hooked_trait{ &rec }).end_type()
-			.begin_type<type_2>("t2").trait(hooked_trait{ &rec }).end_type()
+		.begin_type<type_1>("t1").trait(hooked_trait{ &rec }).end_type()
+		.begin_type<type_2>("t2").trait(hooked_trait{ &rec }).end_type()
 		.end_module()
 		.build();
 
@@ -1973,11 +1975,11 @@ UNIT_TEST(trait_hook_tests, post_build_called_once_per_trait_for_type)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t")
-				.trait(hooked_trait{ &rec })
-				.trait(hooked_trait{ &rec })
-				.trait(hooked_trait{ &rec })
-			.end_type()
+		.begin_type<type_1>("t")
+		.trait(hooked_trait{ &rec })
+		.trait(hooked_trait{ &rec })
+		.trait(hooked_trait{ &rec })
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(rec.post_build_type, 3);
@@ -1988,9 +1990,9 @@ UNIT_TEST(trait_hook_tests, post_build_handle_for_type_has_correct_name)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("particular_name")
-				.trait(hooked_trait{ &rec })
-			.end_type()
+		.begin_type<type_1>("particular_name")
+		.trait(hooked_trait{ &rec })
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(rec.last_type_name, std::string{ "particular_name" });
@@ -2001,9 +2003,9 @@ UNIT_TEST(trait_hook_tests, post_build_handle_for_func_has_correct_name)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_func<&free_noop>("specific_func")
-				.trait(hooked_trait{ &rec })
-			.end_func()
+		.begin_func<&free_noop>("specific_func")
+		.trait(hooked_trait{ &rec })
+		.end_func()
 		.end_module()
 		.build();
 	is_eq(rec.last_func_name, std::string{ "specific_func" });
@@ -2014,11 +2016,13 @@ UNIT_TEST(trait_hook_tests, post_build_handle_for_data_has_correct_name_and_oute
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity_type")
-				.begin_data<&entity::hp>("specific_data")
-					.trait(hooked_trait{ &rec })
-				.end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity_type")
+		.begin_data<&entity::hp>("specific_data")
+		.trait(hooked_trait{ &rec })
+		.end_data()
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(rec.last_data_name, std::string{ "specific_data" });
@@ -2030,17 +2034,19 @@ UNIT_TEST(trait_hook_tests, on_apply_dispatches_to_correct_overload_per_target)
 	hook_record rec;
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").trait(hooked_trait{ &rec }).end_type()
-			.begin_func<&free_noop>("f").trait(hooked_trait{ &rec }).end_func()
-			.begin_type<entity>("e")
-				.begin_data<&entity::hp>("hp").trait(hooked_trait{ &rec }).end_data()
-			.end_type()
+		.begin_type<type_1>("t").trait(hooked_trait{ &rec }).end_type()
+		.begin_func<&free_noop>("f").trait(hooked_trait{ &rec }).end_func()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("e")
+		.begin_data<&entity::hp>("hp").trait(hooked_trait{ &rec }).end_data()
+		.end_type()
 		.end_module()
 		.build();
 	is_eq(rec.on_apply_type, 1);
 	is_eq(rec.on_apply_func, 1);
 	is_eq(rec.on_apply_data, 1);
-	is_eq(rec.post_build_type, 2);
+	is_eq(rec.post_build_type, 1);
 	is_eq(rec.post_build_func, 1);
 	is_eq(rec.post_build_data, 1);
 }
@@ -2053,9 +2059,11 @@ UNIT_TEST(data_tests, building_data_in_type_registers_one_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2068,9 +2076,11 @@ UNIT_TEST(data_tests, data_get_name)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2082,11 +2092,13 @@ UNIT_TEST(data_tests, data_multiple_members_count_and_names_in_order)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-				.begin_data<&entity::mp>("mp").end_data()
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.begin_data<&entity::mp>("mp").end_data()
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2104,9 +2116,11 @@ UNIT_TEST(data_tests, data_get_outer_type_id_and_name)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2119,9 +2133,11 @@ UNIT_TEST(data_tests, data_get_type_int_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2133,9 +2149,11 @@ UNIT_TEST(data_tests, data_get_type_struct_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2147,7 +2165,7 @@ UNIT_TEST(data_tests, type_with_no_data_has_empty_datas)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t").end_type()
+		.begin_type<type_1>("t").end_type()
 		.end_module()
 		.build();
 
@@ -2158,11 +2176,13 @@ UNIT_TEST(data_tests, data_independent_per_type)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-				.begin_data<&entity::mp>("mp").end_data()
-			.end_type()
-			.begin_type<type_1>("other").end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.begin_data<&entity::mp>("mp").end_data()
+		.end_type()
+		.begin_type<type_1>("other").end_type()
 		.end_module()
 		.build();
 
@@ -2174,10 +2194,12 @@ UNIT_TEST(data_tests, data_handles_in_iteration_share_outer_but_have_distinct_na
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-				.begin_data<&entity::mp>("mp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.begin_data<&entity::mp>("mp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2194,15 +2216,19 @@ UNIT_TEST(data_tests, data_independent_across_modules)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("a")
-			.begin_type<entity>("entity_a")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity_a")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.begin_module("b")
-			.begin_type<entity>("entity_b")
-				.begin_data<&entity::mp>("mp").end_data()
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity_b")
+		.begin_data<&entity::mp>("mp").end_data()
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2214,9 +2240,11 @@ UNIT_TEST(data_tests, default_getter_present_when_not_overridden)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2228,9 +2256,11 @@ UNIT_TEST(data_tests, default_setter_present_when_not_overridden)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2242,9 +2272,11 @@ UNIT_TEST(data_tests, default_getter_reads_int_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2261,9 +2293,11 @@ UNIT_TEST(data_tests, default_setter_writes_int_member_only)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2282,9 +2316,11 @@ UNIT_TEST(data_tests, default_getter_setter_round_trip_int)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::mp>("mp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::mp>("mp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2301,9 +2337,11 @@ UNIT_TEST(data_tests, default_getter_struct_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2320,9 +2358,11 @@ UNIT_TEST(data_tests, default_setter_struct_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2339,9 +2379,11 @@ UNIT_TEST(data_tests, default_setter_then_getter_round_trip_struct)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2359,9 +2401,11 @@ UNIT_TEST(data_tests, default_setter_repeated_calls_are_independent)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2380,9 +2424,11 @@ UNIT_TEST(data_tests, default_getter_does_not_alias_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2400,9 +2446,11 @@ UNIT_TEST(data_tests, custom_getter_replaces_default)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").getter<&free_double_hp>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").getter<&free_double_hp>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2418,9 +2466,11 @@ UNIT_TEST(data_tests, custom_setter_replaces_default)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").setter<&free_clamp_hp>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").setter<&free_clamp_hp>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2442,9 +2492,11 @@ UNIT_TEST(data_tests, nullptr_getter_disables_get)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").getter<nullptr>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").getter<nullptr>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2456,9 +2508,11 @@ UNIT_TEST(data_tests, nullptr_setter_disables_set)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").setter<nullptr>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").setter<nullptr>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2470,9 +2524,11 @@ UNIT_TEST(data_tests, custom_getter_const_ref_return_signature)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").getter<&free_get_hp_cref>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").getter<&free_get_hp_cref>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2490,9 +2546,11 @@ UNIT_TEST(data_tests, custom_getter_value_return_signature)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").getter<&free_get_hp_by_value>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").getter<&free_get_hp_by_value>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2509,9 +2567,11 @@ UNIT_TEST(data_tests, custom_setter_then_default_getter_round_trip)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").setter<&free_set_hp>().end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").setter<&free_set_hp>().end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2528,11 +2588,13 @@ UNIT_TEST(data_tests, data_with_one_trait_count)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp")
-					.trait(empty_data_trait{})
-				.end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp")
+		.trait(empty_data_trait{})
+		.end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2544,11 +2606,13 @@ UNIT_TEST(data_tests, data_traits_state_round_trip)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp")
-					.trait(int_data_trait{ 88 })
-				.end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp")
+		.trait(int_data_trait{ 88 })
+		.end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2560,13 +2624,15 @@ UNIT_TEST(data_tests, data_traits_multiple_order_preserved)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp")
-					.trait(int_data_trait{ 1 })
-					.trait(int_data_trait{ 2 })
-					.trait(int_data_trait{ 3 })
-				.end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp")
+		.trait(int_data_trait{ 1 })
+		.trait(int_data_trait{ 2 })
+		.trait(int_data_trait{ 3 })
+		.end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2586,12 +2652,14 @@ UNIT_TEST(data_tests, data_traits_isolated_from_outer_type_traits)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.trait(int_type_trait{ 100 })
-				.begin_data<&entity::hp>("hp")
-					.trait(int_data_trait{ 200 })
-				.end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.trait(int_type_trait{ 100 })
+		.begin_data<&entity::hp>("hp")
+		.trait(int_data_trait{ 200 })
+		.end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2607,10 +2675,12 @@ UNIT_TEST(data_tests, data_traits_isolated_per_data_member)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").trait(int_data_trait{ 1 }).end_data()
-				.begin_data<&entity::mp>("mp").trait(int_data_trait{ 2 }).trait(int_data_trait{ 3 }).end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").trait(int_data_trait{ 1 }).end_data()
+		.begin_data<&entity::mp>("mp").trait(int_data_trait{ 2 }).trait(int_data_trait{ 3 }).end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2627,13 +2697,15 @@ UNIT_TEST(data_tests, data_with_traits_and_custom_getter_chains)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp")
-					.trait(int_data_trait{ 1 })
-					.getter<&free_double_hp>()
-					.trait(int_data_trait{ 2 })
-				.end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp")
+		.trait(int_data_trait{ 1 })
+		.getter<&free_double_hp>()
+		.trait(int_data_trait{ 2 })
+		.end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2653,11 +2725,13 @@ UNIT_TEST(data_tests, module_datas_aggregates_across_types_in_module)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-				.begin_data<&entity::mp>("mp").end_data()
-			.end_type()
-			.begin_type<type_1>("t1").end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.begin_data<&entity::mp>("mp").end_data()
+		.end_type()
+		.begin_type<type_1>("t1").end_type()
 		.end_module()
 		.build();
 
@@ -2669,7 +2743,7 @@ UNIT_TEST(data_tests, module_datas_zero_when_no_data)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<type_1>("t1").end_type()
+		.begin_type<type_1>("t1").end_type()
 		.end_module()
 		.build();
 
@@ -2689,15 +2763,19 @@ UNIT_TEST(data_tests, module_datas_disjoint_across_modules)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("a")
-			.begin_type<entity>("entity_a")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity_a")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
 		.end_module()
 		.begin_module("b")
-			.begin_type<entity>("entity_b")
-				.begin_data<&entity::mp>("mp").end_data()
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity_b")
+		.begin_data<&entity::mp>("mp").end_data()
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2713,11 +2791,13 @@ UNIT_TEST(data_tests, module_datas_iterates_with_correct_names_in_order)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("entity")
-				.begin_data<&entity::hp>("hp").end_data()
-				.begin_data<&entity::mp>("mp").end_data()
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("entity")
+		.begin_data<&entity::hp>("hp").end_data()
+		.begin_data<&entity::mp>("mp").end_data()
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2734,13 +2814,15 @@ UNIT_TEST(data_tests, module_datas_aggregates_from_multiple_types)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("a")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
-			.begin_type<entity>("b")
-				.begin_data<&entity::mp>("mp").end_data()
-				.begin_data<&entity::pos>("pos").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("a")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
+		.begin_type<entity>("b")
+		.begin_data<&entity::mp>("mp").end_data()
+		.begin_data<&entity::pos>("pos").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
@@ -2754,12 +2836,14 @@ UNIT_TEST(data_tests, module_datas_outer_types_match_owning_type)
 {
 	auto reg = ge::refl::begin_registry()
 		.begin_module("m")
-			.begin_type<entity>("a")
-				.begin_data<&entity::hp>("hp").end_data()
-			.end_type()
-			.begin_type<entity>("b")
-				.begin_data<&entity::mp>("mp").end_data()
-			.end_type()
+		.begin_type<int>("int").end_type()
+		.begin_type<fpoint>("fpoint").end_type()
+		.begin_type<entity>("a")
+		.begin_data<&entity::hp>("hp").end_data()
+		.end_type()
+		.begin_type<entity>("b")
+		.begin_data<&entity::mp>("mp").end_data()
+		.end_type()
 		.end_module()
 		.build();
 
