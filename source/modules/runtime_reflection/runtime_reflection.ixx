@@ -27,6 +27,7 @@ namespace ge::refl
 	export class type_handle;
 	export class func_handle;
 	export class data_handle;
+	export class module_handle;
 
 	export struct type_id
 	{
@@ -42,7 +43,6 @@ namespace ge::refl
 
 	export template<typename T>
 	concept undecorated = !decorated<T>;
-
 
 	// TODO make recursive
 	template<typename T>
@@ -378,6 +378,8 @@ namespace ge::refl
 		API bool is_mutable() const { return m_is_mutable; }
 		API bool is_owning() const { return m_is_owning; }
 
+		API void make_constant() { m_is_mutable = false; }
+
 	private:
 		inplace_vtable<vtable> m_vtable{};
 		void* m_value{};
@@ -411,6 +413,8 @@ namespace ge::refl::detail
 
 	struct data_data
 	{
+		using handle_t = data_handle;
+
 		using setter_t = void(*)(value target_object, const value& new_value);
 		using getter_t = value(*)(const value& target_object);
 
@@ -427,6 +431,8 @@ namespace ge::refl::detail
 
 	struct type_data
 	{
+		using handle_t = type_handle;
+
 		std::reference_wrapper<const registry_data> m_reg;
 		
 		std::string_view m_name{};
@@ -440,6 +446,8 @@ namespace ge::refl::detail
 
 	struct module_data
 	{
+		using handle_t = module_handle;
+
 		std::reference_wrapper<const registry_data> m_reg;
 
 		std::string_view m_name{};
@@ -469,9 +477,12 @@ namespace ge::refl::detail
 
 	struct func_data
 	{
+		using handle_t = func_handle;
+
 		struct vtable
 		{
 			virtual ~vtable() = default;
+			// TODO we should store the non-cached params somewhere too, to get the full type-handle.
 			virtual std::span<const type_id> get_params() const = 0;
 			virtual type_id get_returns() const = 0;
 			virtual value invoke(value* args) const = 0;
@@ -564,116 +575,56 @@ namespace ge::refl::detail
 		std::reference_wrapper<const registry_data> m_reg;
 	};
 
+	template<typename T, size_t Capacity>
+	struct buffer
+	{
+		T& push_back(T&& item)
+		{
+			assert(m_size < Capacity);
+			T* dst = end();
+			new (dst)T(std::move(item));
+			m_size++;
+			return *dst;
+		}
+
+		buffer() = default;
+
+		buffer(const buffer&) = delete;
+		buffer(buffer&&) = delete;
+		
+		buffer& operator=(const buffer&) = delete;
+		buffer& operator=(buffer&&) = delete;
+
+		~buffer()
+		{
+			std::span<T> self = *this;
+
+			for (T& item : self)
+			{
+				item.~T();
+			}
+		}
+
+		T* data() { return reinterpret_cast<T*>(m_data.data()); }
+		const T* data() const { return reinterpret_cast<const T*>(m_data.data()); }
+
+		T* begin() { return data(); }
+		const T* begin() const { return data(); }
+
+		T* end() { return begin() + m_size; }
+		const T* end() const { return begin() + m_size; }
+
+		std::array<std::byte, sizeof(T) * Capacity> m_data;
+		size_t m_size{};
+	};
+
 	struct registry_data
 	{
-		API auto* try_get_type_data(this auto&& self, std::string_view name)
-		{
-			auto end = self.m_types + self.m_types_size;
-			auto it = std::find_if(self.m_types, end,
-				[&](const type_data& type)
-				{
-					return type.m_name == name;
-				});
-
-			if (it == end)
-			{
-				return nullptr;
-			}
-			return it;
-		}
-
-		API auto& get_type_data(this auto&& self, std::string_view name)
-		{
-			auto* result = try_get_type_data(self, name);
-			assert(result != nullptr);
-			return *result;
-		}
-
-
-		API type_data* try_get_type_data(this auto&& self, type_id id)
-		{
-			auto end = self.m_types + self.m_types_size;
-			auto it = std::find_if(self.m_types, end,
-				[&](const type_data& type)
-				{
-					return type.m_id == id;
-				});
-
-			if (it != end)
-			{
-				return it;
-			}
-			return nullptr;
-		}
-
-		API auto& get_type_data(this auto&& self, type_id id)
-		{
-			auto* result = self.try_get_type_data(id);
-			assert(result != nullptr);
-			return *result;
-		}
-
-		template<size_t Max, typename T>
-		T& alloc(T* buffer, size_t& count)
-		{
-			if (count >= Max)
-			{
-				// TODO should be assert
-				throw std::runtime_error{ "Buffer too small" };
-			}
-			T& value = buffer[count++];
-			return value;
-		}
-
-		API module_data& alloc_module()
-		{
-			return alloc<sMaxNumModules>(m_modules, m_modules_size);
-		}
-
-		API value& alloc_value()
-		{
-			return alloc<sMaxNumValues>(m_values, m_values_size);
-		}
-
-		API type_data& alloc_type()
-		{
-			return alloc<sMaxNumTypes>(m_types, m_types_size);
-		}
-		API data_data& alloc_data()
-		{
-			return alloc<sMaxNumData>(m_datas, m_data_size);
-		}
-		API func_data& alloc_func()
-		{
-			return alloc<sMaxNumFuncs>(m_funcs, m_func_size);
-		}
-
-		auto get_modules() const { return std::span< const module_data>{ m_modules, m_modules_size }; }
-		auto get_types() const { return std::span< const type_data>{ m_types, m_types_size }; }
-		auto get_values() const { return std::span< const value>{ m_values, m_values_size }; }
-		auto get_funcs() const { return std::span< const func_data>{ m_funcs, m_func_size }; }
-
-		// TODO these should be done using containers/custom allocators
-
-		static constexpr size_t sMaxNumModules = 64;
-		module_data* m_modules = (module_data*)std::malloc(sMaxNumModules * sizeof(module_data));
-		size_t m_modules_size{};
-
-		static constexpr size_t sMaxNumTypes = 1024;
-		type_data* m_types = (type_data*)std::malloc(sMaxNumTypes * sizeof(type_data));
-		size_t m_types_size{};
-
-		static constexpr size_t sMaxNumValues = 1024;
-		value* m_values = (value*)std::malloc(sMaxNumValues * sizeof(value));
-		size_t m_values_size{};
-
-		static constexpr size_t sMaxNumFuncs = 1024;
-		func_data* m_funcs = (func_data*)std::malloc(sMaxNumFuncs * sizeof(func_data));
-		size_t m_func_size{};
-
-		static constexpr size_t sMaxNumData = 1024;
-		data_data* m_datas = (data_data*)std::malloc(sMaxNumData * sizeof(data_data));
-		size_t m_data_size{};
+		buffer<module_data, 64> m_modules{};
+		buffer<type_data, 1024> m_types{};
+		buffer<func_data, 1024> m_funcs{};
+		buffer<data_data, 1024> m_datas{};
+		buffer<value, 1024> m_values{};
 	};
 
 	template<typename To, typename From >
@@ -682,10 +633,11 @@ namespace ge::refl::detail
 		return To(from);
 	}
 
-	template<typename To, typename From>
-	auto view_as_public_handles(std::span< const From > data) requires std::constructible_from<To, const From&>
+	template<typename To>
+	auto view_as_public_handles(const auto& inputRange)
 	{
-		return data | std::ranges::views::transform(convert_from_to<To, From>);
+		using FromT = decltype(*inputRange.begin());
+		return inputRange | std::ranges::views::transform(convert_from_to<To, FromT>);
 	}
 }
 
@@ -787,7 +739,7 @@ namespace ge::refl
 		std::reference_wrapper<const detail::type_data> m_data;
 	};
 
-	export class module_handle
+	class module_handle
 	{
 	public:
 		API module_handle(const detail::module_data& data) : m_data(data) {}
@@ -802,18 +754,9 @@ namespace ge::refl
 		std::reference_wrapper<const detail::module_data> m_data;
 	};
 
-	export struct type_trait
-	{
-	};
-
-	export struct data_trait
-	{
-	};
-
-	export struct func_trait
-	{
-	};
-
+	export struct type_trait {};
+	export struct data_trait {};
+	export struct func_trait {};
 
 	export class registry
 	{
@@ -823,25 +766,9 @@ namespace ge::refl
 		{
 		}
 
-		API std::optional<type_handle> try_get_type(std::string_view name) const
-		{
-			auto end = m_data->m_types + m_data->m_types_size;
-			auto it = std::find_if(m_data->m_types, end,
-				[&](const detail::type_data& type)
-				{
-					return type.m_name == name;
-				});
-
-			if (it == end)
-			{
-				return std::nullopt;
-			}
-			return type_handle{ *it };
-		}
-
-		API auto modules() const { return detail::view_as_public_handles<module_handle>(m_data->get_modules()); }
-		API auto types() const { return detail::view_as_public_handles<type_handle>(m_data->get_types()); }
-		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data->get_funcs()); }
+		API auto modules() const { return detail::view_as_public_handles<module_handle>(m_data->m_modules); }
+		API auto types() const { return detail::view_as_public_handles<type_handle>(m_data->m_types); }
+		API auto funcs() const { return detail::view_as_public_handles<func_handle>(m_data->m_funcs); }
 
 	private:
 		std::unique_ptr<const detail::registry_data> m_data;
@@ -850,6 +777,7 @@ namespace ge::refl
 	namespace builder
 	{
 		class builder_base;
+		export class registry_builder;
 
 		export template<undecorated T>
 		class type_builder;
@@ -869,6 +797,9 @@ namespace ge::refl
 		export template<auto DataPtr, std::derived_from<builder_base> Prev> requires is_data<DataPtr>
 		class endable_data_builder;
 
+		template<typename TraitBase>
+		class trait_part;
+
 		class builder_destination
 		{
 		public:
@@ -886,24 +817,18 @@ namespace ge::refl
 		class builder_base
 		{
 		protected:
-			API builder_base(detail::registry_data& reg) :
-				m_registry(reg)
+			API builder_base(registry_builder& reg_builder) :
+				m_registry_builder(reg_builder)
 			{
-
 			}
 
-			API detail::registry_data& get_registry() const
-			{
-				return m_registry;
-			}
+			API detail::registry_data& get_registry() const;
 
-			API static detail::registry_data& get_registry(const builder_base& other)
-			{
-				return other.get_registry();
-			}
+			API registry_builder& get_registry_builder() const { return m_registry_builder; }
 
 		private:
-			detail::registry_data& m_registry;
+			friend trait_part;
+			registry_builder& m_registry_builder;
 		};
 
 		class type_part
@@ -943,8 +868,9 @@ namespace ge::refl
 			template<std::derived_from<TraitBase> TraitT>
 			decltype(auto) trait(this auto&& self, TraitT&& trait = {})
 			{
-				detail::registry_data& reg = self.get_registry(self);
-				value& data = reg.alloc_value();
+				detail::registry_data& reg = self.get_registry();
+				// TODO most of our traits will be constexpr, wasteful to make a copy.
+				value& data = reg.m_values.push_back(value::create_owning(std::forward<TraitT>(trait)));
 				std::span<const value>& traits = self.m_target.m_traits;
 
 				if (traits.empty())
@@ -953,51 +879,69 @@ namespace ge::refl
 				}
 				else
 				{
-					assert(&data != traits.data() + traits.size());
+					assert(&data - traits.size() == traits.data() );
 					traits = { traits.data(), traits.size() + 1 };
 				}
 
-				// TODO most of our traits will be constexpr, wasteful to make a copy.
-				// TODO ensure traits are not accessible as mutable
-				//if constexpr (requires
-				//{
-				//	
-				//})
-				//{
-				//	
-				//}
+				if constexpr (requires (TraitT& mutTrait)
+				{
+					mutTrait.on_apply(self);
+				})
+				{
+					data.as_mutable<TraitT>()->on_apply(self);
+				}
+
+				using data_t = std::remove_reference_t<decltype(self.m_target)>;
+				using handle_t = data_t::handle_t;
+
+				if constexpr (requires (TraitT& mutTrait, handle_t handle)
+				{
+					mutTrait.post_build(handle);
+				})
+				{
+					registry_builder& reg_builder = self.get_registry_builder();
+					reg_builder.post_build_events.push_back(
+						{
+							.m_invoke = +[](void* data, value* trait)
+							{
+								handle_t handle{ *static_cast<data_t*>(data) };
+								trait->as_mutable<TraitT>()->post_build(handle);
+							},
+							.m_trait = &data,
+							.m_data = &self.m_target
+						}
+						);
+				}
 
 
-				data = value::create_owning(std::forward<TraitT>(trait));
 				return self;
 			}
 		};
 
-		export class registry_builder;
-	
 		class module_builder :
 			public builder_base,
 			public type_part,
 			public func_part
 		{
 		public:
-			module_builder(registry_builder& prev, detail::registry_data& destination, std::string_view name) :
-				builder_base(destination),
+			module_builder(registry_builder& prev, std::string_view name) :
+				builder_base(prev),
 				m_prev(prev),
-				m_target( destination.alloc_module() )
+				m_target( get_registry().m_modules.push_back(detail::module_data{ .m_reg = get_registry(), .m_name = name }) )
 			{
+				detail::registry_data& reg = get_registry();
 				m_target.m_name = name;
-				m_target.m_funcs = { destination.m_funcs + destination.m_func_size, 0ull};
-				m_target.m_types = { destination.m_types + destination.m_types_size, 0ull };
-				m_target.m_datas = { destination.m_datas + destination.m_data_size, 0ull };
+				m_target.m_funcs = { reg.m_funcs.end(), 0ull};
+				m_target.m_types = { reg.m_types.end(), 0ull };
+				m_target.m_datas = { reg.m_datas.end(), 0ull };
 			}
 
 			API registry_builder& end_module()
 			{
 				// TODO: pretty ugly
-				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs + get_registry().m_func_size - m_target.m_funcs.data())};
-				m_target.m_types = { m_target.m_types.data(), static_cast<size_t>(get_registry().m_types + get_registry().m_types_size - m_target.m_types.data())};
-				m_target.m_datas = { m_target.m_datas.data(), static_cast<size_t>(get_registry().m_datas + get_registry().m_data_size - m_target.m_datas.data())};
+				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs.end() - m_target.m_funcs.data())};
+				m_target.m_types = { m_target.m_types.data(), static_cast<size_t>(get_registry().m_types.end() - m_target.m_types.data())};
+				m_target.m_datas = { m_target.m_datas.data(), static_cast<size_t>(get_registry().m_datas.end() - m_target.m_datas.data())};
 				return m_prev;
 			}
 
@@ -1006,28 +950,59 @@ namespace ge::refl
 			detail::module_data& m_target;
 		};
 
-		export class registry_builder
+		export class registry_builder 
+			: public builder_base
 		{
+			auto& self() { return *this; }
 		public:
+			registry_builder() : builder_base(self()) {}
+
 			virtual ~registry_builder() = default;
 
 			API auto begin_module(std::string_view name)
 			{
-				return module_builder{ *this, *m_reg, name };
+				return module_builder{ *this, name };
 			}
 
 			API registry build()
 			{
-				for (detail::data_data& data : std::span{ m_reg->m_datas, m_reg->m_data_size })
+				for (detail::data_data& data : m_reg->m_datas)
 				{
-					data.m_type.type_data = m_reg->get_type_data(data.m_type.type_id);
+					data.m_type.type_data = *std::ranges::find_if(m_reg->m_types, 
+						[&data](const detail::type_data& type_data)
+						{
+							return type_data.m_id == data.m_type.type_id;
+						});
+				}
+
+				for (post_build_event& post_build : post_build_events)
+				{
+					post_build.m_invoke(post_build.m_data, post_build.m_trait);
+				}
+				post_build_events.clear();
+
+				for (value& trait : m_reg->m_values)
+				{
+					trait.make_constant();
 				}
 
 				return registry{ std::move(m_reg) };
 			}
 
 		protected:
+			friend builder_base;
+			friend trait_part;
 			std::unique_ptr<detail::registry_data> m_reg = std::make_unique<detail::registry_data>();
+			
+			struct post_build_event
+			{
+				void(*m_invoke)(void*, value*);
+				value* m_trait{};
+				void* m_data{};
+			};
+			std::vector<post_build_event> post_build_events{};
+
+
 		};
 
 		template<undecorated T>
@@ -1041,16 +1016,25 @@ namespace ge::refl
 		public:
 			using type = T;
 
-			type_builder(detail::registry_data& reg, std::string_view name) :
-				builder_base(reg),
-				m_target(reg.alloc_type())
+			type_builder(const builder_base& prev, std::string_view name) :
+				builder_base(prev),
+				m_target(
+					[&]() -> decltype(auto)
+					{
+						detail::registry_data& reg = get_registry();
+						assert(!std::ranges::any_of(reg.m_types, [](const detail::type_data& existing)
+							{
+								return existing.m_id == make_type_id<T>();
+							}));
+						return reg.m_types.push_back(detail::type_data{ .m_reg = reg, .m_name = name,  .m_id = make_type_id<T>() });
+					}()
+					)
 			{
-				m_target.m_funcs = { reg.m_funcs + reg.m_func_size, 0ull };
-				m_target = detail::type_data{ .m_reg = get_registry(), .m_name = name,  .m_id = make_type_id<T>() };
 			}
 
 		protected:
 			friend trait_part;
+			friend data_builder;
 			detail::type_data& m_target;
 		};
 
@@ -1060,22 +1044,27 @@ namespace ge::refl
 		{
 		public:
 			endable_type_builder(Prev& prev, std::string_view name) :
-				type_builder<T>(builder_base::get_registry(prev), name),
+				type_builder<T>(prev, name),
 				m_prev(prev)
 			{
+				detail::registry_data& reg = builder_base::get_registry();
+				detail::type_data& target = type_builder<T>::m_target;
+
+				target.m_funcs = { reg.m_funcs.end(), 0ull };
+				target.m_data = { reg.m_datas.end(), 0ull };
 			}
-				
 
 			Prev& end_type()
 			{
 				// TODO pretty ugly
-				detail::registry_data& reg = builder_base::get_registry(m_prev);
+				detail::registry_data& reg = builder_base::get_registry();
 				detail::type_data& target = type_builder<T>::m_target;
-				target.m_funcs = { target.m_funcs.data(), static_cast<size_t>(reg.m_funcs + reg.m_func_size - target.m_funcs.data()) };
+				target.m_funcs = { target.m_funcs.data(), static_cast<size_t>(reg.m_funcs.end() - target.m_funcs.data()) };
+				target.m_data = { target.m_data.data(), static_cast<size_t>(reg.m_datas.end() - target.m_data.data()) };
 				return m_prev;
 			}
 
-		private:
+		protected:
 			Prev& m_prev;
 		};
 
@@ -1089,15 +1078,13 @@ namespace ge::refl
 
 			using outer_t = data_ptr_t::outer_type_t;
 			using data_t = data_ptr_t::data_t;
-			
-			data_builder(detail::registry_data& reg, std::string_view name) :
-				builder_base(reg),
-				m_target(reg.alloc_data())
-			{
-				m_target = detail::data_data{
-					.m_reg = reg,
+
+			data_builder(const type_builder<outer_t>& prev, std::string_view name) :
+				builder_base(prev),
+				m_target(get_registry().m_datas.push_back(detail::data_data{
+					.m_reg = get_registry(),
 					.m_type = detail::cached_type_data_ref{ { data_type_id } },
-					.m_outer_type = reg.get_type_data(outer_type_id),
+					.m_outer_type = prev.m_target,
 					.m_set = +[](value target_object, const value& new_value)
 					{
 						auto [outer, data] = get_setter_args(target_object, new_value);
@@ -1108,9 +1095,9 @@ namespace ge::refl
 						const outer_t& outer = get_getter_args(target_object);
 						return value::create_view(outer.*PtrToMember);
 					},
-					.m_name = name };
+					.m_name = name }))
+			{
 			}
-
 
 			template<auto Setter> requires std::is_same_v<decltype(Setter), std::nullptr_t>
 			decltype(auto) setter(this auto&& self)
@@ -1198,7 +1185,7 @@ namespace ge::refl
 				"This data member does not belong to the type it's being attached to");
 
 			endable_data_builder(Prev& prev, std::string_view name) :
-				data_builder<DataPtr>(builder_base::get_registry(prev), name),
+				data_builder<DataPtr>(prev, name),
 				m_prev(prev)
 			{
 			}
@@ -1218,15 +1205,14 @@ namespace ge::refl
 			public trait_part<func_trait>
 		{
 		public:
-			func_builder(detail::registry_data& reg, std::string_view name) :
-				builder_base(reg),
-				m_target(reg.alloc_func())
-			{
-				m_target = detail::func_data{
+			func_builder(const builder_base& prev, std::string_view name) :
+				builder_base(prev),
+				m_target(get_registry().m_funcs.push_back(detail::func_data{
 					.m_name = name,
-					.m_reg = reg,
-				};
-
+					.m_reg = get_registry()
+					}
+					))
+			{
 				m_target.m_vtable.set<detail::func_data::vtable_impl<FuncPtr, func_sig_t<decltype(FuncPtr)>>>();
 			}
 
@@ -1241,7 +1227,7 @@ namespace ge::refl
 		{
 		public:
 			endable_func_builder(Prev& prev, std::string_view name) :
-				func_builder<FuncPtr>(builder_base::get_registry(prev), name),
+				func_builder<FuncPtr>(prev, name),
 				m_prev(prev)
 			{
 				
@@ -1255,64 +1241,11 @@ namespace ge::refl
 		private:
 			Prev& m_prev;
 		};
-		
-		export struct example_trait : func_trait, type_trait, data_trait
+
+		detail::registry_data& builder_base::get_registry() const
 		{
-			// on_apply is called immediately, while post_build is guaranteed to be called only after 
-			// the registry is completely build
-
-			template<auto FuncPtr>
-			void on_apply([[maybe_unused]] builder::func_builder<FuncPtr>& builder)
-			{
-
-			}
-
-			template<auto DataPtr>
-			void on_apply([[maybe_unused]] builder::data_builder<DataPtr>& builder)
-			{
-
-			}
-
-			template<typename T>
-			void on_apply([[maybe_unused]] builder::type_builder<T>& builder)
-			{
-
-			}
-
-			template<auto FuncPtr> // template is optional
-			void post_build([[maybe_unused]] func_handle handle)
-			{
-
-			}
-
-			template<auto DataPtr> // template is optional
-			void post_build([[maybe_unused]] data_handle handle)
-			{
-
-			}
-
-			template<typename T> // template is optional
-			void post_build([[maybe_unused]] type_handle handle)
-			{
-
-			}
-
-			void post_build([[maybe_unused]] func_handle handle)
-			{
-
-			}
-
-			void post_build([[maybe_unused]] data_handle handle)
-			{
-
-			}
-
-			void post_build([[maybe_unused]] type_handle handle)
-			{
-
-			}
-		};
-
+			return *m_registry_builder.m_reg;
+		}
 	}
 
 	export API builder::registry_builder begin_registry() { return {}; }
