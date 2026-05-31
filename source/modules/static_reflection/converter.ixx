@@ -1,39 +1,26 @@
+
 export module static_reflection:converter;
 
 export import :parser;
 
 namespace ge
 {
-
-	//import runtime_reflection;
-
-	//void generated_registry_builder(ge::refl::builder::registry_builder& builder)
-	//{
-	//	builder.begin_module(\"{}\")	
-
-
-
-	//		.end_module();
-	//}
-
-	class converter
+	export class converter
 	{
 	public:
 
-		bool begin_module(std::ostream& stream, std::string_view module_name)
+		void begin_module(std::ostream& stream, std::string_view module_name)
 		{
-			stream << R"(
-			import runtime_reflection;
-
-			void generated_registry_builder(ge::refl::builder::registry_builder & builder)
-			{
-				builder.begin_module(")"{}\")	
-
-
-
+			write_line(stream, "import runtime_reflection");
+			write_line(stream, "");
+			write_line(stream, "void build_runtime_reflection(ge::refl::builder::registry_builder& builder)");
+			write_line(stream, "{");
+			indent++;
+			write_line_fmt(stream, "builder.begin_module(\"{}\")", module_name);
+			indent++;
 		}
 
-		std::string convert_to_builder(std::string_view source_content)
+		void convert_to_builder(std::ostream& stream, std::string_view source_content)
 		{
 			// TODO match generated source with original source
 			// TODO re-use parser
@@ -42,18 +29,64 @@ namespace ge
 
 			if (!result.has_value())
 			{
-				return std::format("static_assert(false, R\"({})\"", result.error());
+				emit_error(stream, result.error());
+				return;
 			}
 
 			const parsed_file& parsed = result.value();
 
-			// Assume module part is already there:
+			for (const parsed_type& type : parsed.m_types)
+			{
+				convert_type(stream, type);
+			}
+		}
 
-			for (parsed.)
+		void end_module(std::ostream& stream)
+		{
+			indent--;
+			write_line(stream, ".end_module();");
+			indent--;
+			write_line(stream, "}");
+		}
 
+	private:
+		int indent = 0;
+
+		void write_line(std::ostream& stream, std::string_view line)
+		{
+			write_indent(stream);
+			stream << line << '\n';
+		}
+
+		template<typename... Args>
+		void write_line_fmt(std::ostream& stream, std::format_string<Args...> fmt, Args&&... fmtArgs)
+		{
+			write_indent(stream);
+			stream << std::format(fmt, std::forward<Args>(fmtArgs)...) << '\n';
+		}
+
+		void write_indent(std::ostream& stream)
+		{
+			for (int i = 0; i < indent; i++)
+			{
+				stream.put('\t');
+			}
+		}
+
+		void convert_type(std::ostream& stream, const parsed_type& type)
+		{
+			write_line_fmt(stream, ".begin_type<{0}>(\"{0}\")", type.m_name);
+			indent++;
+			
+			indent--;
+			write_line(stream, ".end_type()");
 		}
 		
-	private:
+		void emit_error(std::ostream& stream, std::string_view error)
+		{
+			stream << "static_assert(false, R\"( " << error << ")\");";
+		}
+
 		// TODO store parser and tokeniser here, re-use the buffers.
 	};
 }

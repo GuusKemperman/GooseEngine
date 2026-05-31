@@ -1,4 +1,4 @@
-export module test_parser;
+export module test_static_reflection:test_parser;
 
 import stl;
 import logger;
@@ -7,18 +7,6 @@ import test_core;
 
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
-
-static void print_tokens(std::string_view file)
-{
-    ge::logger logger{};
-
-    logger.log(ge::verbose, "Parsing {}", file);
-
-    for (ge::token token : ge::tokeniser{ file })
-    {
-        logger.log(ge::verbose, "{} - {}", static_cast<int>(token.m_flag), token.m_str);
-    }
-}
 
 static ge::parsed_file parse_file(std::string_view file)
 {
@@ -37,56 +25,6 @@ static const T& list_at(const std::list<T>& list, size_t index)
     auto it = list.begin();
     std::advance(it, index);
     return *it;
-}
-
-UNIT_TEST(tokeniser, complex_function_no_crash)
-{
-    print_tokens(
-"        REFL_FUNC()\n"
-"        // Hello we are reflect*/ing this\n"
-"        /*\n"
-"        /*Comment in comment!\n"
-"        // Commentttsss\n"
-"        */\n"
-R"(        [[nodiscard]] inline /*haha here is another comment */int function_name(int param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)" "\n"
-"            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), int foo = 1.0f);\n"
-);
-}
-
-UNIT_TEST(tokeniser, iterators)
-{
-    ge::tokeniser tokeniser{ "1 2 3 4" };
-
-    (void)expect_exception<std::out_of_range>(
-        [&]
-        {
-            ge::token_iterator end = tokeniser.end();
-            ++end;
-        });
-
-    ge::token_iterator it = tokeniser.begin();
-    is_eq(it->m_str, "1");
-    is_ne(it, tokeniser.end());
-    ++it;
-	is_eq(it->m_str, " ");
-    is_ne(it, tokeniser.end());
-    ++it;
-	is_eq(it->m_str, "2");
-    is_ne(it, tokeniser.end());
-    ++it;
-    is_eq(it->m_str, " ");
-    is_ne(it, tokeniser.end());
-    ++it;
-    is_eq(it->m_str, "3");
-    is_ne(it, tokeniser.end());
-    ++it;
-    is_eq(it->m_str, " ");
-    is_ne(it, tokeniser.end());
-    ++it;
-    is_eq(it->m_str, "4");
-    is_ne(it, tokeniser.end());
-    ++it;
-    is_eq(it, tokeniser.end());
 }
 
 UNIT_TEST(parser, invalid_file)
@@ -274,8 +212,8 @@ UNIT_TEST(parser, complete_file)
         "   REFL_FUNC()\n"
         "    int anon() { return 6; }\n"
         "}";
-    print_tokens(src);
-	ge::parsed_file file = parse_file(src);
+
+    ge::parsed_file file = parse_file(src);
 
     is_eq(file.m_funcs.at(0).m_return_type, "int");
     is_eq(file.m_funcs.at(0).m_name, "global");

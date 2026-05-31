@@ -6,6 +6,8 @@ export module runtime_reflection;
 export import stl;
 
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
+// TODO enums
+// TODO access (private/public)
 
 namespace ge::refl
 {
@@ -895,8 +897,7 @@ namespace ge::refl
 						);
 				}
 
-
-				return self;
+				return std::forward<decltype(self)>(self);
 			}
 		};
 
@@ -906,9 +907,8 @@ namespace ge::refl
 			public func_part
 		{
 		public:
-			module_builder(registry_builder& prev, std::string_view name) :
+			module_builder(const builder_base& prev, std::string_view name) :
 				builder_base(prev),
-				m_prev(prev),
 				m_target( get_registry().m_modules.push_back(detail::module_data{ .m_reg = get_registry(), .m_name = name }) )
 			{
 				detail::registry_data& reg = get_registry();
@@ -918,18 +918,34 @@ namespace ge::refl
 				m_target.m_datas = { reg.m_datas.end(), 0ull };
 			}
 
-			API registry_builder& end_module()
+		protected:
+			detail::module_data& m_target;
+		};
+
+		export template<std::derived_from<builder_base> Prev>
+		class endable_module_builder :
+			public module_builder
+		{
+		public:
+			endable_module_builder(Prev& prev, std::string_view name) :
+				module_builder(prev, name),
+				m_prev(prev)
 			{
+			}
+
+			API Prev& end_module()
+			{
+				detail::registry_data& reg = builder_base::get_registry();
+				detail::module_data& target = module_builder::m_target;
 				// TODO: pretty ugly
-				m_target.m_funcs = { m_target.m_funcs.data(), static_cast<size_t>(get_registry().m_funcs.end() - m_target.m_funcs.data())};
-				m_target.m_types = { m_target.m_types.data(), static_cast<size_t>(get_registry().m_types.end() - m_target.m_types.data())};
-				m_target.m_datas = { m_target.m_datas.data(), static_cast<size_t>(get_registry().m_datas.end() - m_target.m_datas.data())};
+				target.m_funcs = { target.m_funcs.data(), static_cast<size_t>(reg.m_funcs.end() - target.m_funcs.data()) };
+				target.m_types = { target.m_types.data(), static_cast<size_t>(reg.m_types.end() - target.m_types.data()) };
+				target.m_datas = { target.m_datas.data(), static_cast<size_t>(reg.m_datas.end() - target.m_datas.data()) };
 				return m_prev;
 			}
 
-		private:
-			registry_builder& m_prev;
-			detail::module_data& m_target;
+		protected:
+			Prev& m_prev;
 		};
 
 		export class registry_builder 
@@ -941,9 +957,9 @@ namespace ge::refl
 
 			virtual ~registry_builder() = default;
 
-			API auto begin_module(std::string_view name)
+			API auto begin_module(this auto&& self, std::string_view name)
 			{
-				return module_builder{ *this, name };
+				return endable_module_builder< remove_decoration_t<decltype(self)> >{ self, name };
 			}
 
 		protected:
@@ -987,7 +1003,6 @@ namespace ge::refl
 
 				return registry{ std::move(m_reg) };
 			}
-
 		};
 
 		template<undecorated T>
@@ -1088,7 +1103,7 @@ namespace ge::refl
 			decltype(auto) setter(this auto&& self)
 			{
 				self.m_target.m_set = nullptr;
-				return self;
+				return std::forward<decltype(self)>(self);
 			}
 
 			template<auto Setter> requires std::is_invocable_v<decltype(Setter), outer_t&, data_t>
@@ -1099,14 +1114,14 @@ namespace ge::refl
 						auto [outer, data] = get_setter_args(target_object, new_value);
 						std::invoke(Setter, outer, data);
 					};
-				return self;
+				return std::forward<decltype(self)>(self);
 			}
 
 			template<auto Getter> requires std::is_same_v<decltype(Getter), std::nullptr_t>
 			decltype(auto) getter(this auto&& self)
 			{
 				self.m_target.m_get = nullptr;
-				return self;
+				return std::forward<decltype(self)>(self);
 			}
 
 			template<auto Getter> requires std::is_invocable_r_v<const data_t&, decltype(Getter), const outer_t&>
@@ -1126,7 +1141,7 @@ namespace ge::refl
 							return value::create_owning(result);
 						}
 					};
-				return self;
+				return std::forward<decltype(self)>(self);
 			}
 
 		protected:
@@ -1235,4 +1250,3 @@ namespace ge::refl
 
 	export API builder::endable_registry_builder begin_registry() { return {}; }
 }
-ge
