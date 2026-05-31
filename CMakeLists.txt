@@ -27,6 +27,7 @@ add_compile_options(/Wall /WX
 /wd5039
 /wd4865
 /wd4868
+/wd4355
 )
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)

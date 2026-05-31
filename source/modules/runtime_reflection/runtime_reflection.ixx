@@ -5,21 +5,6 @@ export module runtime_reflection;
 
 export import stl;
 
-/* Requirements:
-
-- Multiple different registries support
-- Attributes visiting
-- Data visiting
-- Function visiting
-- Copy, store, move type instead of type*
-- Infinite levels of qualifiers
-- Data that is not available at compile, should be stored in registry
-- Should be possible to remove a reflected module (assuming nothing depends on it) without a memory leak
-- Everything stored inside registry buffer is immutable
-*/
-
-
-
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
 
 namespace ge::refl
@@ -400,6 +385,18 @@ namespace ge::refl::detail
 	struct type_data;
 	struct registry_data;
 
+	template<typename T>
+	struct is_supported_param_type : std::bool_constant<undecorated<T>> {};
+
+	template<undecorated T>
+	struct is_supported_param_type<T&> : std::bool_constant<true>{};
+
+	template<undecorated T>
+	struct is_supported_param_type<const T&> : std::bool_constant<true>{};
+
+	export template<typename T>
+	concept supported_param_type = is_supported_param_type<T>::value;
+
 	struct cached_type_data_ref
 	{
 		// Will hold a type_id before the registry has completed building.
@@ -456,24 +453,6 @@ namespace ge::refl::detail
 		std::span<const func_data> m_funcs{};
 		std::span<const data_data> m_datas{};
 	};
-
-	template<typename T>
-	struct is_supported_param_type : std::bool_constant<undecorated<T>>
-	{
-	};
-
-	template<undecorated T>
-	struct is_supported_param_type<T&> : std::bool_constant<true>
-	{
-	};
-
-	template<undecorated T>
-	struct is_supported_param_type<const T&> : std::bool_constant<true>
-	{
-	};
-
-	export template<typename T>
-	concept supported_param_type = is_supported_param_type<T>::value;
 
 	struct func_data
 	{
@@ -777,7 +756,10 @@ namespace ge::refl
 	namespace builder
 	{
 		class builder_base;
+		
 		export class registry_builder;
+
+		export class endable_registry_builder;
 
 		export template<undecorated T>
 		class type_builder;
@@ -964,11 +946,28 @@ namespace ge::refl
 				return module_builder{ *this, name };
 			}
 
+		protected:
+			friend builder_base;
+			friend trait_part;
+			std::unique_ptr<detail::registry_data> m_reg = std::make_unique<detail::registry_data>();
+			
+			struct post_build_event
+			{
+				void(*m_invoke)(void*, value*);
+				value* m_trait{};
+				void* m_data{};
+			};
+			std::vector<post_build_event> post_build_events{};
+		};
+
+		export class endable_registry_builder : public registry_builder
+		{
+		public:
 			API registry build()
 			{
 				for (detail::data_data& data : m_reg->m_datas)
 				{
-					data.m_type.type_data = *std::ranges::find_if(m_reg->m_types, 
+					data.m_type.type_data = *std::ranges::find_if(m_reg->m_types,
 						[&data](const detail::type_data& type_data)
 						{
 							return type_data.m_id == data.m_type.type_id;
@@ -988,20 +987,6 @@ namespace ge::refl
 
 				return registry{ std::move(m_reg) };
 			}
-
-		protected:
-			friend builder_base;
-			friend trait_part;
-			std::unique_ptr<detail::registry_data> m_reg = std::make_unique<detail::registry_data>();
-			
-			struct post_build_event
-			{
-				void(*m_invoke)(void*, value*);
-				value* m_trait{};
-				void* m_data{};
-			};
-			std::vector<post_build_event> post_build_events{};
-
 
 		};
 
@@ -1248,6 +1233,6 @@ namespace ge::refl
 		}
 	}
 
-	export API builder::registry_builder begin_registry() { return {}; }
+	export API builder::endable_registry_builder begin_registry() { return {}; }
 }
-
+ge

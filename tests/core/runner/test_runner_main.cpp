@@ -1,3 +1,5 @@
+#include <crtdbg.h>
+#include <stdlib.h>
 
 import stl;
 import modules;
@@ -5,8 +7,28 @@ import modules;
 import windows;
 import test_core;
 
+struct test
+{
+    int foo{ };
+};
+
+int test::* pr = &test::foo;
+static_assert(std::is_same_v<int test::*, decltype(&test::foo)>);
+
+void tester()
+{
+    test instance{};
+    instance.*pr = 10;
+}
+
 int main(int arg_c, char** arg_v)
 {
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+    // 2) (Optional) Suppress the “abort() has been called” dialog as well
+    _set_abort_behavior(0, _WRITE_ABORT_MSG);    _set_error_mode(_OUT_TO_STDERR);
+
     if (arg_c < 4)
     {
         std::println(std::cerr, "Provided only {} arguments", arg_c);
