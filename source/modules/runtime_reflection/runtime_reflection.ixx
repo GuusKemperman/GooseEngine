@@ -849,53 +849,53 @@ namespace ge::refl
 		class trait_part
 		{
 		public:
-			template<std::derived_from<TraitBase> TraitT>
-			decltype(auto) trait(this auto&& self, TraitT&& trait = {})
+			template<std::derived_from<TraitBase>... TraitsT>
+			decltype(auto) add_traits(this auto&& self, TraitsT&&... traits)
 			{
 				detail::registry_data& reg = self.get_registry();
-				// TODO most of our traits will be constexpr, wasteful to make a copy.
-				value& data = reg.m_values.push_back(value::create_owning(std::forward<TraitT>(trait)));
-				std::span<const value>& traits = self.m_target.m_traits;
 
-				if (traits.empty())
-				{
-					traits = { &data, 1 };
-				}
-				else
-				{
-					assert(&data - traits.size() == traits.data() );
-					traits = { traits.data(), traits.size() + 1 };
-				}
+				std::span<const value>& storedTraits = self.m_target.m_traits;
+				value* begin = reg.m_values.end() - storedTraits.size();
 
-				if constexpr (requires (TraitT& mutTrait)
-				{
-					mutTrait.on_apply(self);
-				})
-				{
-					data.as_mutable<TraitT>()->on_apply(self);
-				}
+				assert(storedTraits.empty() || storedTraits.data() == begin && "Traits were added non-contiguously");
 
-				using data_t = std::remove_reference_t<decltype(self.m_target)>;
-				using handle_t = data_t::handle_t;
+				([&]<typename TraitT>(TraitT&& trait)
+				{
+					// TODO most of our traits will be constexpr, wasteful to make a copy.
+					value& data = reg.m_values.push_back(value::create_owning(std::forward<TraitT>(trait)));
 
-				if constexpr (requires (TraitT& mutTrait, handle_t handle)
-				{
-					mutTrait.post_build(handle);
-				})
-				{
-					registry_builder& reg_builder = self.get_registry_builder();
-					reg_builder.post_build_events.push_back(
-						{
-							.m_invoke = +[](void* data, value* trait)
+					storedTraits = { begin, storedTraits.size() + 1 };
+
+					if constexpr (requires (TraitT & mutTrait)
+					{
+						mutTrait.on_apply(self);
+					})
+					{
+						data.as_mutable<TraitT>()->on_apply(self);
+					}
+
+					using data_t = std::remove_reference_t<decltype(self.m_target)>;
+					using handle_t = data_t::handle_t;
+
+					if constexpr (requires (TraitT & mutTrait, handle_t handle)
+					{
+						mutTrait.post_build(handle);
+					})
+					{
+						registry_builder& reg_builder = self.get_registry_builder();
+						reg_builder.post_build_events.push_back(
 							{
-								handle_t handle{ *static_cast<data_t*>(data) };
-								trait->as_mutable<TraitT>()->post_build(handle);
-							},
-							.m_trait = &data,
-							.m_data = &self.m_target
-						}
+								.m_invoke = +[](void* data, value* trait)
+								{
+									handle_t handle{ *static_cast<data_t*>(data) };
+									trait->as_mutable<TraitT>()->post_build(handle);
+								},
+								.m_trait = &data,
+								.m_data = &self.m_target
+							}
 						);
-				}
+					}
+				}.template operator()<TraitsT>(std::forward<TraitsT>(traits)), ...);
 
 				return std::forward<decltype(self)>(self);
 			}
@@ -907,7 +907,7 @@ namespace ge::refl
 			public func_part
 		{
 		public:
-			module_builder(const builder_base& prev, std::string_view name) :
+			API module_builder(const builder_base& prev, std::string_view name) :
 				builder_base(prev),
 				m_target( get_registry().m_modules.push_back(detail::module_data{ .m_reg = get_registry(), .m_name = name }) )
 			{
