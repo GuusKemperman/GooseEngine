@@ -31,11 +31,18 @@ UNIT_TEST(converter, simple_type)
 REFL_TYPE()
 class MyType
 {
+public:
+REFL_DATA()
+int my_member = 10;
 
+// This is not legal cus strings are not attributes but whatever
+REFL_FUNC(std::string_view{"hello"})
+int my_func(int, float);
 };
+
+REFL_FUNC()
+int my_global_func(int, float);
 
 )";
     std::cout << convert(src);
-
-
 }
