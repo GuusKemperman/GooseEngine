@@ -9,9 +9,9 @@ namespace ge
 	export API std::string begin_generated_file(std::string_view module_name)
 	{
 		std::string output =
-			"import runtime reflection;\n"
+			"import runtime_reflection;\n"
 			"\n"
-			"void build_runtime_reflection(ge::refl::builder::registry_builder& builder)\n"
+			"void build_runtime_reflection(ge::refl::builders::registry_builder& builder)\n"
 			"{\n";
 		return output + std::format("\tbuilder.begin_module(\"{}\")\n", module_name);
 	}

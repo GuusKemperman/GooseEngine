@@ -1,6 +1,6 @@
 export module static_reflection:tokeniser;
 
-export import stl;
+import stl;
 
 namespace ge
 {
@@ -231,7 +231,6 @@ ge::token_iterator& ge::token_iterator::operator++()
 
 		// Find the opening quote
 		add_to_token_until_match("\""sv);
-		add_to_token();
 
 		while (!remaining_file().empty())
 		{

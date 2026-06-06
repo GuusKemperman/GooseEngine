@@ -1,6 +1,7 @@
 
 add_subdirectory("modules")
 add_subdirectory("platform")
+add_subdirectory("code_gen")
 
 add_library(stl STATIC)
 target_sources(stl

@@ -32,13 +32,6 @@ add_compile_options(/Wall /WX
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
-function(target_module_sources module_name module_files)
-    target_sources(${module_name}
-        PUBLIC
-            FILE_SET cxx_modules TYPE CXX_MODULES FILES ${module_files}
-    )
-endfunction()
-
 add_custom_target(all_modules_target)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -52,9 +45,35 @@ function(add_module module_name)
     add_dependencies(all_modules_target ${module_name})
 
     if (${ARGC} GREATER 1)
-        target_module_sources(${module_name} "${ARGN}")
-    endif()
+    
+        target_sources(${module_name}
+        PUBLIC
+            FILE_SET cxx_modules TYPE CXX_MODULES FILES "${ARGN}"
+        )
 
+        set(ABS_SOURCES "")
+        foreach(src IN LISTS ARGN)
+            list(APPEND ABS_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+        endforeach()
+
+        set(GEN_LIB ${module_name}_generated)
+        set(GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+        set(GEN_SRC ${GEN_DIR}/${module_name}_generated.cpp)
+
+        add_custom_command(
+            OUTPUT ${GEN_SRC}
+            COMMAND $<TARGET_FILE:code_gen>
+                    ${module_name}
+                    ${GEN_SRC}
+                    ${ABS_SOURCES}
+            DEPENDS ${ABS_SOURCES} code_gen
+            COMMENT "Generating ${module_name}_generated code"
+        )
+
+        add_library(${GEN_LIB} SHARED ${GEN_SRC})
+        target_link_libraries(${GEN_LIB} PRIVATE "runtime_reflection")
+    endif()
+    
     # some code generation for getting the module-class factory
     set(generated_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_name}.cpp")
 	file(WRITE ${generated_file} 
