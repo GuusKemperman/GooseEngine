@@ -1,164 +1,164 @@
 export module static_reflection:converter;
 
-export import :parser;
+import :parser;
 
 namespace ge
 {
-	export class converter
+	// For converting from C++ to the generated files needed to construct the runtime type registry
+
+	export API std::string begin_generated_file(std::string_view module_name)
+	{
+		std::string output =
+			"import runtime reflection;\n"
+			"\n"
+			"void build_runtime_reflection(ge::refl::builder::registry_builder& builder)\n"
+			"{\n";
+		return output + std::format("\tbuilder.begin_module(\"{}\")\n", module_name);
+	}
+
+	export API std::string convert_source_file(const parsed_file& file);
+
+	export API std::string end_generated_file()
+	{
+		return
+			"	.end_module();\n"
+			"}\n";
+	}
+}
+
+namespace
+{
+	class converter
 	{
 	public:
+		std::string output{};
+		std::string current_scope{};
+		size_t indent = 2;
 
-		API void begin_module(std::ostream& stream, std::string_view module_name)
+	void write_indent()
+	{
+		output.insert(output.end(), indent, '\t');
+	}
+
+	void write_line(std::string_view line)
+	{
+		write_indent();
+		output += line;
+		output += '\n';
+	}
+
+	void push_scope(const ge::parsed_scope& scope)
+	{
+		current_scope += scope.m_name;
+		current_scope += "::";
+	}
+
+	void pop_scope()
+	{
+		// pop the "::"
+		current_scope = current_scope.substr(0, current_scope.size() - 2);
+
+		// pop until we find the next ':'
+		while (!current_scope.empty() && current_scope.back() != ':')
 		{
-			write_line(stream, "import runtime_reflection");
-			write_line(stream, "");
-			write_line(stream, "void build_runtime_reflection(ge::refl::builder::registry_builder& builder)");
-			write_line(stream, "{");
-			indent++;
-			write_line_fmt(stream, "builder.begin_module(\"{}\")", module_name);
-			indent++;
+			current_scope.pop_back();
+		}
+	}
+
+	template<typename... Args>
+	void write_line_fmt(std::format_string<Args...> fmt, Args&&... fmtArgs)
+	{
+		write_line(std::format(fmt, std::forward<Args>(fmtArgs)...));
+	}
+
+	void write_traits(std::string_view traits)
+	{
+		if (!traits.empty())
+		{
+			write_line_fmt(".add_traits({})", traits);
+		}
+	}
+
+	void convert_scope(const ge::parsed_scope& scope)
+	{
+		push_scope(scope);
+
+		for (const ge::parsed_type& type : scope.m_types)
+		{
+			convert_type(type);
 		}
 
-		API void convert_to_builder(std::ostream& stream, std::string_view source_content)
+		for (const ge::parsed_func& func : scope.m_funcs)
 		{
-			// TODO match generated source with original source
-			// TODO re-use parser
-
-			const std::expected<parsed_file, std::string> result = parse(source_content);
-
-			if (!result.has_value())
-			{
-				emit_error(stream, result.error());
-				return;
-			}
-
-			const parsed_file& parsed = result.value();
-
-			convert_scope(stream, parsed);
+			convert_func(func);
 		}
 
-		API void end_module(std::ostream& stream)
+		for (const ge::parsed_data& data : scope.m_data)
 		{
-			indent--;
-			write_line(stream, ".end_module();");
-			indent--;
-			write_line(stream, "}");
+			convert_data(data);
 		}
 
-	private:
-		int indent = 0;
-		std::string location{};
+		pop_scope();
+	}
 
-		void write_line(std::ostream& stream, std::string_view line)
-		{
-			write_indent(stream);
-			stream << line << '\n';
-		}
+	void convert_func(const ge::parsed_func& func)
+	{
+		// TODO handle overloads
+		write_line_fmt(".begin_func<&{0}{1}>(\"{1}\")", current_scope, func.m_name);
+		indent++;
 
-		void push_scope(const parsed_scope& scope)
-		{
-			location += scope.m_name;
-			location += "::";
-		}
+		write_traits(func.m_traits);
 
-		void pop_scope()
-		{
-			// pop the "::"
-			location = location.substr(0, location.size() - 2);
+		indent--;
+		write_line(".end_func()");
+	}
 
-			// pop until we find the next ':'
-			while (!location.empty() && location.back() != ':')
-			{
-				location.pop_back();
-			}
-		}
+	void convert_data(const ge::parsed_data& data)
+	{
+		write_line_fmt(".begin_data<&{0}{1}>(\"{1}\")", current_scope, data.m_name);
+		indent++;
 
-		template<typename... Args>
-		void write_line_fmt(std::ostream& stream, std::format_string<Args...> fmt, Args&&... fmtArgs)
-		{
-			write_indent(stream);
-			stream << std::format(fmt, std::forward<Args>(fmtArgs)...) << '\n';
-		}
+		write_traits(data.m_traits);
 
-		void write_traits(std::ostream& stream, std::string_view traits)
-		{
-			if (!traits.empty())
-			{
-				write_line_fmt(stream, ".add_traits({})", traits);
-			}
-		}
+		indent--;
+		write_line(".end_data()");
+	}
 
-		void write_indent(std::ostream& stream)
-		{
-			for (int i = 0; i < indent; i++)
-			{
-				stream.put('\t');
-			}
-		}
+	void convert_type(const ge::parsed_type& type)
+	{
+		write_line_fmt(".begin_type<{0}{1}>(\"{1}\")", current_scope, type.m_name);
+		indent++;
 
-		void convert_scope(std::ostream& stream, const parsed_scope& scope)
-		{
-			push_scope(scope);
+		write_traits(type.m_traits);
 
-			for (const parsed_type& type : scope.m_types)
-			{
-				convert_type(stream, type);
-			}
+		convert_scope(type);
 
-			for (const parsed_func& func : scope.m_funcs)
-			{
-				convert_func(stream, func);
-			}
+		indent--;
+		write_line(".end_type()");
+	}
 
-			for (const parsed_data& data : scope.m_data)
-			{
-				convert_data(stream, data);
-			}
-
-			pop_scope();
-		}
-
-		void convert_func(std::ostream& stream, const parsed_func& func)
-		{
-			// TODO handle overloads
-			write_line_fmt(stream, ".begin_func<&{0}{1}>(\"{1}\")", location, func.m_name);
-			indent++;
-
-			write_traits(stream, func.m_traits);
-
-			indent--;
-			write_line(stream, ".end_func()");
-		}
-
-		void convert_data(std::ostream& stream, const parsed_data& data)
-		{
-			write_line_fmt(stream, ".begin_data<&{0}{1}>(\"{1}\")", location, data.m_name);
-			indent++;
-
-			write_traits(stream, data.m_traits);
-
-			indent--;
-			write_line(stream, ".end_data()");
-		}
-
-		void convert_type(std::ostream& stream, const parsed_type& type)
-		{
-			write_line_fmt(stream, ".begin_type<{0}{1}>(\"{1}\")", location, type.m_name);
-			indent++;
-
-			write_traits(stream, type.m_traits);
-
-			convert_scope(stream, type);
-
-			indent--;
-			write_line(stream, ".end_type()");
-		}
-		
-		void emit_error(std::ostream& stream, std::string_view error)
-		{
-			stream << "static_assert(false, R\"( " << error << ")\");";
-		}
-
-		// TODO store parser and tokeniser here, re-use the buffers.
+	void emit_error(const ge::source_error& error)
+	{
+		write_line_fmt("static_assert(false, R\"({})\");", error.m_msg);
+	}
 	};
+}
+
+std::string ge::convert_source_file(const parsed_file& file)
+{
+	converter converter{};
+
+	if (!file.m_errors.empty())
+	{
+		for (const source_error& err : file.m_errors)
+		{
+			converter.emit_error(err);
+		}
+	}
+	else
+	{
+		converter.convert_scope(file);
+	}
+
+	return converter.output;
 }

@@ -11,7 +11,7 @@ using namespace ge::test_core::assert;
 
 UNIT_TEST(tokeniser, complex_function_no_crash)
 {
-    ge::tokeniser{
+    ge::token_range{
 "        REFL_FUNC()\n"
 "        // Hello we are reflect*/ing this\n"
 "        /*\n"
@@ -25,7 +25,7 @@ R"(        [[nodiscard]] inline /*haha here is another comment */int function_na
 
 UNIT_TEST(tokeniser, iterators)
 {
-    ge::tokeniser tokeniser{ "1 2 3 4" };
+    ge::token_range tokeniser{ "1 2 3 4" };
 
     (void)expect_exception<std::out_of_range>(
         [&]

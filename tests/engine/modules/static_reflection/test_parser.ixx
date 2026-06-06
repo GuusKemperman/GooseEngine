@@ -5,6 +5,8 @@ import logger;
 import static_reflection;
 import test_core;
 
+// TODO these tests are out of date since the return type changed, but the tests still have an std::expcted
+
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
@@ -74,7 +76,7 @@ UNIT_TEST(parser, complex_function_no_crash)
 
 UNIT_TEST(tokeniser, simple_func)
 {
-    ge::tokeniser tokeniser{ "int func_name() { return 1; }" };
+    ge::token_range tokeniser{ "int func_name() { return 1; }" };
 
     ge::token_iterator it = tokeniser.begin();
     is_eq(it->m_str, "int"); ++it;

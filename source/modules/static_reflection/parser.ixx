@@ -1,6 +1,7 @@
 export module static_reflection:parser;
 
-export import :tokeniser;
+import :tokeniser;
+import :source_error;
 
 namespace ge
 {
@@ -116,9 +117,10 @@ namespace ge
 
 	export struct parsed_file : parsed_scope
 	{
+		std::vector<source_error> m_errors{};
 	};
 
-	export API std::expected<parsed_file, std::string> parse(std::string_view file);
+	export API parsed_file parse( token_range tokenised_source);
 
 	using namespace std::string_view_literals;
 
@@ -130,7 +132,7 @@ namespace ge
 		static constexpr std::string_view s_refl_enum = "REFL_ENUM"sv;
 		static constexpr std::string_view s_refl_class = "REFL_TYPE"sv;
 
-		std::expected<parsed_file, std::string> parse(std::string_view file);
+		parsed_file parse(token_range tokenised_source);
 
 	private:
 		using enum_type = std::uint8_t;
@@ -233,20 +235,19 @@ namespace ge
 	};
 }
 
-std::expected<ge::parsed_file, std::string> ge::parse(std::string_view file)
+ge::parsed_file ge::parse(token_range tokenised_source)
 {
-	return parser{}.parse(file);
+	return parser{}.parse(tokenised_source);
 }
 
-std::expected<ge::parsed_file, std::string> ge::parser::parse(std::string_view file)
+ge::parsed_file ge::parser::parse(token_range tokenised_source)
 {
-	tokeniser tokeniser{ file };
 	parsed_file parsed_file{};
 
 	m_scope_stack.emplace(parsed_file, -1ll);
 	push_state(token_consumer::none);
 
-	for (auto it = tokeniser.begin(); it != tokeniser.end(); ++it)
+	for (auto it = tokenised_source.begin(); it != tokenised_source.end(); ++it)
 	{
 		if (it->m_flag == token::flag::comment
 			|| it->m_flag == token::flag::attribute)
@@ -265,19 +266,20 @@ std::expected<ge::parsed_file, std::string> ge::parser::parse(std::string_view f
 			}
 			catch (const std::exception& e)
 			{
-				return std::unexpected(format_error(file, it, e.what()));
+				parsed_file.m_errors.emplace_back(e.what());
+				return parsed_file;
 			}
 		}
 	}
 
 	if (m_scope_stack.size() > 1ull)
 	{
-		return std::unexpected("Found '{' with no matching '}'");
+		parsed_file.m_errors.emplace_back("Found '{' with no matching '}'");
 	}
 
 	if (m_state_stack.size() > 1ull)
 	{
-		return std::unexpected("Parser did not fully exit all of it's states before reaching the end of the file.");
+		parsed_file.m_errors.emplace_back("Parser did not fully exit all of it's states before reaching the end of the file.");
 	}
 
 	return parsed_file;

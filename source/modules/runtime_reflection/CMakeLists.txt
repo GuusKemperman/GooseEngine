@@ -1,2 +1,8 @@
 add_module("runtime_reflection" 
-	"runtime_reflection.ixx")
+	"value.ixx"
+	"builders.ixx"
+	"raw_data.ixx"
+	"handles.ixx"
+	"typetraits.ixx"
+	"runtime_reflection.ixx"
+)

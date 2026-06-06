@@ -70,10 +70,10 @@ namespace ge
 		int m_template_brackets_count{};
 	};
 
-	export class tokeniser
+	export class token_range
 	{
 	public:
-		API tokeniser(std::string_view file) : m_file(file) {}
+		API token_range(std::string_view file) : m_file(file) {}
 
 		API token_iterator begin() const
 		{

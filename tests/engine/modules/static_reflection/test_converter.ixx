@@ -12,14 +12,12 @@ namespace
 {
     std::string convert(std::string_view src)
     {
-        ge::converter conv{};
-        std::ostringstream output{};
+        ge::parsed_file parsed_file = ge::parse(ge::token_range{ src });
 
-        conv.begin_module(output, "test_module");
-        conv.convert_to_builder(output, src);
-        conv.end_module(output);
-
-        return output.str();
+        std::string output = ge::begin_generated_file("test_module");
+        output += ge::convert_source_file(parsed_file);
+        output += ge::end_generated_file();
+        return output;
     }
 }
 
