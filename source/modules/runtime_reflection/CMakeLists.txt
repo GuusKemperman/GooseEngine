@@ -1,12 +1,11 @@
 add_module("runtime_reflection"
+	"fwd.ixx"
 	"value.ixx"
 	"builders.ixx"
-	"handle_fwd.ixx"
 	"raw_data.ixx"
 	"handles.ixx"
 	"module_handle.ixx"
 	"typetraits.ixx"
-	"traits.ixx"
 	"query.ixx"
 	"runtime_reflection.ixx"
 )

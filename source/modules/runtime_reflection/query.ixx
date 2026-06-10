@@ -1,8 +1,7 @@
 export module runtime_reflection:query;
 
-import :handle_fwd;
+import :fwd;
 import :raw_data;
-import :traits;
 import :handles;
 
 namespace ge::refl

@@ -4,10 +4,9 @@ module;
 export module runtime_reflection:handles;
 
 import stl;
-import :handle_fwd;
+import :fwd;
 import :raw_data;
 import :value;
-import :traits;
 
 namespace
 {

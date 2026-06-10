@@ -4,9 +4,8 @@ module;
 export module runtime_reflection:raw_data;
 
 import :typetraits;
-import :traits;
 import :value;
-import :handle_fwd;
+import :fwd;
 import stl;
 
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
@@ -15,12 +14,6 @@ import stl;
 
 namespace ge::refl
 {
-	export struct data_data;
-	export struct func_data;
-	export struct type_data;
-	export struct module_data;
-	export struct registry_data;
-
 	struct cached_type_data_ref
 	{
 		// Will hold a type_id before the registry has completed building.

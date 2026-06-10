@@ -1,7 +1,7 @@
 export module runtime_reflection:module_handle;
 
 import stl;
-import :handle_fwd;
+import :fwd;
 import :raw_data;
 import :value;
 import :handles;
