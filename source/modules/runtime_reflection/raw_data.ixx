@@ -4,6 +4,7 @@ module;
 export module runtime_reflection:raw_data;
 
 import :typetraits;
+import :traits;
 import :value;
 import stl;
 
@@ -38,6 +39,7 @@ namespace ge::refl
 	struct data_data
 	{
 		using handle_t = data_handle;
+		using trait_base_t = data_trait;
 
 		using setter_t = void(*)(value target_object, const value& new_value);
 		using getter_t = value(*)(const value& target_object);
@@ -56,6 +58,7 @@ namespace ge::refl
 	struct type_data
 	{
 		using handle_t = type_handle;
+		using trait_base_t = type_trait;
 
 		std::reference_wrapper<const registry_data> m_reg;
 		
@@ -84,6 +87,7 @@ namespace ge::refl
 	struct func_data
 	{
 		using handle_t = func_handle;
+		using trait_base_t = func_trait;
 
 		struct vtable
 		{

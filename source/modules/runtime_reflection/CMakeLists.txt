@@ -4,5 +4,7 @@ add_module("runtime_reflection"
 	"raw_data.ixx"
 	"handles.ixx"
 	"typetraits.ixx"
+	"traits.ixx"
+	"query.ixx"
 	"runtime_reflection.ixx"
 )

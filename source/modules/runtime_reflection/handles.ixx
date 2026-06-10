@@ -6,6 +6,8 @@ export module runtime_reflection:handles;
 import stl;
 import :raw_data;
 import :value;
+import :query;
+import :traits;
 
 namespace
 {
@@ -131,6 +133,9 @@ namespace ge::refl
 
 		API std::string_view get_name() const { return m_data.get().m_name; }
 
+		template<is_data_query query>
+		query query() const { return query{ m_data.get().m_datas }; }
+
 		API auto datas() const { return view_as_public_handles<data_handle>(m_data.get().m_datas); }
 		API auto types() const { return view_as_public_handles<type_handle>(m_data.get().m_types); }
 		API auto funcs() const { return view_as_public_handles<func_handle>(m_data.get().m_funcs); }
@@ -138,10 +143,6 @@ namespace ge::refl
 	private:
 		std::reference_wrapper<const module_data> m_data;
 	};
-
-	export struct type_trait {};
-	export struct data_trait {};
-	export struct func_trait {};
 
 	export class registry
 	{

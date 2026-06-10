@@ -258,6 +258,35 @@ namespace
 	static_assert(std::is_base_of_v<data_trait, universal_trait>);
 }
 
+UNIT_TEST(building_tests, basic_query)
+{
+	ge::refl::registry reg =
+		ge::refl::builders::begin_registry()
+		.begin_module("basic")
+		.begin_type<type_1>("type_1")
+		.end_type()
+		.end_module()
+		.build();
+
+	ge::refl::module_handle mod = *reg.modules().begin();
+
+	struct temp : ge::refl::data_trait
+	{
+		
+	};
+	mod.query<ge::refl::data_query::with<universal_trait>::read<temp>>();
+
+	auto types = reg.types();
+	is_eq(types.size(), 1ull);
+	ge::refl::type_handle type_handle = *types.begin();
+
+	is_eq(type_handle.get_name(), "type_1");
+
+	ge::refl::type_id expectedInfo = ge::refl::make_type_id<type_1>();
+	ge::refl::type_id actualInfo = type_handle.get_id();
+
+	is_eq(expectedInfo, actualInfo);
+}
 
 UNIT_TEST(building_tests, basic)
 {

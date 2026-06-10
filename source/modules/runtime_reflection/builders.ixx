@@ -22,22 +22,22 @@ namespace ge::refl::builders
 	export class endable_registry_builder;
 
 	export template<undecorated T>
-		class type_builder;
+	class type_builder;
 
 	export template<undecorated T, std::derived_from<builder_base> Prev>
-		class endable_type_builder;
+	class endable_type_builder;
 
 	export template<auto FuncPtr> requires is_func<FuncPtr>
-		class func_builder;
+	class func_builder;
 
 	export template<auto FuncPtr, std::derived_from<builder_base> Prev> requires is_func<FuncPtr>
-		class endable_func_builder;
+	class endable_func_builder;
 
 	export template<auto DataPtr> requires is_data<DataPtr>
-		class data_builder;
+	class data_builder;
 
 	export template<auto DataPtr, std::derived_from<builder_base> Prev> requires is_data<DataPtr>
-		class endable_data_builder;
+	class endable_data_builder;
 
 	template<typename TraitBase>
 	class trait_part;
