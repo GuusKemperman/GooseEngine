@@ -1,15 +1,12 @@
 export module runtime_reflection:query;
 
+import :handle_fwd;
 import :raw_data;
 import :traits;
+import :handles;
 
 namespace ge::refl
 {
-	class type_handle;
-	class func_handle;
-	class data_handle;
-	class module_handle;
-
 	template<undecorated T>
 	struct with_access{	};
 
@@ -74,20 +71,20 @@ namespace ge::refl
 
 		template<typename raw_data_t>
 		query_element(const raw_data_t& raw_data) :
-		m_definitive_tuple([&raw_data]<typename handle_t, typename... reads>(std::type_identity_t<std::tuple<handle_t, reads...>>) -> std::tuple<reads...>
+		m_definitive_tuple([&raw_data]<typename handle_t, typename... reads>(std::type_identity<std::tuple<handle_t, reads...>>) -> std::tuple<handle_t, reads...>
 		{
 			static_assert(std::is_same_v<handle_t, typename raw_data_t::handle_t>);
 			std::span<const value> traits = raw_data.m_traits;
 
-			return std::make_tuple<handle_t, reads...>(
+			return std::tuple<handle_t, reads...>(
 				handle_t{ raw_data },
 				[&traits]<typename T>() -> T
 			{
 				const value& trait = *std::ranges::find_if(traits, &value_matcher<T>);
 				return *trait.as_constant<remove_decoration_t<T>>();
 			}.template operator() < reads > ()...);
-		}(std::type_identity_t<stored_definitives_tuple>{})),
-		m_maybe_tuple([&raw_data]<typename... maybes>(std::type_identity_t<std::tuple<maybes...>>) -> std::tuple<maybes...>
+		}(std::type_identity<stored_definitives_tuple>{})),
+		m_maybe_tuple([&raw_data]<typename... maybes>(std::type_identity<std::tuple<maybes...>>) -> std::tuple<maybes...>
 		{
 			std::span<const value> traits = raw_data.m_traits;
 
@@ -104,8 +101,8 @@ namespace ge::refl
 				const value& trait = *it;
 				return trait.as_constant<remove_decoration_t<T>>();
 			}.template operator() < maybes > ()...);
-		}(std::type_identity_t<maybe_tuple>{})),
-		m_checked_tuple([&raw_data]<typename... check_results>(std::type_identity_t<std::tuple<check_results...>>) -> std::tuple<check_results...>
+		}(std::type_identity<maybe_tuple>{})),
+		m_checked_tuple([&raw_data]<typename... check_results>(std::type_identity<std::tuple<check_results...>>) -> std::tuple<check_results...>
 		{
 			std::span<const value> traits = raw_data.m_traits;
 
@@ -117,7 +114,7 @@ namespace ge::refl
 				bool exists = std::ranges::contains(traits, &value_matcher<type_t>);
 				return check_result{ .m_value = exists };
 			}.template operator() < check_results > ()...);
-		}(std::type_identity_t<checked_tuple>{}))
+		}(std::type_identity<checked_tuple>{}))
 		{
 		}
 
@@ -140,7 +137,7 @@ namespace ge::refl
 	struct append_to_query_element<
 		query_element<std::tuple<stored_definitives...>, std::tuple<maybes...>, std::tuple<checked...>, definitives...>, read_access<next_trait>>
 	{
-		using next = query_element<std::tuple<definitives..., const next_trait&>, std::tuple<maybes...>, std::tuple<checked...>, definitives..., next_trait>;
+		using next = query_element<std::tuple<stored_definitives..., const next_trait&>, std::tuple<maybes...>, std::tuple<checked...>, definitives..., next_trait>;
 	};
 
 	template<undecorated next_trait, typename... definitives, typename... stored_definitives, typename... maybes, typename... checked>

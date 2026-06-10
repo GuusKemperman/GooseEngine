@@ -7,6 +7,7 @@ import stl;
 import :typetraits;
 import :raw_data;
 import :handles;
+import :module_handle;
 
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
 // TODO enums

@@ -12,7 +12,7 @@ int main( int arg_c, const char** arg_v )
 
 	std::string output = ge::begin_generated_file(module_name);
 
-	for ( const char** it = arg_v + 2; it < arg_v + arg_c; ++it )
+	for ( const char** it = arg_v + 3; it < arg_v + arg_c; ++it )
 	{
 		const std::string contents = [it]()
 			{
