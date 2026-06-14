@@ -31,6 +31,7 @@ namespace
 	}
 }
 
+REFL_FUNC();
 UNIT_TEST(asserts, is_true_all)
 {
 	test_all(&is_true, std::make_tuple(true), std::make_tuple(false));

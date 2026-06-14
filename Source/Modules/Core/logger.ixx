@@ -82,16 +82,6 @@ namespace ge
 	};
 }
 
-namespace logger
-{
-	export class module :
-		public ge::logger
-	{
-	public:
-		using logger::logger;
-	};
-}
-
 ge::logger::logger(std::ostream& a_output_stream, std::ostream& a_err_stream) :
 	m_output_stream(a_output_stream),
 	m_err_stream(a_err_stream)

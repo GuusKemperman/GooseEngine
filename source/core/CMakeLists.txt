@@ -15,7 +15,6 @@ target_sources(core_lib
         FILE_SET cxx_modules TYPE CXX_MODULES FILES 
         "modules/modules.ixx"
         "modules/modules_manager.ixx"
-        "modules/modules_module_base.ixx"
         "modules/modules_platform.ixx"
         "platform/windows/windows.ixx"
         "platform/windows/windows_modules.ixx"

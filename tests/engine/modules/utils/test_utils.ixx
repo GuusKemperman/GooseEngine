@@ -12,7 +12,17 @@ struct test_struct
 };
 
 
-	UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
+namespace smart_refs
+{
+	REFL_FUNC(unit_test{})
+	void ref_base_constructor_nullptr_throwsInvalidArgument()
+	{
+		
+	}
+}
+
+
+UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 	{
 		std::invalid_argument e = assert::expect_exception<std::invalid_argument>(
 			[]

@@ -1,13 +1,11 @@
 export module test_core;
 
 import stl;
+import runtime_reflection;
 
 namespace ge::test_core
 {
-	export class context
-	{
-	public:
-	};
+	export struct unit_test : refl::func_trait {};
 
 	export class test_exception
 		: public std::exception

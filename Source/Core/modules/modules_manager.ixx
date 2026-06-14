@@ -1,17 +1,16 @@
 export module modules:modules_manager;
 
-import :modules_base;
 import :modules_platform;
 import stl;
+
+namespace ge::refl::builders
+{
+	class registry_builder;
+}
 
 namespace ge::modules
 {
 	export class module_manager;
-
-	export struct module_generated_data
-	{
-		module_base* (*m_instance_factory)(module_manager&);
-	};
 
 	struct module_internal
 	{
@@ -25,7 +24,7 @@ namespace ge::modules
 
 			std::shared_ptr<platform_module> m_platform_module{};
 
-			module_generated_data m_module_generated_data{};
+			void(*m_generated_func)(ge::ref)
 
 			std::shared_ptr<module_base> m_module_instance{};
 		};
@@ -74,7 +73,6 @@ namespace ge::modules
 
 	private:
 		config m_config{};
-		std::shared_ptr<platform_loader> m_loader{};
 		std::list<module_internal> m_modules{};
 	};
 }

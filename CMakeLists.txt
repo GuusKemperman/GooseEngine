@@ -11,8 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-add_compile_definitions(API=__declspec\(dllexport\))
-
 add_compile_options(/Wall /WX 
 /wd5045 
 /wd4623
@@ -40,12 +38,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 function(add_module module_name)
     add_library(${module_name} SHARED)
+
+    # Include by default since it's so widely used
     target_link_libraries("${module_name}" PRIVATE "stl")
+
+    target_include_directories(${module_name} PRIVATE "${CMAKE_SOURCE_DIR}/source/core/globals")
+
+    target_compile_options(${module_name} PRIVATE 
+        "/FIdefines.h"
+    )
 
     add_dependencies(all_modules_target ${module_name})
 
     if (${ARGC} GREATER 1)
-    
         target_sources(${module_name}
         PUBLIC
             FILE_SET cxx_modules TYPE CXX_MODULES FILES "${ARGN}"
@@ -73,76 +78,6 @@ function(add_module module_name)
         add_library(${GEN_LIB} SHARED ${GEN_SRC})
         target_link_libraries(${GEN_LIB} PRIVATE "runtime_reflection")
     endif()
-    
-    # some code generation for getting the module-class factory
-    set(generated_file "${CMAKE_CURRENT_BINARY_DIR}/generated_${module_name}.cpp")
-	file(WRITE ${generated_file} 
-        "import ${module_name};\n"
-        "import stl;\n"
-        "\n"
-        "namespace ge::modules\n"
-        "{\n"
-        "   class module_base;\n"
-        "   class module_manager;\n"
-        "}\n"
-        "\n"
-        "struct module_generated_data\n"
-        "{\n"
-        "	using factory = ge::modules::module_base*(*)(ge::modules::module_manager&);\n"
-        "	factory m_instance_factory{};\n"
-        "};\n"
-        "\n"
-        "namespace ${module_name}\n"
-        "{\n"
-        "	class module;\n"
-        "}\n"
-        "\n"
-        "template<typename, typename = void>\n"
-        "constexpr bool is_type_complete_v = false;\n"
-        "\n"
-        "template<typename T>\n"
-        "constexpr bool is_type_complete_v<T, std::void_t<decltype(sizeof(T))>> = true;\n"
-        "\n"
-        "extern \"C\"\n"
-        "{\n"
-        "	__declspec(dllexport) module_generated_data generated_module_func()\n"
-        "	{\n"
-        "		using module_t = ${module_name}::module;\n"
-        "\n"
-        "		static constexpr module_generated_data ret\n"
-        "		{\n"
-        "			[]() -> module_generated_data::factory\n"
-        "			{\n"
-        "				if constexpr (is_type_complete_v<${module_name}::module>)\n"
-        "				{\n"
-        "					static_assert(std::is_constructible_v<module_t, ge::modules::module_manager&> || std::is_default_constructible_v<module_t>,\n"
-        "						\"Classes deriving from module must be constructible using a ge::modules::module_manager& or have a default constructor\");\n"
-        "\n"
-        "					return +[](ge::modules::module_manager& mngr) -> ge::modules::module_base*\n"
-        "					{\n"
-        "                       if constexpr (is_type_complete_v<module_t> && std::is_constructible_v<module_t, ge::modules::module_manager&>)\n"
-        "                       {\n"
-        "						    return new module_t(mngr);\n"
-        "                       }\n"
-        "                       else\n"
-        "                       {\n"
-        "                           return new module_t();\n" 
-        "                       }\n"
-        "					};\n"
-        "				}\n"
-        "				else\n"
-        "				{\n"
-        "					return nullptr;\n"
-        "				}\n"
-        "			}()\n"
-        "		};\n"
-        "\n"
-        "		return ret;\n"
-        "	}\n"
-        "}\n"
-	)
-
-    target_sources(${module_name} PRIVATE ${generated_file})
 endfunction()
 
 add_subdirectory("source")

@@ -1,4 +1,4 @@
-add_unit_test_module("test_static_reflection" 
+add_module("test_static_reflection" 
 	"test_static_reflection.ixx"
 	"test_tokeniser.ixx"
 	"test_parser.ixx"
