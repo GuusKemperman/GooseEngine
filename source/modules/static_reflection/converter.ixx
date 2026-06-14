@@ -16,7 +16,7 @@ namespace ge
 		return output + std::format("\tbuilder.begin_module(\"{}\")\n", module_name);
 	}
 
-	export API std::string convert_source_file(const parsed_file& file);
+	export API std::string convert_source_file(const parsed_file& file, std::optional<std::string_view> filename = std::nullopt);
 
 	export API std::string end_generated_file()
 	{
@@ -137,14 +137,19 @@ namespace
 		write_line(".end_type()");
 	}
 
-	void emit_error(const ge::source_error& error)
+	void emit_error(const ge::source_error& error, std::optional<std::string_view> filename)
 	{
+		if (filename.has_value())
+		{
+			write_line_fmt("#line {} \"{}\"", error.m_source.m_line_number, *filename);
+		}
+
 		write_line_fmt("static_assert(false, R\"({})\");", error.m_msg);
 	}
 	};
 }
 
-std::string ge::convert_source_file(const parsed_file& file)
+std::string ge::convert_source_file(const parsed_file& file, std::optional<std::string_view> filename)
 {
 	converter converter{};
 
@@ -152,7 +157,7 @@ std::string ge::convert_source_file(const parsed_file& file)
 	{
 		for (const source_error& err : file.m_errors)
 		{
-			converter.emit_error(err);
+			converter.emit_error(err, filename);
 		}
 	}
 	else

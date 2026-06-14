@@ -11,18 +11,10 @@ struct test_struct
 	int get_value() const { return value; }
 };
 
-
 namespace smart_refs
 {
 	REFL_FUNC(unit_test{})
-	void ref_base_constructor_nullptr_throwsInvalidArgument()
-	{
-		
-	}
-}
-
-
-UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
+	export API void ref_base_constructor_nullptr_throwsInvalidArgument()
 	{
 		std::invalid_argument e = assert::expect_exception<std::invalid_argument>(
 			[]
@@ -34,13 +26,15 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(std::string_view{ "Null pointer passed to reference constructor" }, std::string{ e.what() });
 	}
 
-	UNIT_TEST(smart_refs, shared_ref_partialDeduction_assignmentFromTypedInstance_deducesCorrectly)
+	REFL_FUNC(unit_test{})
+	export API void shared_ref_partialDeduction_assignmentFromTypedInstance_deducesCorrectly()
 	{
 		ge::shared_ref ref = ge::make_shared_ref<test_struct>(99); // Deduction here
 		assert::is_eq(ref->get_value(), 99);
 	}
 
-	UNIT_TEST(smart_refs, shared_ref_conversionFromUniqueRef_thenConstAssigns_maintainsCorrectValue)
+	REFL_FUNC(unit_test{})
+	export API void shared_ref_conversionFromUniqueRef_thenConstAssigns_maintainsCorrectValue()
 	{
 		ge::unique_ref<int> unique = ge::make_unique_ref<int>(123);
 		ge::shared_ref<int> shared{ std::move(unique) };
@@ -55,7 +49,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(*const3, 123);
 	}
 
-	UNIT_TEST(smart_refs, shared_ptr_conversionFromUniquePtr_thenConstAssigns_maintainsCorrectValue)
+	REFL_FUNC(unit_test{})
+	export API void shared_ptr_conversionFromUniquePtr_thenConstAssigns_maintainsCorrectValue()
 	{
 		ge::unique_ptr<int> unique = ge::make_unique_ptr<int>(456);
 		ge::shared_ptr<int> shared{ std::move(unique) };
@@ -70,7 +65,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(*const3, 456);
 	}
 
-	UNIT_TEST(smart_refs, make_shared_ref_validArgs_constructsExpectedSharedRef)
+	REFL_FUNC(unit_test{})
+	export API void make_shared_ref_validArgs_constructsExpectedSharedRef()
 	{
 		auto ref = ge::make_shared_ref<test_struct>();
 		assert::is_eq(ref->get_value(), 42);
@@ -79,7 +75,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_true(ref.use_count() == 1);
 	}
 
-	UNIT_TEST(smart_refs, make_unique_ref_validArgs_constructsExpectedUniqueRef)
+	REFL_FUNC(unit_test{})
+	export API void make_unique_ref_validArgs_constructsExpectedUniqueRef()
 	{
 		auto ref = ge::make_unique_ref<test_struct>();
 		assert::is_eq(ref->get_value(), 42);
@@ -87,7 +84,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref.get().get_value(), 42);
 	}
 
-	UNIT_TEST(smart_refs, shared_ref_copyConstruct_copiesAndSharesOwnership)
+	REFL_FUNC(unit_test{})
+	export API void shared_ref_copyConstruct_copiesAndSharesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
 		auto ref2 = ref1;
@@ -96,7 +94,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref2.use_count(), 2L);
 	}
 
-	UNIT_TEST(smart_refs, shared_ref_moveConstruct_movesOwnership)
+	REFL_FUNC(unit_test{})
+	export API void shared_ref_moveConstruct_movesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
 		long count = ref1.use_count();
@@ -104,7 +103,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref2.use_count(), count);
 	}
 
-	UNIT_TEST(smart_refs, shared_ref_copyAssign_copiesAndSharesOwnership)
+	REFL_FUNC(unit_test{})
+	export API void shared_ref_copyAssign_copiesAndSharesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
 		ge::shared_ref<test_struct> ref2 = ge::make_shared_ref<test_struct>();
@@ -113,7 +113,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref2.use_count(), 2L);
 	}
 
-	UNIT_TEST(smart_refs, shared_ref_moveAssign_movesOwnership)
+	REFL_FUNC(unit_test{})
+	export API void shared_ref_moveAssign_movesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
 		ge::shared_ref<test_struct> ref2 = ge::make_shared_ref<test_struct>();
@@ -121,7 +122,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref2->get_value(), 42);
 	}
 
-	UNIT_TEST(smart_refs, unique_ref_moveConstruct_transfersOwnership)
+	REFL_FUNC(unit_test{})
+	export API void unique_ref_moveConstruct_transfersOwnership()
 	{
 		auto ref1 = ge::make_unique_ref<test_struct>();
 		auto val = ref1->get_value();
@@ -129,7 +131,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref2->get_value(), val);
 	}
 
-	UNIT_TEST(smart_refs, unique_ref_moveAssign_transfersOwnership)
+	REFL_FUNC(unit_test{})
+	export API void unique_ref_moveAssign_transfersOwnership()
 	{
 		auto ref1 = ge::make_unique_ref<test_struct>();
 		ge::unique_ref<test_struct> ref2 = ge::make_unique_ref<test_struct>();
@@ -137,7 +140,8 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_eq(ref2->get_value(), 42);
 	}
 
-	UNIT_TEST(smart_refs, ref_base_getPtr_rvalueAndLvalue_yieldsCorrectPointer)
+	REFL_FUNC(unit_test{})
+	export API void ref_base_getPtr_rvalueAndLvalue_yieldsCorrectPointer()
 	{
 		auto ref = ge::make_shared_ref<test_struct>();
 		const auto& ptr = ref.get_ptr();
@@ -147,19 +151,22 @@ UNIT_TEST(smart_refs, ref_base_constructor_nullptr_throwsInvalidArgument)
 		assert::is_not_null(moved_ptr.get());
 	}
 
-	UNIT_TEST(smart_refs, ref_base_operatorConversionToElementRef_returnsReference)
+	REFL_FUNC(unit_test{})
+	export API void ref_base_operatorConversionToElementRef_returnsReference()
 	{
 		auto ref = ge::make_shared_ref<test_struct>();
 		test_struct& s = ref;
 		assert::is_eq(s.get_value(), 42);
 	}
 
-	UNIT_TEST(smart_refs, ref_base_operatorConversionToSharedRef_compatibleTypes_conversionSucceeds)
+	REFL_FUNC(unit_test{})
+	export API void ref_base_operatorConversionToSharedRef_compatibleTypes_conversionSucceeds()
 	{
 		auto base = ge::make_shared_ref<test_struct>();
 		ge::shared_ref<const test_struct> converted = base;
 		assert::is_eq(converted->get_value(), 42);
 	}
+}
 
 
 // Concepts

@@ -5,6 +5,7 @@ module;
 
 export module windows:modules;
 
+import stl;
 import modules;
 
 namespace ge::windows::modules
@@ -23,7 +24,7 @@ namespace ge::windows::modules
 
 		API ~module() override;
 
-		API auto get_exported_func(std::string_view func_name) -> void(&)() override;
+		API auto get_exported_func(std::string_view func_name) -> void(*)() override;
 
 	private:
 		HMODULE m_module{};
@@ -55,18 +56,9 @@ ge::windows::modules::module::~module()
 	FreeLibrary(m_module);
 }
 
-auto ge::windows::modules::module::get_exported_func(std::string_view func_name) -> void(&)()
+auto ge::windows::modules::module::get_exported_func(std::string_view func_name) -> void(*)()
 {
-	auto address = reinterpret_cast<void(*)()>(GetProcAddress(m_module, func_name.data()));
-
-	if (address == nullptr)
-	{
-		throw std::runtime_error{ std::format("Could not find function {} address - {}",
-			func_name,
-			GetLastError()) };
-	}
-
-	return *address;
+	return reinterpret_cast<void(*)()>(GetProcAddress(m_module, func_name.data()));
 }
 
 std::filesystem::path ge::windows::modules::loader::get_platform_shared_lib_file_extension() const

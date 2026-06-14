@@ -1,6 +1,7 @@
 export module static_reflection:tokeniser;
 
 import stl;
+import :source_error;
 
 namespace ge
 {
@@ -61,10 +62,16 @@ namespace ge
 
 		API size_t num_characters_parsed() const { return m_num_characters_parsed; }
 
+		API source_location get_source() const
+		{
+			return { .m_line_number = m_line_number };
+		}
+
 	private:
 		std::string_view m_file{};
 		size_t m_num_characters_parsed{};
 		token m_token{};
+		std::uint32_t m_line_number{};
 		int m_parentheses_count{};
 		int m_curly_brackets_count{};
 		int m_template_brackets_count{};
@@ -117,6 +124,13 @@ ge::token_iterator& ge::token_iterator::operator++()
 	auto discard_char =
 		[&](size_t amount = 1)
 		{
+			// This is the only place where m_num_characters_parsed is incremented, 
+			// so we also update the line number count here
+			for (size_t i = 0; i < amount; i++)
+			{
+				m_line_number += peek(i, '\n');
+			}
+
 			m_num_characters_parsed += amount;
 		};
 

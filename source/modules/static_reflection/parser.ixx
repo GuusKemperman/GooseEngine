@@ -199,6 +199,7 @@ namespace ge
 		{
 			std::reference_wrapper<parsed_scope> m_parsed_scope;
 			std::int64_t m_curly_brackets_count_before_scope{};
+			source_location m_scope_start{};
 			parsed_access_specifier m_current_access_level{};
 		};
 
@@ -212,7 +213,8 @@ namespace ge
 
 		void store(store_event event);
 
-		[[noreturn]] static void report_failure(std::string_view reason);
+		[[noreturn]] static void report_failure(std::string_view reason, source_location source);
+		[[noreturn]] void report_failure(std::string_view reason) const { report_failure(reason, m_current_source); }
 		static std::string format_error(std::string_view file, token_iterator error_location, std::string_view reason);
 
 		static std::optional<parsed_access_specifier> get_access_specifier_from_string(std::string_view keyword);
@@ -221,6 +223,7 @@ namespace ge
 
 		std::stack<parse_state> m_state_stack{};
 		std::stack<scope_stack_entry> m_scope_stack{};
+		source_location m_current_source{};
 
 		struct
 		{
@@ -257,6 +260,8 @@ ge::parsed_file ge::parser::parse(token_range tokenised_source)
 
 		while (true)
 		{
+			m_current_source = it.get_source();
+
 			try
 			{
 				if (bool was_token_consumed = receive_token(m_state_stack.top().m_token_consumer, it))
@@ -264,22 +269,28 @@ ge::parsed_file ge::parser::parse(token_range tokenised_source)
 					break;
 				}
 			}
+			catch (const source_error& source_error)
+			{
+				parsed_file.m_errors.push_back(source_error);
+				return parsed_file;
+			}
 			catch (const std::exception& e)
 			{
-				parsed_file.m_errors.emplace_back(e.what());
+				parsed_file.m_errors.emplace_back( e.what(), m_current_source);
 				return parsed_file;
 			}
 		}
 	}
 
-	if (m_scope_stack.size() > 1ull)
+	while (m_scope_stack.size() > 1ull)
 	{
-		parsed_file.m_errors.emplace_back("Found '{' with no matching '}'");
+		parsed_file.m_errors.emplace_back("Failed to exit parsed scope", m_scope_stack.top().m_scope_start);
+		m_scope_stack.pop();
 	}
 
 	if (m_state_stack.size() > 1ull)
 	{
-		parsed_file.m_errors.emplace_back("Parser did not fully exit all of it's states before reaching the end of the file.");
+		parsed_file.m_errors.emplace_back("Parser did not fully exit all of it's states before reaching the end of the file.", m_current_source);
 	}
 
 	return parsed_file;
@@ -791,7 +802,7 @@ void ge::parser::store(store_event event)
 
 		new_namespace.m_name = std::move(m_most_recently_parsed.m_identifier);
 
-		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
+		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1, m_current_source);
 		break;
 	}
 	case store_event::store_reflected_type:
@@ -808,7 +819,7 @@ void ge::parser::store(store_event event)
 		new_type.m_traits = std::move(m_most_recently_parsed.m_traits);
 		new_type.m_key = m_most_recently_parsed.m_type_key;
 
-		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
+		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1, m_current_source );
 
 		switch (new_type.m_key)
 		{
@@ -927,9 +938,9 @@ void ge::parser::store(store_event event)
 	m_most_recently_parsed = {};
 }
 
-void ge::parser::report_failure(std::string_view reason)
+void ge::parser::report_failure(std::string_view reason, source_location source)
 {
-	throw std::exception{ reason.data() };
+	throw source_error{ reason.data(), source };
 }
 
 std::string ge::parser::format_error(std::string_view file, token_iterator error_location, std::string_view reason)

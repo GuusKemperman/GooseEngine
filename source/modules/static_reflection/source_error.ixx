@@ -4,15 +4,20 @@ import stl;
 
 namespace ge
 {
+	export struct source_location
+	{
+		std::uint32_t m_line_number{};
+	};
+
 	export struct source_error
 	{
-		source_error(std::string msg) :
-			m_msg(std::move(msg))
+		source_error(std::string msg, source_location source) :
+			m_msg(std::move(msg)),
+			m_source(source)
 		{
 		}
 
 		std::string m_msg{};
-
-		// TODO add file / line info.
+		source_location m_source{};
 	};
 }

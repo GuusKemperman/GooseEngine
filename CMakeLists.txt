@@ -28,6 +28,8 @@ add_compile_options(/Wall /WX
 /wd4355
 )
 
+add_compile_options("/FI${CMAKE_SOURCE_DIR}/source/core/globals/defines.h")
+
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 add_custom_target(all_modules_target)
@@ -41,12 +43,6 @@ function(add_module module_name)
 
     # Include by default since it's so widely used
     target_link_libraries("${module_name}" PRIVATE "stl")
-
-    target_include_directories(${module_name} PRIVATE "${CMAKE_SOURCE_DIR}/source/core/globals")
-
-    target_compile_options(${module_name} PRIVATE 
-        "/FIdefines.h"
-    )
 
     add_dependencies(all_modules_target ${module_name})
 

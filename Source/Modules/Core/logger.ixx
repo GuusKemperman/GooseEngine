@@ -31,8 +31,7 @@ namespace ge
 	export template<typename... types_t>
 	using format_with_location = basic_format_with_location<std::type_identity_t<types_t>...>;
 
-	export class logger :
-		public modules::module<logger>
+	export class logger
 	{
 	public:
 		struct entry

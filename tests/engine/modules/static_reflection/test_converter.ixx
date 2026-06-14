@@ -10,22 +10,25 @@ using namespace ge::test_core::assert;
 
 namespace
 {
-    std::string convert(std::string_view src)
-    {
-        ge::parsed_file parsed_file = ge::parse(ge::token_range{ src });
+	std::string convert(std::string_view src)
+	{
+		ge::parsed_file parsed_file = ge::parse(ge::token_range{ src });
 
-        std::string output = ge::begin_generated_file("test_module");
-        output += ge::convert_source_file(parsed_file);
-        output += ge::end_generated_file();
-        return output;
-    }
+		std::string output = ge::begin_generated_file("test_module");
+		output += ge::convert_source_file(parsed_file);
+		output += ge::end_generated_file();
+		return output;
+	}
 }
 
 
-UNIT_TEST(converter, simple_type)
+namespace converter
 {
-    std::string_view src =
-        R"(
+	REFL_FUNC(unit_test{})
+	export API void simple_type()
+	{
+		std::string_view src =
+			R"(
 REFL_TYPE()
 class MyType
 {
@@ -42,5 +45,6 @@ REFL_FUNC()
 int my_global_func(int, float);
 
 )";
-    std::cout << convert(src);
+		std::cout << convert(src);
+	}
 }

@@ -23,7 +23,7 @@ int main( int arg_c, const char** arg_v )
 
 		ge::token_range tokenized{ contents };
 		ge::parsed_file parsed = ge::parse(tokenized);
-		output += ge::convert_source_file(parsed);
+		output += ge::convert_source_file(parsed, *it);
 	}
 
 	output += ge::end_generated_file();

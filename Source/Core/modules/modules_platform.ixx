@@ -9,7 +9,7 @@ namespace ge::modules
 	public:
 		API virtual ~platform_module() = default;
 
-		API virtual auto get_exported_func(std::string_view func_name) -> void(&)() = 0;
+		API virtual auto get_exported_func(std::string_view func_name) -> void(*)() = 0;
 	};
 
 	export struct shared_lib_meta_data
