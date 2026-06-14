@@ -12,12 +12,9 @@ namespace
 {
 	std::string convert(std::string_view src)
 	{
-		ge::parsed_file parsed_file = ge::parse(ge::token_range{ src });
-
-		std::string output = ge::begin_generated_file("test_module");
-		output += ge::convert_source_file(parsed_file);
-		output += ge::end_generated_file();
-		return output;
+		std::array partitions{ ge::converter::module_partition{.m_file_name = "test_file.ixx", .m_parse_result = ge::parse(ge::token_range{ src }) } };
+		ge::converter::module module{ .m_name ="test_module", .m_partitions = partitions };
+		return ge::converter::convert_module(module);
 	}
 }
 

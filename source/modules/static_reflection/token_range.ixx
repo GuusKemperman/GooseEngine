@@ -71,7 +71,7 @@ namespace ge
 		std::string_view m_file{};
 		size_t m_num_characters_parsed{};
 		token m_token{};
-		std::uint32_t m_line_number{};
+		std::uint32_t m_line_number = 1u;
 		int m_parentheses_count{};
 		int m_curly_brackets_count{};
 		int m_template_brackets_count{};

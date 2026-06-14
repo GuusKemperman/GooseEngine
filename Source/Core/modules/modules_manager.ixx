@@ -63,6 +63,14 @@ namespace ge::modules
 
 		API module_handle get_handle(std::string_view module_name) const;
 
+		API auto get_modules()
+		{
+			return m_modules | std::ranges::views::transform([](const module_internal& module_internal)
+			{
+					return module_handle{ module_internal };
+			});
+		}
+
 	private:
 		config m_config{};
 		std::shared_ptr<platform_loader> m_loader{};

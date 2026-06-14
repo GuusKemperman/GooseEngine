@@ -215,3 +215,4 @@ namespace logger
 		is_true(sev >= ge::severity::verbose && sev <= ge::severity::error);
 	}
 }
+

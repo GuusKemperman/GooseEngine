@@ -73,6 +73,7 @@ function(add_module module_name)
 
         add_library(${GEN_LIB} SHARED ${GEN_SRC})
         target_link_libraries(${GEN_LIB} PRIVATE "runtime_reflection")
+        target_link_libraries(${GEN_LIB} PRIVATE ${module_name})
     endif()
 endfunction()
 

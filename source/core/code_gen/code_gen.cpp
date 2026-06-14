@@ -10,7 +10,10 @@ int main( int arg_c, const char** arg_v )
 	const std::string_view module_name = arg_v[1];
 	const std::string_view output_file = arg_v[2];
 
-	std::string output = ge::begin_generated_file(module_name);
+	ge::converter::module module_to_convert{ .m_name = module_name };
+
+	std::vector<ge::converter::module_partition> partitions{};
+	partitions.reserve(static_cast<size_t>(arg_c) - 3ull);
 
 	for ( const char** it = arg_v + 3; it < arg_v + arg_c; ++it )
 	{
@@ -22,14 +25,13 @@ int main( int arg_c, const char** arg_v )
 			}();
 
 		ge::token_range tokenized{ contents };
-		ge::parsed_file parsed = ge::parse(tokenized);
-		output += ge::convert_source_file(parsed, *it);
+		partitions.push_back({ .m_file_name = *it, .m_parse_result = ge::parse(tokenized) });
 	}
 
-	output += ge::end_generated_file();
+	module_to_convert.m_partitions = partitions;
 
 	std::ofstream output_stream{ output_file.data() };
 	assert(output_stream.is_open());
-	output_stream << output;
+	output_stream << ge::converter::convert_module(module_to_convert);
 	return 0;
 }

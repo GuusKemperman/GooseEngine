@@ -99,6 +99,9 @@ namespace ge
 
 		std::list<parsed_scope> m_namespaces{};
 		std::list<parsed_type> m_types{};
+
+		source_location m_scope_start{};
+		source_location m_scope_end{};
 	};
 
 	export struct parsed_base
@@ -120,7 +123,7 @@ namespace ge
 		std::vector<source_error> m_errors{};
 	};
 
-	export API parsed_file parse( token_range tokenised_source);
+	export API parsed_file parse( token_range tokenised_source );
 
 	using namespace std::string_view_literals;
 
@@ -172,6 +175,7 @@ namespace ge
 
 			skip_to_opening_parentheses,
 			skip_to_opening_curly_bracket,
+			skip_to_semi_colon,
 		};
 
 		enum class store_event : enum_type
@@ -199,7 +203,6 @@ namespace ge
 		{
 			std::reference_wrapper<parsed_scope> m_parsed_scope;
 			std::int64_t m_curly_brackets_count_before_scope{};
-			source_location m_scope_start{};
 			parsed_access_specifier m_current_access_level{};
 		};
 
@@ -215,6 +218,7 @@ namespace ge
 
 		[[noreturn]] static void report_failure(std::string_view reason, source_location source);
 		[[noreturn]] void report_failure(std::string_view reason) const { report_failure(reason, m_current_source); }
+
 		static std::string format_error(std::string_view file, token_iterator error_location, std::string_view reason);
 
 		static std::optional<parsed_access_specifier> get_access_specifier_from_string(std::string_view keyword);
@@ -246,6 +250,8 @@ ge::parsed_file ge::parse(token_range tokenised_source)
 ge::parsed_file ge::parser::parse(token_range tokenised_source)
 {
 	parsed_file parsed_file{};
+
+	parsed_file.m_name = "<File scope>";
 
 	m_scope_stack.emplace(parsed_file, -1ll);
 	push_state(token_consumer::none);
@@ -282,15 +288,76 @@ ge::parsed_file ge::parser::parse(token_range tokenised_source)
 		}
 	}
 
-	while (m_scope_stack.size() > 1ull)
+	if (m_scope_stack.size() > 1ull)
 	{
-		parsed_file.m_errors.emplace_back("Failed to exit parsed scope", m_scope_stack.top().m_scope_start);
-		m_scope_stack.pop();
+		while (m_scope_stack.size() > 1ull)
+		{
+			parsed_file.m_errors.emplace_back("Failed to exit parsed scope", m_scope_stack.top().m_parsed_scope.get().m_scope_start);
+			m_scope_stack.pop();
+		}
+
+		const auto emit_error = [&](const auto& self, const parsed_scope& scope)-> void
+			{
+				parsed_file.m_errors.emplace_back(std::format("See \'{}\', began at '{}', ended at '{}'", 
+					scope.m_name, 
+					scope.m_scope_start.m_line_number,
+					scope.m_scope_end.m_line_number),
+					m_current_source);
+
+				for (const parsed_scope& child : scope.m_namespaces)
+				{
+					self(self, child);
+				}
+
+				for (const parsed_scope& child : scope.m_types)
+				{
+					self(self, child);
+				}
+			};
+
+		emit_error(emit_error, parsed_file);
 	}
 
 	if (m_state_stack.size() > 1ull)
 	{
 		parsed_file.m_errors.emplace_back("Parser did not fully exit all of it's states before reaching the end of the file.", m_current_source);
+
+		while (m_state_stack.size() > 1ull)
+		{
+			if (m_state_stack.top().m_value == s_next_item_is_store_event)
+			{
+				m_state_stack.pop();
+				m_state_stack.pop();
+				continue;
+			}
+
+			std::string_view name = [this]()-> std::string_view
+				{
+					switch (m_state_stack.top().m_token_consumer)
+					{
+					case token_consumer::none: return "token_consumer::none";
+					case token_consumer::parse_traits: return "token_consumer::parse_traits";
+					case token_consumer::parse_keywords: return "token_consumer::parse_keywords";
+					case token_consumer::parse_identifier: return "token_consumer::parse_identifier";
+					case token_consumer::parse_type_specifier_pre_identifier: return "token_consumer::parse_type_specifier_pre_identifier";
+					case token_consumer::parse_type_specifier_post_identifier: return "token_consumer::parse_type_specifier_post_identifier";
+					case token_consumer::parse_trailing_qualifiers: return "token_consumer::parse_trailing_qualifiers";
+					case token_consumer::parse_access_specifier: return "token_consumer::parse_access_specifier";
+					case token_consumer::parse_type_key: return "token_consumer::parse_type_key";
+					case token_consumer::parse_enum_key: return "token_consumer::parse_enum_key";
+					case token_consumer::check_for_next_base: return "token_consumer::check_for_next_base";
+					case token_consumer::check_for_next_parameter: return "token_consumer::check_for_next_parameter";
+					case token_consumer::check_for_next_enum_entry: return "token_consumer::check_for_next_enum_entry";
+					case token_consumer::skip_to_opening_parentheses: return "token_consumer::skip_to_opening_parentheses";
+					case token_consumer::skip_to_opening_curly_bracket: return "token_consumer::skip_to_opening_curly_bracket";
+					case token_consumer::skip_to_semi_colon: return "token_consumer::skip_to_semi_colon";
+					default: return "<<unknown>>";
+					};
+				}();
+
+			parsed_file.m_errors.emplace_back(std::format("Failed to exit state {}", name), m_current_source);
+			m_state_stack.pop();
+		}
 	}
 
 	return parsed_file;
@@ -445,6 +512,12 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 			return true;
 		}
 
+		if (it->m_str == "using"sv)
+		{
+			push_state(token_consumer::skip_to_semi_colon);
+			return true;
+		}
+
 		if (it->m_str == "namespace"sv)
 		{
 			push_state(reflect_bundle::reflect_namespace);
@@ -469,6 +542,7 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 				report_failure("Unexpected token: '}'. No matching '{'"sv);
 			}
 
+			m_scope_stack.top().m_parsed_scope.get().m_scope_end = m_current_source;
 			m_scope_stack.pop();
 			return true;
 		}
@@ -786,6 +860,14 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		}
 		return true;
 	}
+	case token_consumer::skip_to_semi_colon:
+	{
+		if (it->m_str == ";"sv)
+		{
+			complete_state();
+		}
+		return true;
+	}
 	default:
 		std::unreachable();
 	}
@@ -801,8 +883,9 @@ void ge::parser::store(store_event event)
 		parsed_scope& new_namespace = parent.m_namespaces.emplace_back();
 
 		new_namespace.m_name = std::move(m_most_recently_parsed.m_identifier);
+		new_namespace.m_scope_start = m_current_source;
 
-		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1, m_current_source);
+		m_scope_stack.emplace(new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1);
 		break;
 	}
 	case store_event::store_reflected_type:
@@ -818,8 +901,9 @@ void ge::parser::store(store_event event)
 		new_type.m_name = std::move(m_most_recently_parsed.m_identifier);
 		new_type.m_traits = std::move(m_most_recently_parsed.m_traits);
 		new_type.m_key = m_most_recently_parsed.m_type_key;
+		new_type.m_scope_start = m_current_source;
 
-		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1, m_current_source );
+		scope_stack_entry& new_entry = m_scope_stack.emplace(new_type, m_scope_stack.top().m_curly_brackets_count_before_scope + 1 );
 
 		switch (new_type.m_key)
 		{
