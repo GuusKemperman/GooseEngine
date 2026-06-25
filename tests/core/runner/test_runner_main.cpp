@@ -6,74 +6,50 @@ import modules;
 
 import windows;
 import test_core;
+import runtime_reflection;
 
-struct test
+int main()
 {
-    int foo{ };
-};
+	for (auto entry : std::filesystem::directory_iterator{ "../" })
+	{
+		std::cout << entry.path().string() << std::endl;
+	}
 
-int test::* pr = &test::foo;
-static_assert(std::is_same_v<int test::*, decltype(&test::foo)>);
-
-void tester()
-{
-    test instance{};
-    instance.*pr = 10;
-}
-
-int main(int arg_c, char** arg_v)
-{
-    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-
-    // 2) (Optional) Suppress the “abort() has been called” dialog as well
-    _set_abort_behavior(0, _WRITE_ABORT_MSG);    _set_error_mode(_OUT_TO_STDERR);
-
-    if (arg_c < 4)
-    {
-        std::println(std::cerr, "Provided only {} arguments", arg_c);
-        return -1;
-    }
-
-    [[maybe_unused]] const std::string_view module_name = arg_v[1];
-    [[maybe_unused]] const std::string_view category_name = arg_v[2];
-    [[maybe_unused]] const std::string_view test_name = arg_v[3];
 
     ge::modules::module_manager::config config{ { "bin" } };
     ge::modules::module_manager manager{ std::make_shared<ge::windows::modules::loader>(), config };
 
 	manager.load_all();
 
-	/*for (ge::modules::module_handle module : manager.get_modules())
+	std::unique_ptr<ge::refl::registry_data> reg = [&manager]
+		{
+			ge::refl::builders::endable_registry_builder reg_builder = ge::refl::builders::begin_registry();
+
+			for (ge::modules::module_handle module : manager.get_modules())
+			{
+				using build_func_t = void(*)(ge::refl::builders::registry_builder&);
+				build_func_t build_func = reinterpret_cast<build_func_t>(module.get_function_address("build_runtime_reflection"));
+
+				if (build_func == nullptr)
+				{
+					continue;
+				}
+
+				build_func(reg_builder);
+			}
+
+			return std::move(reg_builder).build();
+		}();
+
+	ge::refl::func_query::with<ge::test_core::unit_test_trait > unit_tests{ reg->m_funcs };
+
+	for (const ge::refl::func_data& func : unit_tests)
 	{
-		module.get_function_address()
+		ge::refl::invoke(func);
 	}
+	
 
-	std::string get_unit_test_name = std::format("get_unit_test_{}_{}", category_name, test_name);
 
 
-	getter_t unit_test_getter = reinterpret_cast<getter_t>(module_to_test.get_function_address(get_unit_test_name));
-	test_t unit_test = unit_test_getter();
-
-	ge::test_core::context context{  };
-
-	try
-	{
-		unit_test(context);
-		return 0;
-	}
-	catch (const std::exception& e)
-	{
-		std::println(std::cerr, "Test failed - {}", e.what());
-		return 1;
-	}
-	catch (...)
-	{
-		std::println(std::cerr, "Unknown exception");
-		return 1;
-	}*/
 }
-
-
-
 

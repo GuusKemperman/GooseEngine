@@ -164,6 +164,7 @@ namespace ge
 			parse_identifier,
 			parse_type_specifier_pre_identifier,
 			parse_type_specifier_post_identifier,
+			parse_type_specifier_template_arg,
 			parse_trailing_qualifiers,
 			parse_access_specifier,
 			parse_type_key,
@@ -341,6 +342,7 @@ ge::parsed_file ge::parser::parse(token_range tokenised_source)
 					case token_consumer::parse_identifier: return "token_consumer::parse_identifier";
 					case token_consumer::parse_type_specifier_pre_identifier: return "token_consumer::parse_type_specifier_pre_identifier";
 					case token_consumer::parse_type_specifier_post_identifier: return "token_consumer::parse_type_specifier_post_identifier";
+					case token_consumer::parse_type_specifier_template_arg: return "token_consumer::parse_type_specifier_template_arg";
 					case token_consumer::parse_trailing_qualifiers: return "token_consumer::parse_trailing_qualifiers";
 					case token_consumer::parse_access_specifier: return "token_consumer::parse_access_specifier";
 					case token_consumer::parse_type_key: return "token_consumer::parse_type_key";
@@ -656,9 +658,13 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	}
 	case token_consumer::parse_type_specifier_post_identifier:
 	{
-		if (it.template_bracket_count() == 0
-			&& it->m_str != ">"sv
-			&& !is_type_qualifier_ish(it->m_str)
+		if (it->m_str == "<"sv)
+		{
+			push_state(token_consumer::parse_type_specifier_template_arg);
+			return false;
+		}
+
+		if (!is_type_qualifier_ish(it->m_str)
 			&& it->m_flag != token::flag::white_space
 			&& it->m_str != "::"sv
 			&& (it->m_flag != token::flag::valid_identifier || !m_most_recently_parsed.m_type_specifier.ends_with("::"sv)))
@@ -669,6 +675,17 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		}
 
 		m_most_recently_parsed.m_type_specifier += it->m_str;
+		return true;
+	}
+	case token_consumer::parse_type_specifier_template_arg:
+	{
+		m_most_recently_parsed.m_type_specifier += it->m_str;
+
+		if (it->m_str == ">"sv)
+		{
+			complete_state();
+		}
+
 		return true;
 	}
 	case token_consumer::parse_trailing_qualifiers:
@@ -760,11 +777,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	}
 	case token_consumer::check_for_next_base:
 	{
-		if (it.template_bracket_count() != 0)
-		{
-			return true;
-		}
-
 		if (it->m_str == "{"sv)
 		{
 			complete_state();
@@ -783,7 +795,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	case token_consumer::check_for_next_parameter:
 	{
 		if (it.parentheses_count() == 0
-			&& it.template_bracket_count() == 0
 			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
 			&& it->m_str == ")"sv)
 		{
@@ -802,7 +813,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		}
 
 		if (it.parentheses_count() == 1
-			&& it.template_bracket_count() == 0
 			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
 			&& it->m_str == ","sv)
 		{
@@ -815,7 +825,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 	case token_consumer::check_for_next_enum_entry:
 	{
 		if (it.parentheses_count() == 0
-			&& it.template_bracket_count() == 0
 			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
 			&& it->m_str == "}"sv)
 		{
@@ -834,7 +843,6 @@ bool ge::parser::receive_token(token_consumer consumer, token_iterator it)
 		}
 
 		if (it.parentheses_count() == 0
-			&& it.template_bracket_count() == 0
 			&& it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 2
 			&& it->m_str == ","sv)
 		{

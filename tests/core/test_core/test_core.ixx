@@ -5,7 +5,7 @@ import runtime_reflection;
 
 namespace ge::test_core
 {
-	export struct unit_test : refl::func_trait {};
+	export struct unit_test_trait : refl::func_trait {};
 
 	export class test_exception
 		: public std::exception

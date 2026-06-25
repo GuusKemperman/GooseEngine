@@ -4,7 +4,8 @@ module;
 export module runtime_reflection:value;
 
 import stl;
-import :typetraits;
+import :type_id;
+import :details;
 
 namespace ge::refl
 {

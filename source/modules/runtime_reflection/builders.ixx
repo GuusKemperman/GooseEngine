@@ -4,10 +4,8 @@ module;
 export module runtime_reflection:builders;
 
 import stl;
-import :typetraits;
-import :raw_data;
-import :handles;
-import :module_handle;
+import :details;
+import :data;
 
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
 // TODO enums
@@ -168,7 +166,7 @@ namespace ge::refl::builders
 	public:
 		API module_builder(const builder_base& prev, std::string_view name) :
 			builder_base(prev),
-			m_target(get_registry().m_modules.push_back(module_data{ .m_reg = get_registry(), .m_name = name }))
+			m_target(get_registry().m_modules.push_back(module_data{ .m_name = name }))
 		{
 			registry_data& reg = get_registry();
 			m_target.m_name = name;
@@ -238,7 +236,7 @@ namespace ge::refl::builders
 	export class endable_registry_builder : public registry_builder
 	{
 	public:
-		API registry build()
+		API std::unique_ptr<registry_data> build() &&
 		{
 			for (data_data& data : m_reg->m_datas)
 			{
@@ -260,7 +258,7 @@ namespace ge::refl::builders
 				trait.make_constant();
 			}
 
-			return registry{ std::move(m_reg) };
+			return std::move(m_reg);
 		}
 	};
 
@@ -285,7 +283,7 @@ namespace ge::refl::builders
 						{
 							return existing.m_id == make_type_id<T>();
 						}));
-					return reg.m_types.push_back(type_data{ .m_reg = reg, .m_name = name,  .m_id = make_type_id<T>() });
+					return reg.m_types.push_back(type_data{ .m_name = name,  .m_id = make_type_id<T>() });
 				}()
 					)
 		{
@@ -341,7 +339,6 @@ namespace ge::refl::builders
 		data_builder(const type_builder<outer_t>& prev, std::string_view name) :
 			builder_base(prev),
 			m_target(get_registry().m_datas.push_back(data_data{
-				.m_reg = get_registry(),
 				.m_type = cached_type_data_ref{ { data_type_id } },
 				.m_outer_type = prev.m_target,
 				.m_set = +[](value target_object, const value& new_value)
@@ -467,8 +464,7 @@ namespace ge::refl::builders
 		func_builder(const builder_base& prev, std::string_view name) :
 			builder_base(prev),
 			m_target(get_registry().m_funcs.push_back(func_data{
-				.m_name = name,
-				.m_reg = get_registry()
+				.m_name = name
 				}
 			))
 		{

@@ -1,8 +1,6 @@
 export module runtime_reflection:query;
 
-import :fwd;
-import :raw_data;
-import :handles;
+import :data;
 
 namespace ge::refl
 {
@@ -70,13 +68,12 @@ namespace ge::refl
 
 		template<typename raw_data_t>
 		query_element(const raw_data_t& raw_data) :
-		m_definitive_tuple([&raw_data]<typename handle_t, typename... reads>(std::type_identity<std::tuple<handle_t, reads...>>) -> std::tuple<handle_t, reads...>
+		m_definitive_tuple([&raw_data]<typename... reads>(std::type_identity<std::tuple<const raw_data_t&, reads...>>) -> std::tuple<const raw_data_t&, reads...>
 		{
-			static_assert(std::is_same_v<handle_t, typename raw_data_t::handle_t>);
 			std::span<const value> traits = raw_data.m_traits;
 
-			return std::tuple<handle_t, reads...>(
-				handle_t{ raw_data },
+			return std::tuple<const raw_data_t&, reads...>(
+				raw_data,
 				[&traits]<typename T>() -> T
 			{
 				const value& trait = *std::ranges::find_if(traits, &value_matcher<T>);
@@ -153,70 +150,69 @@ namespace ge::refl
 		using next = query_element<std::tuple<definitives..., const next_trait&>, std::tuple<maybes..., next_trait>, std::tuple<checked..., check_result<next_trait>>, definitives...>;
 	};
 
-	template<typename raw_data_t, typename element_t = query_element<std::tuple<typename raw_data_t::handle_t>>>
-	class query
-	{
-	public:
-		query(std::span<const raw_data_t> source_range) : m_source_range(adapt_range(source_range)) {}
-
-		auto begin(this auto& self) { return self.m_source_range.begin(); }
-		auto end(this auto& self) { return self.m_source_range.end(); }
-
-		template<std::derived_from<typename raw_data_t::trait_base_t> T>
-		using with = query<raw_data_t, typename append_to_query_element<element_t, with_access<T>>::next>;
-	
-		template<std::derived_from<typename raw_data_t::trait_base_t> T>
-		using read = query<raw_data_t, typename append_to_query_element<element_t, read_access<T>>::next>;
-
-		template<std::derived_from<typename raw_data_t::trait_base_t>T>
-		using check = query < raw_data_t, typename append_to_query_element<element_t, check_access<T>>::next>;
-
-		template<std::derived_from<typename raw_data_t::trait_base_t> T>
-		using read_if_exists = query < raw_data_t, typename append_to_query_element<element_t, read_if_exists_access<T>>::next>;
-
-	private:
-		static auto adapt_range(std::span<const raw_data_t> source_range)
-		{
-			return std::views::filter(source_range, 
-				[](const raw_data_t& raw_data) -> bool
-				{
-					return element_t::matches(raw_data);
-				})
-				| std::views::transform([](const raw_data_t& raw_data) -> element_t
-				{
-						return element_t{ raw_data };
-				});
-		}
-
-		decltype(adapt_range({})) m_source_range;
-	};
+	export template<typename element_data_type , typename element_t = query_element<std::tuple<const element_data_type&>> >
+	class query;
 
 	export using type_query = query<type_data>;
 	export using data_query = query<data_data>;
 	export using func_query = query<func_data>;
 
 	template<typename T>
-	struct query_raw_data_type;
+	struct query_handle_type;
 
-	template<typename raw_data_t, typename element_t>
-	struct query_raw_data_type<query<raw_data_t, element_t>>
+	template<typename handle_t, typename element_t>
+	struct query_handle_type<query<handle_t, element_t>>
 	{
-		using type = raw_data_t;
+		using type = handle_t;
 	};
 
 	export template<typename T>
-	concept is_type_query = std::is_same_v<typename query_raw_data_type<T>::type, type_data>;
+		concept is_type_query = std::is_same_v<typename query_handle_type<T>::type, type_data>;
 
 	export template<typename T>
-	concept is_data_query = std::is_same_v<typename query_raw_data_type<T>::type, data_data>;
+		concept is_data_query = std::is_same_v<typename query_handle_type<T>::type, data_data>;
 
 	export template<typename T>
-	concept is_func_query = std::is_same_v<typename query_raw_data_type<T>::type, func_data>;
+		concept is_func_query = std::is_same_v<typename query_handle_type<T>::type, func_data>;
 
 	static_assert(is_type_query<type_query>);
 	static_assert(is_data_query<data_query>);
 	static_assert(is_func_query<func_query>);
 	static_assert(!is_func_query<type_query>);
+
+	template<typename element_data_type, typename element_t>
+	class query
+	{
+	public:
+		query(std::span<const element_data_type> source_range) : m_source_range(adapt_range(source_range)) {}
+
+		auto begin(this auto& self) { return self.m_source_range.begin(); }
+		auto end(this auto& self) { return self.m_source_range.end(); }
+
+		template<std::derived_from<typename element_data_type::trait_base_t> T>
+		using with = query<element_data_type, typename append_to_query_element<element_t, with_access<T>>::next>;
+	
+		template<std::derived_from<typename element_data_type::trait_base_t> T>
+		using read = query<element_data_type, typename append_to_query_element<element_t, read_access<T>>::next>;
+
+		template<std::derived_from<typename element_data_type::trait_base_t>T>
+		using check = query < element_data_type, typename append_to_query_element<element_t, check_access<T>>::next>;
+
+		template<std::derived_from<typename element_data_type::trait_base_t> T>
+		using read_if_exists = query < element_data_type, typename append_to_query_element<element_t, read_if_exists_access<T>>::next>;
+
+	private:
+		static auto adapt_range(std::span<const element_data_type> source_range)
+		{
+			return std::views::filter(source_range, 
+				[](const element_data_type& raw_data) -> bool
+				{
+					return element_t::matches(raw_data);
+				});
+		}
+
+		decltype(adapt_range({})) m_source_range;
+	};
 }
 
 template<std::size_t I, typename definitive_tuple, typename... others>

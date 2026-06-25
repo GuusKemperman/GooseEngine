@@ -1,11 +1,11 @@
 module;
-#include <assert.h>
 
-export module runtime_reflection:raw_data;
+#include <cassert>
 
-import :typetraits;
+export module runtime_reflection:data;
+
 import :value;
-import :fwd;
+import :type_id;
 import stl;
 
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
@@ -14,6 +14,16 @@ import stl;
 
 namespace ge::refl
 {
+	export struct type_data;
+	export struct func_data;
+	export struct data_data;
+	export struct module_data;
+	export struct registry_data;
+
+	export struct data_trait {};
+	export struct type_trait {};
+	export struct func_trait {};
+
 	struct cached_type_data_ref
 	{
 		// Will hold a type_id before the registry has completed building.
@@ -27,14 +37,11 @@ namespace ge::refl
 
 	struct data_data
 	{
-		using handle_t = data_handle;
 		using trait_base_t = data_trait;
 
 		using setter_t = void(*)(value target_object, const value& new_value);
 		using getter_t = value(*)(const value& target_object);
 
-		// TODO registry references should be stored in the handles, not in the _data
-		std::reference_wrapper<const registry_data> m_reg;
 		cached_type_data_ref m_type;
 		std::reference_wrapper<const type_data> m_outer_type;
 		setter_t m_set{};
@@ -46,11 +53,8 @@ namespace ge::refl
 
 	struct type_data
 	{
-		using handle_t = type_handle;
 		using trait_base_t = type_trait;
 
-		std::reference_wrapper<const registry_data> m_reg;
-		
 		std::string_view m_name{};
 
 		std::span<const value> m_traits{};
@@ -62,10 +66,6 @@ namespace ge::refl
 
 	struct module_data
 	{
-		using handle_t = module_handle;
-
-		std::reference_wrapper<const registry_data> m_reg;
-
 		std::string_view m_name{};
 
 		std::span<const type_data> m_types{};
@@ -75,7 +75,6 @@ namespace ge::refl
 
 	struct func_data
 	{
-		using handle_t = func_handle;
 		using trait_base_t = func_trait;
 
 		struct vtable
@@ -171,7 +170,6 @@ namespace ge::refl
 		std::span<const value> m_traits{};
 
 		std::string_view m_name{};
-		std::reference_wrapper<const registry_data> m_reg;
 	};
 
 	export template<typename T, size_t Capacity>

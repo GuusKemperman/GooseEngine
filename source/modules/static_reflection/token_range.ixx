@@ -58,7 +58,6 @@ namespace ge
 
 		API int parentheses_count() const { return m_parentheses_count; }
 		API int curly_bracket_count() const { return m_curly_brackets_count; }
-		API int template_bracket_count() const { return m_template_brackets_count; }
 
 		API size_t num_characters_parsed() const { return m_num_characters_parsed; }
 
@@ -74,7 +73,6 @@ namespace ge
 		std::uint32_t m_line_number = 1u;
 		int m_parentheses_count{};
 		int m_curly_brackets_count{};
-		int m_template_brackets_count{};
 	};
 
 	export class token_range
@@ -331,15 +329,7 @@ ge::token_iterator& ge::token_iterator::operator++()
 	start_token();
 	add_to_token();
 
-	if (m_token.m_str == "<"sv)
-	{
-		m_template_brackets_count++;
-	}
-	else if (m_token.m_str == ">"sv)
-	{
-		m_template_brackets_count--;
-	}
-	else if (m_token.m_str == "("sv)
+	if (m_token.m_str == "("sv)
 	{
 		m_parentheses_count++;
 	}

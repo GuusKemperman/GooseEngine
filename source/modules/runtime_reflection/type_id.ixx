@@ -1,23 +1,37 @@
-export module runtime_reflection:typetraits;
+export module runtime_reflection:type_id;
 
 import stl;
+
+namespace
+{
+	constexpr std::uint32_t hash(const char* ch)
+	{
+		std::uint32_t curr = 0xbadC0ff;
+
+		while (*ch != 0)
+		{
+			curr ^= (*ch << (*ch % (sizeof(curr) * 8))) + *ch;
+			ch++;
+		}
+
+		return curr;
+	}
+}
 
 namespace ge::refl
 {
 	export struct type_id
 	{
-		auto operator<=>(const type_id&) const = default;
+		constexpr auto operator<=>(const type_id&) const = default;
 
 		std::uint32_t m_id{};
 	};
 
-	// TODO error handling for unsupported types, such as T**
+	export template<typename T>
+	concept decorated = std::is_pointer_v<T> || std::is_const_v<T> || std::is_reference_v<T> || std::is_volatile_v<T>;
 
 	export template<typename T>
-		concept decorated = std::is_pointer_v<T> || std::is_const_v<T> || std::is_reference_v<T> || std::is_volatile_v<T>;
-
-	export template<typename T>
-		concept undecorated = !decorated<T>;
+	concept undecorated = !decorated<T>;
 
 	// TODO make recursive
 	template<typename T>
@@ -27,32 +41,16 @@ namespace ge::refl
 	};
 
 	export template<typename T>
-		using remove_decoration_t = remove_decoration<T>::type;
-
-	namespace detail
-	{
-		constexpr std::uint32_t hash(const char* ch)
-		{
-			std::uint32_t curr = 0xbadC0ff;
-
-			while (*ch != 0)
-			{
-				curr ^= (*ch << (*ch % (sizeof(curr) * 8))) + *ch;
-				ch++;
-			}
-
-			return curr;
-		}
-	}
+	using remove_decoration_t = remove_decoration<T>::type;
 
 	export template<undecorated T>
-		consteval type_id make_type_id()
+	consteval type_id make_type_id()
 	{
-		return { detail::hash(__FUNCSIG__) };
+		return { hash(__FUNCSIG__) };
 	}
 
 	export template<typename>
-		struct func_sig
+	struct func_sig
 	{
 		static_assert(false, "Not a function signature");
 	};
@@ -64,13 +62,13 @@ namespace ge::refl
 	};
 
 	export template<typename Ret, typename... Params>
-		struct func_sig<Ret(*)(Params...)>
+	struct func_sig<Ret(*)(Params...)>
 	{
 		using type = func_sig<Ret(Params...)>;
 	};
 
 	export template<typename Ret, typename Class, typename... Params>
-		struct func_sig<Ret(Class::*)(Params...)>
+	struct func_sig<Ret(Class::*)(Params...)>
 	{
 		using type = func_sig<Ret(Class&, Params...)>;
 	};
@@ -94,19 +92,19 @@ namespace ge::refl
 	};
 
 	export template<typename T>
-		using func_sig_t = func_sig<T>::type;
+	using func_sig_t = func_sig<T>::type;
 
 	template<auto FuncPtr>
 	concept is_func = requires { typename func_sig<decltype(FuncPtr)>; };
 
 	export template<typename>
-		struct data_ptr
+	struct data_ptr
 	{
 		static_assert(false, "Not a data pointer");
 	};
 
 	export template<typename T, typename DataT>
-		struct data_ptr<DataT T::*>
+	struct data_ptr<DataT T::*>
 	{
 		using data_t = DataT;
 		using outer_type_t = T;
@@ -125,21 +123,5 @@ namespace ge::refl
 	struct is_supported_param_type<const T&> : std::bool_constant<true> {};
 
 	export template<typename T>
-		concept supported_param_type = is_supported_param_type<T>::value;
-
-	template<typename Base> requires (sizeof(Base) == sizeof(size_t))
-		class inplace_vtable
-	{
-		size_t m_vtable{};
-
-	public:
-		const Base* operator->() const { return std::bit_cast<const Base*>(&m_vtable); }
-
-		template<std::derived_from<Base> Derived> requires (sizeof(Derived) == sizeof(Base))
-			void set()
-		{
-			void* dst = &m_vtable;
-			new (dst)Derived();
-		}
-	};
+	concept supported_param_type = is_supported_param_type<T>::value;
 }
