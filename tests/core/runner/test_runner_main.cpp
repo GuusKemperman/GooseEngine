@@ -1,5 +1,4 @@
-#include <crtdbg.h>
-#include <stdlib.h>
+#include <cassert>
 
 import stl;
 import modules;
@@ -10,25 +9,20 @@ import runtime_reflection;
 
 int main()
 {
-	for (auto entry : std::filesystem::directory_iterator{ "../" })
-	{
-		std::cout << entry.path().string() << std::endl;
-	}
+	// TODO Not really good to assume this
+	assert(std::filesystem::current_path().string().ends_with("bin"));
 
+	ge::windows::modules::loader windows_loader{};
+	std::vector<ge::modules::module> modules = ge::modules::load_modules_in_folder(windows_loader, std::filesystem::current_path());
 
-    ge::modules::module_manager::config config{ { "bin" } };
-    ge::modules::module_manager manager{ std::make_shared<ge::windows::modules::loader>(), config };
-
-	manager.load_all();
-
-	std::unique_ptr<ge::refl::registry_data> reg = [&manager]
+	std::unique_ptr<ge::refl::registry_data> reg = [&modules]
 		{
 			ge::refl::builders::endable_registry_builder reg_builder = ge::refl::builders::begin_registry();
 
-			for (ge::modules::module_handle module : manager.get_modules())
+			for (ge::modules::module module : modules)
 			{
 				using build_func_t = void(*)(ge::refl::builders::registry_builder&);
-				build_func_t build_func = reinterpret_cast<build_func_t>(module.get_function_address("build_runtime_reflection"));
+				build_func_t build_func = reinterpret_cast<build_func_t>(module.m_platform_module->get_exported_func("build_runtime_reflection"));
 
 				if (build_func == nullptr)
 				{
@@ -47,9 +41,5 @@ int main()
 	{
 		ge::refl::invoke(func);
 	}
-	
-
-
-
 }
 
