@@ -1,6 +1,6 @@
 export module test_utils;
 
-import test_core;
+export import test_core;
 import utils;
 
 using namespace ge::test_core;
@@ -13,7 +13,7 @@ struct test_struct
 
 namespace smart_refs
 {
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void ref_base_constructor_nullptr_throwsInvalidArgument()
 	{
 		std::invalid_argument e = assert::expect_exception<std::invalid_argument>(
@@ -26,14 +26,14 @@ namespace smart_refs
 		assert::is_eq(std::string_view{ "Null pointer passed to reference constructor" }, std::string{ e.what() });
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ref_partialDeduction_assignmentFromTypedInstance_deducesCorrectly()
 	{
 		ge::shared_ref ref = ge::make_shared_ref<test_struct>(99); // Deduction here
 		assert::is_eq(ref->get_value(), 99);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ref_conversionFromUniqueRef_thenConstAssigns_maintainsCorrectValue()
 	{
 		ge::unique_ref<int> unique = ge::make_unique_ref<int>(123);
@@ -49,7 +49,7 @@ namespace smart_refs
 		assert::is_eq(*const3, 123);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ptr_conversionFromUniquePtr_thenConstAssigns_maintainsCorrectValue()
 	{
 		ge::unique_ptr<int> unique = ge::make_unique_ptr<int>(456);
@@ -65,7 +65,7 @@ namespace smart_refs
 		assert::is_eq(*const3, 456);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void make_shared_ref_validArgs_constructsExpectedSharedRef()
 	{
 		auto ref = ge::make_shared_ref<test_struct>();
@@ -75,7 +75,7 @@ namespace smart_refs
 		assert::is_true(ref.use_count() == 1);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void make_unique_ref_validArgs_constructsExpectedUniqueRef()
 	{
 		auto ref = ge::make_unique_ref<test_struct>();
@@ -84,7 +84,7 @@ namespace smart_refs
 		assert::is_eq(ref.get().get_value(), 42);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ref_copyConstruct_copiesAndSharesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
@@ -94,7 +94,7 @@ namespace smart_refs
 		assert::is_eq(ref2.use_count(), 2L);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ref_moveConstruct_movesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
@@ -103,7 +103,7 @@ namespace smart_refs
 		assert::is_eq(ref2.use_count(), count);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ref_copyAssign_copiesAndSharesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
@@ -113,7 +113,7 @@ namespace smart_refs
 		assert::is_eq(ref2.use_count(), 2L);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void shared_ref_moveAssign_movesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref<test_struct>();
@@ -122,7 +122,7 @@ namespace smart_refs
 		assert::is_eq(ref2->get_value(), 42);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void unique_ref_moveConstruct_transfersOwnership()
 	{
 		auto ref1 = ge::make_unique_ref<test_struct>();
@@ -131,7 +131,7 @@ namespace smart_refs
 		assert::is_eq(ref2->get_value(), val);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void unique_ref_moveAssign_transfersOwnership()
 	{
 		auto ref1 = ge::make_unique_ref<test_struct>();
@@ -140,7 +140,7 @@ namespace smart_refs
 		assert::is_eq(ref2->get_value(), 42);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void ref_base_getPtr_rvalueAndLvalue_yieldsCorrectPointer()
 	{
 		auto ref = ge::make_shared_ref<test_struct>();
@@ -151,7 +151,7 @@ namespace smart_refs
 		assert::is_not_null(moved_ptr.get());
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void ref_base_operatorConversionToElementRef_returnsReference()
 	{
 		auto ref = ge::make_shared_ref<test_struct>();
@@ -159,7 +159,7 @@ namespace smart_refs
 		assert::is_eq(s.get_value(), 42);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void ref_base_operatorConversionToSharedRef_compatibleTypes_conversionSucceeds()
 	{
 		auto base = ge::make_shared_ref<test_struct>();

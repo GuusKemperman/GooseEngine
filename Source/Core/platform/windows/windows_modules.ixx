@@ -1,6 +1,7 @@
 module;
 
 #define WIN32_LEAN_AND_MEAN
+#include <cassert>
 #include <windows.h>
 
 export module windows:modules;
@@ -43,9 +44,10 @@ namespace ge::windows::modules
 ge::windows::modules::module::module(const std::filesystem::path& a_path) :
 	m_module(LoadLibraryW(a_path.c_str()))
 {
-	if (!m_module)
+	if (m_module == nullptr)
 	{
-		throw std::runtime_error{ std::format("Failed to load DLL {}. Error: {}", a_path.string(), GetLastError()) };
+		std::cerr << std::format("Failed to load DLL {}. Error: {}", a_path.string(), GetLastError()) << std::endl;
+		assert(false);
 	}
 }
 

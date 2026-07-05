@@ -132,9 +132,8 @@ namespace ge::refl::builders
 				}
 
 				using data_t = std::remove_reference_t<decltype(self.m_target)>;
-				using handle_t = data_t::handle_t;
 
-				if constexpr (requires (TraitT & mutTrait, handle_t handle)
+				if constexpr (requires (TraitT & mutTrait, const data_t& handle)
 				{
 					mutTrait.post_build(handle);
 				})
@@ -144,7 +143,7 @@ namespace ge::refl::builders
 						{
 							.m_invoke = +[](void* data, value* trait)
 							{
-								handle_t handle{ *static_cast<data_t*>(data) };
+								const data_t& handle{ *static_cast<data_t*>(data) };
 								trait->as_mutable<TraitT>()->post_build(handle);
 							},
 							.m_trait = &data,

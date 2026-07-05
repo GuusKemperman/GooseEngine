@@ -74,6 +74,8 @@ function(add_module module_name)
         add_library(${GEN_LIB} SHARED ${GEN_SRC})
         target_link_libraries(${GEN_LIB} PRIVATE "runtime_reflection")
         target_link_libraries(${GEN_LIB} PRIVATE ${module_name})
+
+        add_dependencies(all_modules_target ${GEN_LIB})
     endif()
 endfunction()
 

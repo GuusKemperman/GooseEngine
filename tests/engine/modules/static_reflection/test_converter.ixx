@@ -3,10 +3,13 @@ export module test_static_reflection:test_converter;
 import stl;
 import logger;
 import static_reflection;
-import test_core;
+export import test_core;
 
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
+
+
+
 
 namespace
 {
@@ -18,10 +21,28 @@ namespace
 	}
 }
 
+REFL_FUNC(ge::test_core::unit_test_trait{})
+export API void simple_type()
+{
+	std::string_view src =
+		R"(
+namespace thing
+{
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+		export API void dummy()
+	{
+		ge::test_core::assert::is_false(true);
+	}
+
+}
+)";
+	std::cout << convert(src);
+}
+
 
 namespace converter
 {
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_type()
 	{
 		std::string_view src =

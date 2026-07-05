@@ -4,14 +4,14 @@ export module test_static_reflection:test_tokeniser;
 import stl;
 import logger;
 import static_reflection;
-import test_core;
+export import test_core;
 
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
 namespace tokeniser
 {
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void complex_function_no_crash()
 	{
 		ge::token_range{
@@ -26,7 +26,7 @@ namespace tokeniser
 		};
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void iterators()
 	{
 		ge::token_range tokeniser{ "1 2 3 4" };

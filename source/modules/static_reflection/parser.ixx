@@ -252,8 +252,6 @@ ge::parsed_file ge::parser::parse(token_range tokenised_source)
 {
 	parsed_file parsed_file{};
 
-	parsed_file.m_name = "<File scope>";
-
 	m_scope_stack.emplace(parsed_file, -1ll);
 	push_state(token_consumer::none);
 

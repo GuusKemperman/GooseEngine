@@ -3,7 +3,7 @@ export module test_static_reflection:test_parser;
 import stl;
 import logger;
 import static_reflection;
-import test_core;
+export import test_core;
 
 // TODO these tests are out of date since the return type changed, but the tests still have an std::expcted
 
@@ -31,7 +31,7 @@ static const T& list_at(const std::list<T>& list, size_t index)
 
 namespace parser
 {
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void invalid_file()
 	{
 		std::string_view src =
@@ -49,7 +49,7 @@ namespace parser
 		logger.log_raw(ge::severity::message, result.error());
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void complex_function_no_crash()
 	{
 		ge::parsed_file file = parse_file(
@@ -81,7 +81,7 @@ namespace parser
 
 namespace tokeniser
 {
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_func()
 	{
 		ge::token_range tokeniser{ "int func_name() { return 1; }" };
@@ -107,7 +107,7 @@ namespace tokeniser
 
 namespace parser
 {
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_namespace()
 	{
 		std::string_view src =
@@ -125,7 +125,7 @@ namespace parser
 		is_eq(file.m_namespaces.size(), 2ull);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_data()
 	{
 		std::string_view src =
@@ -140,7 +140,7 @@ namespace parser
 		is_eq(file.m_data.at(0).m_keywords, ge::parsed_keywords::static_keyword);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void no_param_func()
 	{
 		std::string_view src =
@@ -162,7 +162,7 @@ namespace parser
 		is_eq(file.m_funcs.at(1).m_parameters.size(), 0ull);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_func()
 	{
 
@@ -184,7 +184,7 @@ namespace parser
 		is_eq(file.m_funcs.at(0).m_parameters.at(1).m_type, "std::array<int, 3>");
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void complete_file()
 	{
 		std::string_view src =
@@ -268,7 +268,7 @@ namespace parser
 		is_eq(list_at(file.m_namespaces, 1).m_funcs.at(0).m_name, "anon");
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_class()
 	{
 		std::string_view src =
@@ -319,7 +319,7 @@ namespace parser
 		is_eq(list_at(list_at(file.m_namespaces, 0).m_types, 0).m_funcs.at(0).m_access, ge::parsed_access_specifier::public_access);
 	}
 
-	REFL_FUNC(unit_test{})
+	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void enums()
 	{
 		std::string_view src =

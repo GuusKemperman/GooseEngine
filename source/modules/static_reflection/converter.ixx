@@ -123,6 +123,11 @@ namespace
 				convert_data(data);
 			}
 
+			for (const ge::parsed_scope& namespace_scope : scope.m_namespaces)
+			{
+				convert_scope(namespace_scope);
+			}
+
 			pop_scope();
 		}
 

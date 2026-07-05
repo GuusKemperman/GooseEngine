@@ -1,6 +1,10 @@
 // TODO write new tests
+
 export module test_runtime_reflection;
-API void dummy(){}
+export import test_core;
+
+// TODO To prevent dll from not appearing
+export API void thing() {};
 
 //
 //import stl;
@@ -265,7 +269,7 @@ API void dummy(){}
 //
 //namespace building_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void basic_query()
 //	{
 //		ge::refl::registry reg =
@@ -296,7 +300,7 @@ API void dummy(){}
 //		is_eq(expectedInfo, actualInfo);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void basic()
 //	{
 //		ge::refl::registry reg =
@@ -319,7 +323,7 @@ API void dummy(){}
 //		is_eq(expectedInfo, actualInfo);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void basic_ranges()
 //	{
 //		ge::refl::registry reg =
@@ -337,7 +341,7 @@ API void dummy(){}
 //		is_eq(mod.get_name(), "basic");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multiple_types_in_module()
 //	{
 //		ge::refl::registry reg =
@@ -365,7 +369,7 @@ API void dummy(){}
 //		is_eq(module_types.size(), 2ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multiple_modules()
 //	{
 //		ge::refl::registry reg =
@@ -394,7 +398,7 @@ API void dummy(){}
 //		is_eq((*m1.types().begin()).get_name(), "b_type");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void registry_types_range()
 //	{
 //		ge::refl::registry reg =
@@ -411,7 +415,7 @@ API void dummy(){}
 //		is_eq(types.size(), 2ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void empty_module()
 //	{
 //		ge::refl::registry reg =
@@ -448,7 +452,7 @@ API void dummy(){}
 //
 //namespace value_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void view_lifetime()
 //	{
 //		int expected = 42;
@@ -463,7 +467,7 @@ API void dummy(){}
 //		is_eq(expected, 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void ref_lifetime()
 //	{
 //		int expected = 42;
@@ -478,7 +482,7 @@ API void dummy(){}
 //		is_eq(expected, 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void owning_lifetime()
 //	{
 //		int expected = 42;
@@ -493,14 +497,14 @@ API void dummy(){}
 //		is_eq(expected, 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_constructed_is_null()
 //	{
 //		ge::refl::value v{};
 //		is_null(v.const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void as_typed_access()
 //	{
 //		int x = 42;
@@ -521,7 +525,7 @@ API void dummy(){}
 //		is_eq(*owning.as_constant<int>(), 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void owning_is_deep_copy()
 //	{
 //		ge::refl::value original = ge::refl::value::create_owning(42);
@@ -533,7 +537,7 @@ API void dummy(){}
 //		is_eq(*copy.as_constant<int>(), 99);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void ref_mutates_source()
 //	{
 //		int x = 10;
@@ -542,7 +546,7 @@ API void dummy(){}
 //		is_eq(x, 7);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void move_leaves_source_empty()
 //	{
 //		int x = 42;
@@ -561,7 +565,7 @@ API void dummy(){}
 //		is_not_null(dst2.const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void pointer_overloads()
 //	{
 //		int x = 99;
@@ -574,7 +578,7 @@ API void dummy(){}
 //		is_eq(ref.mutable_data(), static_cast<void*>(&x));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void clear_resets_value()
 //	{
 //		ge::refl::value owning = ge::refl::value::create_owning(42);
@@ -587,7 +591,7 @@ API void dummy(){}
 //		is_null(owning.const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void owning_non_trivial_type()
 //	{
 //		int counter = 0;
@@ -608,7 +612,7 @@ API void dummy(){}
 //		is_gt(counter, inside_scope);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void null_pointer_view()
 //	{
 //		ge::refl::value v = ge::refl::value::create_view(static_cast<const int*>(nullptr));
@@ -622,7 +626,7 @@ API void dummy(){}
 //		is_null(v.const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void null_pointer_ref()
 //	{
 //		ge::refl::value v = ge::refl::value::create_ref(static_cast<int*>(nullptr));
@@ -633,7 +637,7 @@ API void dummy(){}
 //		is_null(copy.const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void pointer_and_reference_equal()
 //	{
 //		int x = 7;
@@ -647,7 +651,7 @@ API void dummy(){}
 //		is_eq(ref_ref.mutable_data(), ref_ptr.mutable_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void struct_pointer_overload()
 //	{
 //		struct two_ints { int a; int b; };
@@ -663,7 +667,7 @@ API void dummy(){}
 //		is_eq(p.a, 99);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void cross_ownership_assignment()
 //	{
 //		int x = 1;
@@ -683,7 +687,7 @@ API void dummy(){}
 //		is_eq(owned.const_data(), static_cast<const void*>(&x));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void chain_of_moves()
 //	{
 //		int x = 42;
@@ -701,7 +705,7 @@ API void dummy(){}
 //
 //namespace function_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void building_registers_func_in_module()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -717,7 +721,7 @@ API void dummy(){}
 //		is_eq((*funcs.begin()).get_name(), "ret42");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void registry_funcs_includes_funcs_from_all_modules()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -732,7 +736,7 @@ API void dummy(){}
 //		is_eq(reg.funcs().size(), 2ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multiple_funcs_in_module_preserve_order()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -757,7 +761,7 @@ API void dummy(){}
 //		is_eq(names[2], "ret42");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multiple_modules_each_with_own_func_count()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -778,7 +782,7 @@ API void dummy(){}
 //		is_eq((*it).funcs().size(), 1ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void empty_module_has_no_funcs()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -795,7 +799,7 @@ API void dummy(){}
 //
 //namespace invoke_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void no_args_returning_int()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -812,7 +816,7 @@ API void dummy(){}
 //		is_true(result.is_owning());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void no_args_void_returns_empty_value()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -827,7 +831,7 @@ API void dummy(){}
 //		is_false(static_cast<bool>(result));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void single_int_arg()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -848,7 +852,7 @@ API void dummy(){}
 //		is_eq(*handle.invoke_unchecked(zero).as_constant<int>(), 0);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void two_int_args()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -867,7 +871,7 @@ API void dummy(){}
 //		is_eq(*handle.invoke_unchecked(a, b).as_constant<int>(), -13);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void two_int_args_order_matters()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -883,7 +887,7 @@ API void dummy(){}
 //		is_eq(*handle.invoke_unchecked(b, a).as_constant<int>(), -7);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void three_int_args()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -899,7 +903,7 @@ API void dummy(){}
 //		is_eq(*handle.invoke_unchecked(b, a, c).as_constant<int>(), 213);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void mutable_ref_propagates_back()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -921,7 +925,7 @@ API void dummy(){}
 //		is_eq(x, 13);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void const_ref_does_not_mutate_caller()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -937,7 +941,7 @@ API void dummy(){}
 //		is_eq(x, 7);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void by_value_does_not_mutate_caller_struct()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -954,7 +958,7 @@ API void dummy(){}
 //		is_eq(p.y, 4);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void struct_ref_propagates_back()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -973,7 +977,7 @@ API void dummy(){}
 //		is_eq(p.y, 22);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void struct_const_ref_does_not_mutate()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -993,7 +997,7 @@ API void dummy(){}
 //		is_eq(b, (fpoint{ 3, 4 }));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void returns_struct_by_value()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1013,7 +1017,7 @@ API void dummy(){}
 //		is_eq(result.as_constant<fpoint>()->y, -2);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void returned_owning_outlives_invoke_args()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1033,7 +1037,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 100);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void returned_struct_is_independent_copy()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1052,7 +1056,7 @@ API void dummy(){}
 //		is_eq(v.as_constant<fpoint>()->x, 999);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void mixed_param_qualifiers()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1081,7 +1085,7 @@ API void dummy(){}
 //		is_eq(c2, 1);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void repeated_invokes_are_independent()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1102,7 +1106,7 @@ API void dummy(){}
 //		is_eq(*handle.invoke_unchecked(z).as_constant<int>(), 121);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void void_function_global_side_effect()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1120,7 +1124,7 @@ API void dummy(){}
 //		is_eq(g_side_effect_counter, before + 3);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void accepts_value_argument_by_owning()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1135,7 +1139,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 64);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void accepts_value_argument_by_ref()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1151,7 +1155,7 @@ API void dummy(){}
 //		is_eq(x, 51);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void chains_invocations_via_returned_value()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1175,7 +1179,7 @@ API void dummy(){}
 //		is_eq(*x_value.as_constant<int>(), 7);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void distinct_funcs_use_distinct_signatures()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1200,7 +1204,7 @@ API void dummy(){}
 //		is_eq(*ret42_handle.invoke_unchecked().as_constant<int>(), 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void template_instantiation_is_distinct()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1216,7 +1220,7 @@ API void dummy(){}
 //		is_eq(result.get_type_id(), ge::refl::make_type_id<int>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void return_value_is_owning_and_holds_correct_type_id()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1244,7 +1248,7 @@ API void dummy(){}
 //		is_ne(int_v.get_type_id(), ge::refl::make_type_id<fpoint>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void invoke_does_not_share_state_between_handles()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1270,7 +1274,7 @@ API void dummy(){}
 //		is_eq(*s1.invoke_unchecked(y, x).as_constant<int>(), -4);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void ref_return_is_non_owning()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1289,7 +1293,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void ref_return_is_mutable_and_aliases_target()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1312,7 +1316,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 17);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void const_ref_return_is_non_owning()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1331,7 +1335,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 55);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void const_ref_return_is_immutable_view()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1350,7 +1354,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 22);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void struct_ref_return_is_non_owning()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1373,7 +1377,7 @@ API void dummy(){}
 //		is_eq(g_point_target.y, 6);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void struct_const_ref_return_is_non_owning_view()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1394,7 +1398,7 @@ API void dummy(){}
 //		is_eq(result.as_constant<fpoint>()->y, 9);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void ref_return_with_args_picks_first_argument()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1417,7 +1421,7 @@ API void dummy(){}
 //		is_eq(b, 2);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void const_ref_return_with_args_picks_first_argument()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1437,7 +1441,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 5);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void const_view_to_const_ref_param()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1453,7 +1457,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 14);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void const_qualified_caller_variable()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1475,7 +1479,7 @@ API void dummy(){}
 //
 //namespace trait_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_count_zero_when_unused()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1486,7 +1490,7 @@ API void dummy(){}
 //		is_eq((*reg.types().begin()).traits().size(), 0ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_one_added_count_one()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1499,7 +1503,7 @@ API void dummy(){}
 //		is_eq((*reg.types().begin()).traits().size(), 1ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_state_round_trip_int()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1517,7 +1521,7 @@ API void dummy(){}
 //		is_eq(v.as_constant<int_type_trait>()->payload, 99);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_state_round_trip_struct()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1532,7 +1536,7 @@ API void dummy(){}
 //		is_eq((*traits.begin()).as_constant<point_type_trait>()->payload, (fpoint{ 3, 7 }));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_state_round_trip_string_heap()
 //	{
 //		std::string long_payload = "hello world long enough to heap allocate definitely yes definitely";
@@ -1549,7 +1553,7 @@ API void dummy(){}
 //		is_eq((*traits.begin()).as_constant<string_type_trait>()->payload, long_payload);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_three_added_count_three()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1564,7 +1568,7 @@ API void dummy(){}
 //		is_eq((*reg.types().begin()).traits().size(), 3ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_order_preserved()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1588,7 +1592,7 @@ API void dummy(){}
 //		is_eq(values[2], 30);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_independent_across_types_in_same_module()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1613,7 +1617,7 @@ API void dummy(){}
 //		is_eq((*t1.traits().begin()).as_constant<int_type_trait>()->payload, 1);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_independent_across_modules()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1640,7 +1644,7 @@ API void dummy(){}
 //		is_eq((*tb.traits().begin()).as_constant<int_type_trait>()->payload, 200);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_trait_value_type_id_matches_trait_type()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1659,7 +1663,7 @@ API void dummy(){}
 //		is_eq((*it).get_type_id(), ge::refl::make_type_id<point_type_trait>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void traits_values_are_not_mutable()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1672,7 +1676,7 @@ API void dummy(){}
 //		is_false(v.is_mutable());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void func_trait_count_zero_when_unused()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1685,7 +1689,7 @@ API void dummy(){}
 //		is_eq(func.traits().size(), 0ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void func_trait_one_added()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1700,7 +1704,7 @@ API void dummy(){}
 //		is_eq(func.traits().size(), 1ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void func_trait_state_round_trip()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1715,7 +1719,7 @@ API void dummy(){}
 //		is_eq((*func.traits().begin()).as_constant<int_func_trait>()->payload, 77);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void func_trait_multiple_order_preserved()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1740,7 +1744,7 @@ API void dummy(){}
 //		is_eq(values[2], 3);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void func_trait_independent_per_func()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1760,7 +1764,7 @@ API void dummy(){}
 //		is_eq((*a.traits().begin()).as_constant<int_func_trait>()->payload, 10);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void func_with_traits_still_invokes_correctly()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1778,7 +1782,7 @@ API void dummy(){}
 //		is_eq(func.traits().size(), 2ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_and_func_trait_disjoint_in_same_type()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1798,7 +1802,7 @@ API void dummy(){}
 //		is_eq((*f.traits().begin()).as_constant<int_func_trait>()->payload, 2);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multi_inherit_trait_attaches_to_type()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1812,7 +1816,7 @@ API void dummy(){}
 //		is_eq((*t.traits().begin()).get_type_id(), ge::refl::make_type_id<universal_trait>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multi_inherit_trait_attaches_to_func()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1826,7 +1830,7 @@ API void dummy(){}
 //		is_eq((*f.traits().begin()).get_type_id(), ge::refl::make_type_id<universal_trait>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void multi_inherit_trait_distinct_storage_per_target()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1841,7 +1845,7 @@ API void dummy(){}
 //		is_ne((*t.traits().begin()).const_data(), (*f.traits().begin()).const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void traits_iteration_yields_typed_values()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1863,7 +1867,7 @@ API void dummy(){}
 //		is_eq(sum, 3);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void traits_outlive_builder_scope()
 //	{
 //		ge::refl::registry reg = ge::refl::builders::begin_registry()
@@ -1877,7 +1881,7 @@ API void dummy(){}
 //		is_eq((*t.traits().begin()).as_constant<int_type_trait>()->payload, 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void traits_pointer_stable_across_handle_copies()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1891,7 +1895,7 @@ API void dummy(){}
 //		is_eq((*h1.traits().begin()).const_data(), (*h2.traits().begin()).const_data());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void traits_pointer_stable_after_more_targets_built()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1907,7 +1911,7 @@ API void dummy(){}
 //		is_eq((*t1.traits().begin()).as_constant<int_type_trait>()->payload, 11);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void trait_destructor_runs_when_registry_destroyed()
 //	{
 //		int counter = 0;
@@ -1923,7 +1927,7 @@ API void dummy(){}
 //		is_gt(counter, snapshot_after_build);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void trait_destructor_runs_for_each_added_instance()
 //	{
 //		int counter = 0;
@@ -1943,7 +1947,7 @@ API void dummy(){}
 //		is_eq(counter - snapshot_after_build, 3);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void move_only_trait_supported()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1960,7 +1964,7 @@ API void dummy(){}
 //		is_eq(*p->p, 99);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void registry_with_traits_only_no_funcs_no_data()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -1975,7 +1979,7 @@ API void dummy(){}
 //		is_eq(t.traits().size(), 1ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void many_traits_on_single_type()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2001,7 +2005,7 @@ API void dummy(){}
 //		}
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void interleaved_type_traits_in_one_module()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2022,7 +2026,7 @@ API void dummy(){}
 //		is_eq((*b.traits().begin()).as_constant<int_type_trait>()->payload, 2);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void traits_after_many_funcs_alloc_still_pointer_stable()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2052,7 +2056,7 @@ API void dummy(){}
 //
 //namespace trait_hook_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void on_apply_called_for_type_trait()
 //	{
 //		hook_record rec;
@@ -2064,7 +2068,7 @@ API void dummy(){}
 //		is_eq(rec.on_apply_type, 1);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void on_apply_called_for_func_trait()
 //	{
 //		hook_record rec;
@@ -2076,7 +2080,7 @@ API void dummy(){}
 //		is_eq(rec.on_apply_func, 1);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void on_apply_called_for_data_trait()
 //	{
 //		hook_record rec;
@@ -2092,7 +2096,7 @@ API void dummy(){}
 //		is_eq(rec.on_apply_data, 1);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void on_apply_runs_before_any_post_build()
 //	{
 //		hook_record rec;
@@ -2106,7 +2110,7 @@ API void dummy(){}
 //		is_eq(rec.post_build_count_at_first_apply, 0);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void all_on_apply_run_before_any_post_build()
 //	{
 //		hook_record rec;
@@ -2120,7 +2124,7 @@ API void dummy(){}
 //		is_eq(rec.on_apply_count_at_first_post_build, 2);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void post_build_called_once_per_trait_for_type()
 //	{
 //		hook_record rec;
@@ -2136,7 +2140,7 @@ API void dummy(){}
 //		is_eq(rec.post_build_type, 3);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void post_build_handle_for_type_has_correct_name()
 //	{
 //		hook_record rec;
@@ -2150,7 +2154,7 @@ API void dummy(){}
 //		is_eq(rec.last_type_name, std::string{ "particular_name" });
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void post_build_handle_for_func_has_correct_name()
 //	{
 //		hook_record rec;
@@ -2164,7 +2168,7 @@ API void dummy(){}
 //		is_eq(rec.last_func_name, std::string{ "specific_func" });
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void post_build_handle_for_data_has_correct_name_and_outer_type()
 //	{
 //		hook_record rec;
@@ -2183,7 +2187,7 @@ API void dummy(){}
 //		is_eq(rec.last_data_outer_name, std::string{ "entity_type" });
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void on_apply_dispatches_to_correct_overload_per_target()
 //	{
 //		hook_record rec;
@@ -2213,7 +2217,7 @@ API void dummy(){}
 //
 //namespace data_tests
 //{
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void building_data_in_type_registers_one_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2234,7 +2238,7 @@ API void dummy(){}
 //		is_eq(t.datas().size(), 1ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_get_name()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2254,7 +2258,7 @@ API void dummy(){}
 //		is_eq(d.get_name(), "hp");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_multiple_members_count_and_names_in_order()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2282,7 +2286,7 @@ API void dummy(){}
 //		is_eq(names[2], "pos");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_get_outer_type_id_and_name()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2303,7 +2307,7 @@ API void dummy(){}
 //		is_eq(d.get_outer_type().get_name(), "entity");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_get_type_int_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2323,7 +2327,7 @@ API void dummy(){}
 //		is_eq(d.get_type().get_id(), ge::refl::make_type_id<int>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_get_type_struct_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2343,7 +2347,7 @@ API void dummy(){}
 //		is_eq(d.get_type().get_id(), ge::refl::make_type_id<fpoint>());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void type_with_no_data_has_empty_datas()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2355,7 +2359,7 @@ API void dummy(){}
 //		is_eq((*reg.types().begin()).datas().size(), 0ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_independent_per_type()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2380,7 +2384,7 @@ API void dummy(){}
 //		is_eq(other_type.datas().size(), 0ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_handles_in_iteration_share_outer_but_have_distinct_names()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2406,7 +2410,7 @@ API void dummy(){}
 //		is_eq(a.get_outer_type().get_id(), b.get_outer_type().get_id());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_getter_present_when_not_overridden()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2426,7 +2430,7 @@ API void dummy(){}
 //		is_not_null(reinterpret_cast<void*>(d.get_getter()));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_setter_present_when_not_overridden()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2446,7 +2450,7 @@ API void dummy(){}
 //		is_not_null(reinterpret_cast<void*>(d.get_setter()));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_getter_reads_int_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2471,7 +2475,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_setter_writes_int_member_only()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2498,7 +2502,7 @@ API void dummy(){}
 //		is_eq(e.pos.y, 4);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_getter_setter_round_trip_int()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2523,7 +2527,7 @@ API void dummy(){}
 //		is_eq(*getter(ge::refl::value::create_view(e)).as_constant<int>(), 123);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_getter_struct_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2548,7 +2552,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<fpoint>(), (fpoint{ 7, 8 }));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_setter_struct_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2573,7 +2577,7 @@ API void dummy(){}
 //		is_eq(e.pos.y, 22);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_setter_then_getter_round_trip_struct()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2599,7 +2603,7 @@ API void dummy(){}
 //		is_eq(*got.as_constant<fpoint>(), (fpoint{ 5, 9 }));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_setter_repeated_calls_are_independent()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2626,7 +2630,7 @@ API void dummy(){}
 //		}
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void default_getter_does_aliases_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2652,7 +2656,7 @@ API void dummy(){}
 //		is_eq(*got.as_constant<int>(), 200);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void custom_getter_replaces_default()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2676,7 +2680,7 @@ API void dummy(){}
 //		is_eq(*result.as_constant<int>(), 42);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void custom_setter_replaces_default()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2706,7 +2710,7 @@ API void dummy(){}
 //		is_eq(e.hp, 500);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void nullptr_getter_disables_get()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2726,7 +2730,7 @@ API void dummy(){}
 //		is_null(reinterpret_cast<void*>(d.get_getter()));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void nullptr_setter_disables_set()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2746,7 +2750,7 @@ API void dummy(){}
 //		is_null(reinterpret_cast<void*>(d.get_setter()));
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void custom_getter_const_ref_return_signature()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2772,7 +2776,7 @@ API void dummy(){}
 //		is_false(v.is_mutable());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void custom_getter_value_return_signature()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2797,7 +2801,7 @@ API void dummy(){}
 //		is_true(v.is_owning());
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void custom_setter_then_default_getter_round_trip()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2822,7 +2826,7 @@ API void dummy(){}
 //		is_eq(*getter(ge::refl::value::create_view(e)).as_constant<int>(), 73);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_with_one_trait_count()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2844,7 +2848,7 @@ API void dummy(){}
 //		is_eq(d.traits().size(), 1ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_traits_state_round_trip()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2866,7 +2870,7 @@ API void dummy(){}
 //		is_eq((*d.traits().begin()).as_constant<int_data_trait>()->payload, 88);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_traits_multiple_order_preserved()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2898,7 +2902,7 @@ API void dummy(){}
 //		is_eq(values[2], 3);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_traits_isolated_from_outer_type_traits()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2925,7 +2929,7 @@ API void dummy(){}
 //		is_eq((*d.traits().begin()).as_constant<int_data_trait>()->payload, 200);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_traits_isolated_per_data_member()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2951,7 +2955,7 @@ API void dummy(){}
 //		is_eq((*hp.traits().begin()).as_constant<int_data_trait>()->payload, 1);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void data_with_traits_and_custom_getter_chains()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -2982,7 +2986,7 @@ API void dummy(){}
 //	// =========================================================================
 //	// data_tests — module_handle::datas() and type/module-level aggregation
 //	// =========================================================================
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void module_datas_aggregates_across_types_in_module()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -3001,7 +3005,7 @@ API void dummy(){}
 //		is_eq(mod.datas().size(), 2ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void module_datas_zero_when_no_data()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -3013,7 +3017,7 @@ API void dummy(){}
 //		is_eq((*reg.modules().begin()).datas().size(), 0ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void module_datas_zero_for_empty_module()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -3023,7 +3027,7 @@ API void dummy(){}
 //		is_eq((*reg.modules().begin()).datas().size(), 0ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void module_datas_disjoint_across_modules()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -3049,7 +3053,7 @@ API void dummy(){}
 //		is_eq(b.datas().size(), 2ull);
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void module_datas_iterates_with_correct_names_in_order()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
@@ -3073,7 +3077,7 @@ API void dummy(){}
 //		is_eq(names[2], "pos");
 //	}
 //
-//	REFL_FUNC(unit_test{})
+//	REFL_FUNC(ge::test_core::unit_test_trait{})
 //	export API void module_datas_outer_types_match_owning_type()
 //	{
 //		auto reg = ge::refl::builders::begin_registry()
