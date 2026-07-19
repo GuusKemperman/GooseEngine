@@ -5,7 +5,8 @@ import logger;
 import static_reflection;
 export import test_core;
 
-// TODO these tests are out of date since the return type changed, but the tests still have an std::expcted
+// TODO these tests are out of date since the return type changed, but the tests were written when parse_file returned an std::expected
+// TODO: Determine holes in test-coverage and write additional tests.
 
 using namespace ge::test_core;
 using namespace ge::test_core::assert;

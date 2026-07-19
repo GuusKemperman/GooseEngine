@@ -9,6 +9,8 @@ export import test_core;
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
+// TODO: Determine holes in test-coverage and write additional tests.
+
 namespace tokeniser
 {
 	REFL_FUNC(ge::test_core::unit_test_trait{})

@@ -1,15 +1,11 @@
 export module test_static_reflection:test_converter;
 
 import stl;
-import logger;
 import static_reflection;
 export import test_core;
 
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
-
-
-
 
 namespace
 {
@@ -21,48 +17,5 @@ namespace
 	}
 }
 
-REFL_FUNC(ge::test_core::unit_test_trait{})
-export API void simple_type()
-{
-	std::string_view src =
-		R"(
-namespace thing
-{
-	REFL_FUNC(ge::test_core::unit_test_trait{})
-		export API void dummy()
-	{
-		ge::test_core::assert::is_false(true);
-	}
+// TODO: End-to-end Tests that take C++ source code and determines if the output is as expected. Only a handful of tests for different edge cases; if we ever change the output format, we dont want to update hundreds of tests.
 
-}
-)";
-	std::cout << convert(src);
-}
-
-
-namespace converter
-{
-	REFL_FUNC(ge::test_core::unit_test_trait{})
-	export API void simple_type()
-	{
-		std::string_view src =
-			R"(
-REFL_TYPE()
-class MyType
-{
-public:
-REFL_DATA()
-int my_member = 10;
-
-// This is not legal cus strings are not attributes but whatever
-REFL_FUNC(std::string_view{"hello"})
-int my_func(int, float);
-};
-
-REFL_FUNC()
-int my_global_func(int, float);
-
-)";
-		std::cout << convert(src);
-	}
-}
