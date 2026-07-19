@@ -35,11 +35,11 @@ int main()
 			return std::move(reg_builder).build();
 		}();
 
-	ge::refl::func_query::with<ge::test_core::unit_test_trait > unit_tests{ reg->m_funcs };
+	ge::refl::func_query::with<ge::test_core::unit_test_trait >::read<ge::refl::invocable_trait<void()>> unit_tests{ reg->m_funcs };
 
-	for (const ge::refl::func_data& func : unit_tests)
+	for (const auto& [func, invocable] : unit_tests)
 	{
-		ge::refl::invoke(func);
+		invocable.m_invoke();
 	}
 }
 

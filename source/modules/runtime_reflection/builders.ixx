@@ -467,7 +467,6 @@ namespace ge::refl::builders
 				}
 			))
 		{
-			m_target.m_vtable.set<func_data::vtable_impl<FuncPtr, func_sig_t<decltype(FuncPtr)>>>();
 		}
 
 	protected:
