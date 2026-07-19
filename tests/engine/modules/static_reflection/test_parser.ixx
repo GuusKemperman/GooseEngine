@@ -5,21 +5,19 @@ import logger;
 import static_reflection;
 export import test_core;
 
-// TODO these tests are out of date since the return type changed, but the tests were written when parse_file returned an std::expected
-// TODO: Determine holes in test-coverage and write additional tests.
-
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
-static ge::parsed_file parse_file(std::string_view file)
+static ge::parsed_file parse_file(std::string_view file,
+	const std::source_location& src = std::source_location::current())
 {
-	std::expected<ge::parsed_file, std::string> result = ge::parse(file);
+	ge::parsed_file result = ge::parse(file);
 
-	if (result.has_value())
+	if (!result.m_errors.empty())
 	{
-		return *std::move(result);
+		failure(result.m_errors.front().m_msg, src);
 	}
-	failure(result.error());
+	return result;
 }
 
 template<typename T>
@@ -43,11 +41,11 @@ namespace parser
 			"int valid = 69;\n";
 
 		ge::logger logger{};
-		std::expected<ge::parsed_file, std::string> result = ge::parse(src);
+		ge::parsed_file result = ge::parse(src);
 
-		is_false(result.has_value());
-		is_false(result.error().empty());
-		logger.log_raw(ge::severity::message, result.error());
+		is_false(result.m_errors.empty());
+		is_false(result.m_errors.front().m_msg.empty());
+		logger.log_raw(ge::severity::message, result.m_errors.front().m_msg);
 	}
 
 	REFL_FUNC(ge::test_core::unit_test_trait{})
@@ -371,5 +369,218 @@ namespace parser
 		is_eq(file.m_enums.at(3).m_entries.at(2), "goodnight");
 		is_eq(file.m_enums.at(3).m_entries.at(3), "darling");
 		is_eq(file.m_enums.at(3).m_entries.size(), 4ull);
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void struct_type()
+	{
+		std::string_view src =
+			"REFL_TYPE()\n"
+			"struct my_struct\n"
+			"{\n"
+			"    REFL_DATA()\n"
+			"    int field = 1;\n"
+			"};\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_types.size(), 1ull);
+		const ge::parsed_type& type = list_at(file.m_types, 0);
+		is_eq(type.m_name, "my_struct");
+		is_eq(type.m_key, ge::parsed_type_key::struct_type);
+		is_true(type.m_base_types.empty());
+
+		// Members of a struct default to public access.
+		is_eq(type.m_data.at(0).m_name, "field");
+		is_eq(type.m_data.at(0).m_access, ge::parsed_access_specifier::public_access);
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void class_member_access_and_virtual()
+	{
+		std::string_view src =
+			"REFL_TYPE()\n"
+			"class my_class\n"
+			"{\n"
+			"    REFL_DATA()\n"
+			"    int hidden = 1;\n"
+			"public:\n"
+			"    REFL_FUNC()\n"
+			"    virtual void overridable();\n"
+			"};\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		const ge::parsed_type& type = list_at(file.m_types, 0);
+		is_eq(type.m_key, ge::parsed_type_key::class_type);
+
+		// Members of a class default to private access until an access specifier appears.
+		is_eq(type.m_data.at(0).m_access, ge::parsed_access_specifier::private_access);
+		is_eq(type.m_funcs.at(0).m_access, ge::parsed_access_specifier::public_access);
+		is_eq(type.m_funcs.at(0).m_keywords, ge::parsed_keywords::virtual_keyword);
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void keywords_accumulate()
+	{
+		std::string_view src =
+			"REFL_FUNC()\n"
+			"export inline static void f();\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_funcs.at(0).m_name, "f");
+		is_eq(file.m_funcs.at(0).m_keywords,
+			ge::parsed_keywords::export_keyword | ge::parsed_keywords::inline_keyword | ge::parsed_keywords::static_keyword);
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void enum_keys()
+	{
+		std::string_view src =
+			"REFL_ENUM()\n"
+			"enum plain { an_entry };\n"
+			"REFL_ENUM()\n"
+			"enum class scoped {};\n"
+			"REFL_ENUM()\n"
+			"enum struct scoped_struct {};\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_enums.size(), 3ull);
+		is_eq(file.m_enums.at(0).m_name, "plain");
+		is_eq(file.m_enums.at(0).m_key, ge::parsed_enum_key::enum_key);
+		is_eq(file.m_enums.at(0).m_entries.at(0), "an_entry");
+		is_eq(file.m_enums.at(1).m_name, "scoped");
+		is_eq(file.m_enums.at(1).m_key, ge::parsed_enum_key::enum_class_key);
+		is_eq(file.m_enums.at(2).m_name, "scoped_struct");
+		is_eq(file.m_enums.at(2).m_key, ge::parsed_enum_key::enum_struct_key);
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void pointer_return_type()
+	{
+		std::string_view src =
+			"REFL_FUNC()\n"
+			"const char* stringify();\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_funcs.at(0).m_name, "stringify");
+		is_eq(file.m_funcs.at(0).m_return_type, "const char*");
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void unnamed_parameter()
+	{
+		std::string_view src =
+			"REFL_FUNC()\n"
+			"void f(int);\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_funcs.at(0).m_parameters.size(), 1ull);
+		is_eq(file.m_funcs.at(0).m_parameters.at(0).m_type, "int");
+		is_eq(file.m_funcs.at(0).m_parameters.at(0).m_name, "");
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void trailing_reference_qualifier()
+	{
+		std::string_view src =
+			"REFL_FUNC()\n"
+			"int f() &&;\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_funcs.at(0).m_name, "f");
+		is_eq(file.m_funcs.at(0).m_trailing_qualifiers, "&&");
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void using_statements_skipped()
+	{
+		// "using namespace ...;" must not open a parsed namespace scope.
+		std::string_view src =
+			"using my_alias = std::vector<int>;\n"
+			"using namespace outer;\n"
+			"REFL_FUNC()\n"
+			"bool check();\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_funcs.size(), 1ull);
+		is_eq(file.m_funcs.at(0).m_name, "check");
+		is_true(file.m_namespaces.empty());
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void unreflected_code_ignored()
+	{
+		std::string_view src =
+			"int not_reflected() { return 3; }\n"
+			"class plain_class { int x = 0; };\n"
+			"REFL_FUNC()\n"
+			"bool reflected();\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(file.m_funcs.size(), 1ull);
+		is_eq(file.m_funcs.at(0).m_name, "reflected");
+		is_true(file.m_types.empty());
+		is_true(file.m_data.empty());
+		is_true(file.m_enums.empty());
+		is_true(file.m_namespaces.empty());
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void scope_line_numbers()
+	{
+		std::string_view src =
+			"namespace outer\n"
+			"{\n"
+			"}\n";
+
+		ge::parsed_file file = parse_file(src);
+
+		is_eq(list_at(file.m_namespaces, 0).m_scope_start.m_line_number, 1u);
+		is_eq(list_at(file.m_namespaces, 0).m_scope_end.m_line_number, 3u);
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void unclosed_scope_reports_error()
+	{
+		std::string_view src =
+			"namespace foo\n"
+			"{\n";
+
+		ge::parsed_file result = ge::parse(src);
+
+		is_false(result.m_errors.empty());
+		is_false(result.m_errors.front().m_msg.empty());
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void truncated_function_reports_error()
+	{
+		std::string_view src =
+			"REFL_FUNC()\n"
+			"void f(";
+
+		ge::parsed_file result = ge::parse(src);
+
+		is_false(result.m_errors.empty());
+	}
+
+	REFL_FUNC(ge::test_core::unit_test_trait{})
+	export API void missing_type_identifier_reports_error()
+	{
+		std::string_view src =
+			"REFL_TYPE()\n"
+			"class;\n";
+
+		ge::parsed_file result = ge::parse(src);
+
+		is_false(result.m_errors.empty());
 	}
 }

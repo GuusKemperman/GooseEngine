@@ -111,7 +111,7 @@ namespace ge::refl
 			return value{ obj.m_vtable, obj.m_value, true, false };
 		}
 
-		template<undecorated T, typename Arg>
+		template<typename Arg, undecorated T = remove_decoration_t<Arg>>
 		static value create_owning(Arg&& args)
 		{
 			void* buffer = std::malloc(sizeof(T));
