@@ -9,8 +9,6 @@ import :data;
 
 // TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
 // TODO enums
-// TODO access (private/public)
-
 
 namespace ge::refl::builders
 {
@@ -118,7 +116,6 @@ namespace ge::refl::builders
 
 			([&]<typename TraitT>(TraitT && trait)
 			{
-				// TODO most of our traits will be constexpr, wasteful to make a copy.
 				value& data = reg.m_values.push_back(value::create_owning(std::forward<TraitT>(trait)));
 
 				storedTraits = { begin, storedTraits.size() + 1 };

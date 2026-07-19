@@ -111,14 +111,12 @@ namespace ge::refl
 			return value{ obj.m_vtable, obj.m_value, true, false };
 		}
 
-		template<typename T>
-		static value create_owning(T&& args)
+		template<undecorated T, typename Arg>
+		static value create_owning(Arg&& args)
 		{
-			// TODO error checking for unsupported types
-			using undecorated = remove_decoration_t<T>;
-			void* buffer = std::malloc(sizeof(undecorated));
-			new (buffer)undecorated(std::forward<T>(args));
-			return value{ create_vtable<undecorated>(), buffer, true, true };
+			void* buffer = std::malloc(sizeof(T));
+			new (buffer)T(std::forward<Arg>(args));
+			return value{ create_vtable<T>(), buffer, true, true };
 		}
 
 		API value() = default;

@@ -42,4 +42,3 @@ int main()
 		invocable.m_invoke();
 	}
 }
-

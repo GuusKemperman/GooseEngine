@@ -4,9 +4,6 @@ import stl;
 
 namespace ge::refl
 {
-	// TODO error handling for unsupported types, such as T**
-
-
 
 	template<typename Base> requires (sizeof(Base) == sizeof(size_t))
 	class inplace_vtable

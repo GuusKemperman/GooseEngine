@@ -6,6 +6,5 @@ add_module("runtime_reflection"
 	"query.ixx"
 	"runtime_reflection.ixx"
 	"type_id.ixx"
-	"utils.ixx"
 	"value.ixx"
 )

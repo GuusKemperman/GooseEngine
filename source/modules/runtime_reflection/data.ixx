@@ -8,10 +8,6 @@ import :value;
 import :type_id;
 import stl;
 
-// TODO enforce no mixing attributes, e.g., one attribute, add data add attri to data, then another attribute to original type. This breaks contiguous span thing
-// TODO enums
-// TODO access (private/public)
-
 namespace ge::refl
 {
 	export struct type_data;

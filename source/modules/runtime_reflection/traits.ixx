@@ -26,6 +26,19 @@ namespace ge::refl
 		}
 	};
 
+	template<typename T>
+	struct is_supported_param_type : std::bool_constant<undecorated<T>> {};
+
+	template<undecorated T>
+	struct is_supported_param_type<T&> : std::bool_constant<true> {};
+
+	template<undecorated T>
+	struct is_supported_param_type<const T&> : std::bool_constant<true> {};
+
+	export template<typename T>
+	concept supported_param_type = is_supported_param_type<T>::value;
+
+	// TODO do we really need this?
 	struct dynamically_invocable_trait
 	{
 		struct vtable

@@ -112,16 +112,4 @@ namespace ge::refl
 
 	template<auto DataPtr>
 	concept is_data = requires { typename data_ptr<decltype(DataPtr)>::outer_type_t; };
-
-	template<typename T>
-	struct is_supported_param_type : std::bool_constant<undecorated<T>> {};
-
-	template<undecorated T>
-	struct is_supported_param_type<T&> : std::bool_constant<true> {};
-
-	template<undecorated T>
-	struct is_supported_param_type<const T&> : std::bool_constant<true> {};
-
-	export template<typename T>
-	concept supported_param_type = is_supported_param_type<T>::value;
 }
