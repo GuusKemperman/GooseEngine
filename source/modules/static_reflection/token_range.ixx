@@ -21,7 +21,7 @@ namespace ge
 		std::string_view m_str{};
 		flag m_flag{};
 
-		API bool operator==(const token&) const = default;
+		API bool operator==( const token& ) const = default;
 	};
 
 	export class token_iterator
@@ -31,35 +31,56 @@ namespace ge
 		using value_type = token;
 
 		API token_iterator() = default;
-		API token_iterator(std::string_view file, size_t num_characters_to_skip = 0ull) : m_file(file), m_num_characters_parsed(num_characters_to_skip) {}
+		API token_iterator( std::string_view file, size_t num_characters_to_skip = 0ull )
+			: m_file( file ), m_num_characters_parsed( num_characters_to_skip )
+		{
+		}
 
-		API const token& operator*() const { return m_token; }
-		API const token* operator->() const { return &m_token; }
+		API const token& operator*() const
+		{
+			return m_token;
+		}
+
+		API const token* operator->() const
+		{
+			return &m_token;
+		}
 
 		API token_iterator& operator++();
 
-		API token_iterator operator++(int)
+		API token_iterator operator++( int )
 		{
 			auto tmp = *this;
 			++*this;
 			return tmp;
 		}
 
-		API bool operator==(const token_iterator& other) const
+		API bool operator==( const token_iterator& other ) const
 		{
 			return m_num_characters_parsed == other.m_num_characters_parsed
-				&& m_file == other.m_file;
+			       && m_file == other.m_file;
 		}
-		API bool operator!=(const token_iterator& other) const
+
+		API bool operator!=( const token_iterator& other ) const
 		{
 			return m_num_characters_parsed != other.m_num_characters_parsed
-				|| m_file != other.m_file;
+			       || m_file != other.m_file;
 		}
 
-		API int parentheses_count() const { return m_parentheses_count; }
-		API int curly_bracket_count() const { return m_curly_brackets_count; }
+		API int parentheses_count() const
+		{
+			return m_parentheses_count;
+		}
 
-		API size_t num_characters_parsed() const { return m_num_characters_parsed; }
+		API int curly_bracket_count() const
+		{
+			return m_curly_brackets_count;
+		}
+
+		API size_t num_characters_parsed() const
+		{
+			return m_num_characters_parsed;
+		}
 
 		API source_location get_source() const
 		{
@@ -78,7 +99,10 @@ namespace ge
 	export class token_range
 	{
 	public:
-		API token_range(std::string_view file) : m_file(file) {}
+		API token_range( std::string_view file )
+			: m_file( file )
+		{
+		}
 
 		API token_iterator begin() const
 		{
@@ -100,88 +124,92 @@ namespace ge
 
 ge::token_iterator& ge::token_iterator::operator++()
 {
-	auto remaining_file = [&] { return m_file.substr(m_num_characters_parsed); };
+	auto remaining_file = [&]
+	{
+		return m_file.substr( m_num_characters_parsed );
+	};
 
 	auto peek =
-		[&](size_t index, unsigned char ch)
+		[&]( size_t index, unsigned char ch )
+	{
+		if( m_num_characters_parsed + index >= m_file.size() )
 		{
-			if (m_num_characters_parsed + index >= m_file.size())
-			{
-				return false;
-			}
-			return m_file[index + m_num_characters_parsed] == ch;
-		};
+			return false;
+		}
+		return m_file[ index + m_num_characters_parsed ] == ch;
+	};
 
 	auto start_token =
 		[&]
-		{
-			m_token = {};
-			m_token.m_str = m_file.substr(m_num_characters_parsed, 0);
-		};
+	{
+		m_token = {};
+		m_token.m_str = m_file.substr( m_num_characters_parsed, 0 );
+	};
 
 	auto discard_char =
-		[&](size_t amount = 1)
+		[&]( size_t amount = 1 )
+	{
+		// This is the only place where m_num_characters_parsed is incremented, 
+		// so we also update the line number count here
+		for( size_t i = 0; i < amount; i++ )
 		{
-			// This is the only place where m_num_characters_parsed is incremented, 
-			// so we also update the line number count here
-			for (size_t i = 0; i < amount; i++)
-			{
-				m_line_number += peek(i, '\n');
-			}
+			m_line_number += peek( i, '\n' );
+		}
 
-			m_num_characters_parsed += amount;
-		};
+		m_num_characters_parsed += amount;
+	};
 
 	auto add_to_token =
-		[&](size_t amount = 1)
-		{
-			m_token.m_str = { m_token.m_str.data(), std::min(m_token.m_str.data() + m_token.m_str.size() + amount,
-				m_file.data() + m_file.size()) };
-			discard_char(amount);
-		};
+		[&]( size_t amount = 1 )
+	{
+		m_token.m_str = { m_token.m_str.data(), std::min(
+			                  m_token.m_str.data() + m_token.m_str.size() + amount,
+			                  m_file.data() + m_file.size() ) };
+		discard_char( amount );
+	};
 
 	auto add_to_token_until_pred =
-		[&](const auto& pred)
+		[&]( const auto& pred )
+	{
+		while( m_num_characters_parsed < m_file.size() )
 		{
-			while (m_num_characters_parsed < m_file.size())
+			if( pred() )
 			{
-				if (pred())
-				{
-					break;
-				}
-
-				add_to_token();
+				break;
 			}
-		};
+
+			add_to_token();
+		}
+	};
 
 	auto add_to_token_until_match =
-		[&](std::string_view match)
-		{
-			add_to_token_until_pred(
-				[&]
-				{
-					return m_file.substr(m_num_characters_parsed).starts_with(match);
-				}
+		[&]( std::string_view match )
+	{
+		add_to_token_until_pred(
+			[&]
+			{
+				return m_file.substr( m_num_characters_parsed ).starts_with( match );
+			}
 			);
-		};
+	};
 
 	m_token = {};
 
-	if (m_num_characters_parsed == m_file.size())
+	if( m_num_characters_parsed == m_file.size() )
 	{
 		m_num_characters_parsed = m_file.size() + 1;
 		return *this;
 	}
 
 	bool white_space_found = false;
-	while (m_num_characters_parsed < m_file.size()
-		&& std::isspace(static_cast<unsigned char>(m_file[m_num_characters_parsed])))
+	while( m_num_characters_parsed < m_file.size()
+	       && std::isspace( static_cast< unsigned char >( m_file[ m_num_characters_parsed ] ) ) )
 	{
 		white_space_found = true;
 		discard_char();
 	}
 
-	if (white_space_found)
+	if( white_space_found )
 	{
 		m_token = {};
 		m_token.m_str = " "sv;
@@ -189,66 +217,66 @@ ge::token_iterator& ge::token_iterator::operator++()
 		return *this;
 	}
 
-	if (remaining_file().starts_with("[["sv))
+	if( remaining_file().starts_with( "[["sv ) )
 	{
-		discard_char(2);
+		discard_char( 2 );
 
 		start_token();
 		m_token.m_flag = token::flag::attribute;
-		add_to_token_until_match("]]"sv);
+		add_to_token_until_match( "]]"sv );
 
-		discard_char(2);
+		discard_char( 2 );
 		return *this;
 	}
 
-	if (remaining_file().starts_with("/*"sv))
+	if( remaining_file().starts_with( "/*"sv ) )
 	{
-		discard_char(2);
+		discard_char( 2 );
 		start_token();
 		m_token.m_flag = token::flag::comment;
-		add_to_token_until_match("*/"sv);
-		discard_char(2);
+		add_to_token_until_match( "*/"sv );
+		discard_char( 2 );
 		return *this;
 	}
 
-	if (remaining_file().starts_with("//"sv))
+	if( remaining_file().starts_with( "//"sv ) )
 	{
-		discard_char(2);
+		discard_char( 2 );
 		start_token();
 		m_token.m_flag = token::flag::comment;
-		add_to_token_until_match("\n"sv);
+		add_to_token_until_match( "\n"sv );
 		discard_char();
 		return *this;
 	}
 
-	if (remaining_file().starts_with("R\"("sv)
-		|| remaining_file().starts_with("LR\""sv)
-		|| remaining_file().starts_with("u8R\""sv)
-		|| remaining_file().starts_with("uR\""sv)
-		|| remaining_file().starts_with("UR\""sv))
+	if( remaining_file().starts_with( "R\"("sv )
+	    || remaining_file().starts_with( "LR\""sv )
+	    || remaining_file().starts_with( "u8R\""sv )
+	    || remaining_file().starts_with( "uR\""sv )
+	    || remaining_file().starts_with( "UR\""sv ) )
 	{
 		start_token();
-		add_to_token_until_match(")\""sv);
-		add_to_token(2);
+		add_to_token_until_match( ")\""sv );
+		add_to_token( 2 );
 		return *this;
 	}
 
-	if (remaining_file().starts_with('\"')
-		|| remaining_file().starts_with("L\""sv)
-		|| remaining_file().starts_with("u8\""sv)
-		|| remaining_file().starts_with("u\""sv)
-		|| remaining_file().starts_with("U\""sv))
+	if( remaining_file().starts_with( '\"' )
+	    || remaining_file().starts_with( "L\""sv )
+	    || remaining_file().starts_with( "u8\""sv )
+	    || remaining_file().starts_with( "u\""sv )
+	    || remaining_file().starts_with( "U\""sv ) )
 	{
 		start_token();
 
 		// Find the opening quote
-		add_to_token_until_match("\""sv);
+		add_to_token_until_match( "\""sv );
 
-		while (!remaining_file().empty())
+		while( !remaining_file().empty() )
 		{
-			if (!peek(0, '\\') && peek(1, '"'))
+			if( !peek( 0, '\\' ) && peek( 1, '"' ) )
 			{
-				add_to_token(2);
+				add_to_token( 2 );
 				break;
 			}
 			add_to_token();
@@ -257,29 +285,29 @@ ge::token_iterator& ge::token_iterator::operator++()
 		return *this;
 	}
 
-	if (remaining_file().starts_with('\''))
+	if( remaining_file().starts_with( '\'' ) )
 	{
 		start_token();
 		add_to_token();
 
-		if (remaining_file().starts_with(R"(\'')"))
+		if( remaining_file().starts_with( R"(\'')" ) )
 		{
-			add_to_token(3);
+			add_to_token( 3 );
 		}
 		else
 		{
-			add_to_token(2);
+			add_to_token( 2 );
 		}
 
 		return *this;
 	}
 
-	if (remaining_file().starts_with("::"sv)
-		|| remaining_file().starts_with("->"sv)
-		|| remaining_file().starts_with("&&"sv))
+	if( remaining_file().starts_with( "::"sv )
+	    || remaining_file().starts_with( "->"sv )
+	    || remaining_file().starts_with( "&&"sv ) )
 	{
 		start_token();
-		add_to_token(2);
+		add_to_token( 2 );
 		return *this;
 	}
 
@@ -290,38 +318,38 @@ ge::token_iterator& ge::token_iterator::operator++()
 	static constexpr std::string_view number_literal_characters = "0123456789'.-eEb"sv;
 	static constexpr std::string_view hex_characters = "0123456789'abcdefABCDEF"sv;
 
-	if (remaining_file().starts_with("0x"sv)
-		|| remaining_file().starts_with("0X"sv))
+	if( remaining_file().starts_with( "0x"sv )
+	    || remaining_file().starts_with( "0X"sv ) )
 	{
 		start_token();
 		add_to_token( 2 );
 		add_to_token_until_pred(
 			[&]
 			{
-				return !hex_characters.contains(remaining_file().front());
-			});
+				return !hex_characters.contains( remaining_file().front() );
+			} );
 		return *this;
 	}
 
-	if (number_literal_start_characters.contains(remaining_file().front()))
+	if( number_literal_start_characters.contains( remaining_file().front() ) )
 	{
 		start_token();
 		add_to_token_until_pred(
 			[&]
 			{
-				return !number_literal_characters.contains(remaining_file().front());
-			});
+				return !number_literal_characters.contains( remaining_file().front() );
+			} );
 		return *this;
 	}
 
-	if (identifier_start_characters.contains(remaining_file().front()))
+	if( identifier_start_characters.contains( remaining_file().front() ) )
 	{
 		start_token();
 		add_to_token_until_pred(
 			[&]
 			{
-				return !identifier_characters.contains(remaining_file().front());
-			});
+				return !identifier_characters.contains( remaining_file().front() );
+			} );
 
 		m_token.m_flag = token::flag::valid_identifier;
 		return *this;
@@ -330,22 +358,21 @@ ge::token_iterator& ge::token_iterator::operator++()
 	start_token();
 	add_to_token();
 
-	if (m_token.m_str == "("sv)
+	if( m_token.m_str == "("sv )
 	{
 		m_parentheses_count++;
 	}
-	else if (m_token.m_str == ")"sv)
+	else if( m_token.m_str == ")"sv )
 	{
 		m_parentheses_count--;
 	}
-	else if (m_token.m_str == "{"sv)
+	else if( m_token.m_str == "{"sv )
 	{
 		m_curly_brackets_count++;
 	}
-	else if (m_token.m_str == "}"sv)
+	else if( m_token.m_str == "}"sv )
 	{
 		m_curly_brackets_count--;
 	}
 	return *this;
 }
-

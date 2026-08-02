@@ -11,9 +11,9 @@ namespace ge
 
 	export struct source_error
 	{
-		source_error(std::string msg, source_location source) :
-			m_msg(std::move(msg)),
-			m_source(source)
+		source_error( std::string msg, source_location source )
+			: m_msg( std::move( msg ) ),
+			  m_source( source )
 		{
 		}
 

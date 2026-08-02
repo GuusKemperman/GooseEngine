@@ -1,0 +1,187 @@
+---
+DisableFormat: false
+BasedOnStyle: Microsoft
+Language: Cpp
+Standard: Latest
+
+AccessModifierOffset: -4
+ColumnLimit: 130
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+# IndentAccessModifiers: 4
+IndentCaseLabels: false
+IndentExternBlock: AfterExternBlock
+# IndentGotoLables: false
+IndentPPDirectives: None
+IndentRequires: true
+IndentWidth: 4
+IndentWrappedFunctionNames: true
+TabWidth: 4
+UseCRLF: true
+UseTab: Always
+
+AlignAfterOpenBracket: AlwaysBreak
+# AlignArrayOfStructures: Right
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveBitFields: None 
+AlignConsecutiveMacros: None
+AlignEscapedNewlines: DontAlign
+AlignOperands: true
+AlignTrailingComments: true
+
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+# PackConstructorInitializers: CurrentLine
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterExternBlock: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+BreakStringLiterals: true
+CompactNamespaces: false
+FixNamespaceComments: true
+
+# DeriveLineEnding: false
+# DerivePointerAligment: false
+
+# EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+
+AttributeMacros: ['R_NO_INLINE', 'R_FORCE_INLINE', 'R_DEPRECATED', 'R_NO_RETURN', 'RMD_NO_ASAN', 'RMD_NO_UBSAN', 'RMD_NO_TSAN', 'R_LIKELY', 'R_UNLIKELY']
+# ForEachMacros:
+# IfMacros: 
+
+SortIncludes: true
+IncludeIsMainRegex:  '(_.*)?$'
+IncludeBlocks:       Regroup
+IncludeCategories:
+  - Regex:           '^"(PrecompiledHeader).*$'
+    Priority:        -2
+  - Regex:           '^"(DllDefs).*$'
+    Priority:        -1
+
+# Remaining remedy headers
+  - Regex:           '".*/.*"'
+    Priority:        100
+
+# Current project
+  - Regex:           '".*"'
+    Priority:        1
+
+# System/3rd party headers
+  - Regex:           '<[[:alnum:].]+>'
+    Priority:        1000
+
+# IncludeIsMainRegex:
+# IncludeIsMainSourceRegex:
+
+InsertTrailingCommas: None
+KeepEmptyLinesAtTheStartOfBlocks: false
+# LambdaBodyIndentation: Signature
+
+MaxEmptyLinesToKeep: 1
+
+NamespaceIndentation: All
+# NamespaceMacros:
+
+# PenaltyBreakAssignment:
+# PenaltyBreakBeforeFirstCallParameter:
+# PenaltyBreakComment: 
+# PenaltyBreakFirstLessLess:
+# PenaltyBreakString:
+# PenaltyBreakTemplateDeclaration:
+# PenaltyExcessCharacter:
+# PenaltyIndentedWhitespace:
+# PenaltyReturnTypeOnItsOwnLine
+
+# ReferenceAlignment: Left
+ReflowComments: false
+# ShortNamespaceLines: 1
+
+SortUsingDeclarations: true
+
+PointerAlignment: Left
+
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceAroundPointerQualifiers: Before
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: Never
+SpaceBeforeSquareBrackets: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: true
+SpacesInCStyleCastParentheses: true
+SpacesInConditionalStatement: true
+SpacesInContainerLiterals: true
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesInParentheses: true
+SpacesInSquareBrackets: true
+Cpp11BracedListStyle: false
+
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtEOF: true
+
+#SpacesInLineCommentPrefix:
+#  Minimum: 1
+#  Maximum: -1
+
+# PPIndentWidth: 4
+# TypenameMacros: ['STACK_OF', 'LIST']
+# StatementAttributeLikeMacros: [emit]
+# StatementMacros: ['Q_UNUSED']
+MacroBlockBegin: "^OSP_BEGIN.*$"
+MacroBlockEnd: "^OSP_END$"
+WhitespaceSensitiveMacros: [
+  'OSP_BASECLASS',
+  'OSP_VARIABLE',  
+  'OSP_POINTER', 
+  'OSP_GLOBALIDPOINTER',
+  'OSP_GLOBALID',
+  'OSP_FIXEDARRAY',
+  'OSP_STRING',
+  'OSP_FILENAME',
+  'OSP_ENUM',
+  'OSP_REMOVED',
+  'OSP_REMOVED_TYPE',
+  'OSP_SPECIAL',
+  'OSP_SIMD',
+  'OSP_REMOVED_VARIABLE',
+  'OSP_PATCH']
+...
