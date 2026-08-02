@@ -48,6 +48,17 @@ namespace parser
 		logger.log_raw(ge::severity::message, result.m_errors.front().m_msg);
 	}
 
+		REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void thing()
+	{
+		ge::parsed_file file = parse_file(
+			"REFL_FUNC()\n"
+			"std::array<std::vector<std::pair<int, float>>, 0x401ul > foo();\n" );
+
+		is_eq( file.m_funcs.size(), 1ull );
+		is_eq( file.m_funcs.front().m_return_type, "std::array<std::vector<std::pair<int, float>>, 0x401ul >" );
+	}
+
 	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void complex_function_no_crash()
 	{

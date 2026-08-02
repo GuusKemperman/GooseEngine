@@ -294,6 +294,7 @@ ge::token_iterator& ge::token_iterator::operator++()
 		|| remaining_file().starts_with("0X"sv))
 	{
 		start_token();
+		add_to_token( 2 );
 		add_to_token_until_pred(
 			[&]
 			{

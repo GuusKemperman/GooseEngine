@@ -310,7 +310,7 @@ namespace tokeniser
 	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void number_literals()
 	{
-		expect_tokens("123 1.5 1'000 1e-5 0b101",
+		expect_tokens("123 1.5 1'000 1e-5 0b101 0x1F",
 			{
 				{ "123" },
 				{ " ", ge::token::flag::white_space },
@@ -321,17 +321,7 @@ namespace tokeniser
 				{ "1e-5" },
 				{ " ", ge::token::flag::white_space },
 				{ "0b101" },
-			});
-	}
-
-	REFL_FUNC(ge::test_core::unit_test_trait{})
-	export API void hex_literal()
-	{
-		// KNOWN BUG, deliberately left failing: the hex branch in token_range.ixx
-		// does not consume the "0x" prefix and hex_characters lacks 'x'/'X', so
-		// "0x1F" currently tokenises as "0" followed by the identifier "x1F".
-		expect_tokens("0x1F",
-			{
+				{ " ", ge::token::flag::white_space },
 				{ "0x1F" },
 			});
 	}
