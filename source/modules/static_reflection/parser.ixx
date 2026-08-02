@@ -174,9 +174,13 @@ namespace ge
 			check_for_next_parameter,
 			check_for_next_enum_entry,
 
-			skip_to_opening_parentheses,
-			skip_to_opening_curly_bracket,
+			skip_parentheses,
+			skip_curly_brackets,
+			skip_template_brackets,
+			goto_next_opening_parentheses,
+			goto_next_opening_curly_bracket,
 			skip_to_semi_colon,
+			skip_to_end_of_default,
 		};
 
 		enum class store_event : enum_type
@@ -190,6 +194,7 @@ namespace ge
 			store_reflected_func,
 			store_parameter,
 			store_trailing_qualifiers,
+			discard
 		};
 
 		static constexpr enum_type s_next_item_is_store_event = std::numeric_limits< enum_type >::max();
@@ -373,12 +378,20 @@ ge::parsed_file ge::parser::parse( token_range tokenised_source )
 					return "token_consumer::check_for_next_parameter";
 				case token_consumer::check_for_next_enum_entry:
 					return "token_consumer::check_for_next_enum_entry";
-				case token_consumer::skip_to_opening_parentheses:
-					return "token_consumer::skip_to_opening_parentheses";
-				case token_consumer::skip_to_opening_curly_bracket:
-					return "token_consumer::skip_to_opening_curly_bracket";
+				case token_consumer::skip_parentheses:
+					return "skip_parentheses";
+				case token_consumer::skip_curly_brackets:
+					return "skip_curly_brackets";
+				case token_consumer::skip_template_brackets:
+					return "skip_template_brackets";
+				case token_consumer::goto_next_opening_parentheses:
+					return "token_consumer::goto_next_opening_parentheses";
+				case token_consumer::goto_next_opening_curly_bracket:
+					return "token_consumer::goto_next_opening_curly_bracket";
 				case token_consumer::skip_to_semi_colon:
 					return "token_consumer::skip_to_semi_colon";
+				case token_consumer::skip_to_end_of_default:
+					return "token_consumer::skip_to_end_of_default";
 				default:
 					return "<<unknown>>";
 				};
@@ -442,7 +455,7 @@ void ge::parser::push_state( reflect_bundle bundle )
 			token_consumer::parse_enum_key,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_enum,
-			token_consumer::skip_to_opening_curly_bracket,
+			token_consumer::goto_next_opening_curly_bracket,
 			token_consumer::check_for_next_enum_entry );
 		break;
 	case reflect_bundle::reflect_enum_entry:
@@ -466,7 +479,7 @@ void ge::parser::push_state( reflect_bundle bundle )
 			reflect_bundle::reflect_type_specifier,
 			token_consumer::parse_identifier,
 			store_event::store_reflected_func,
-			token_consumer::skip_to_opening_parentheses,
+			token_consumer::goto_next_opening_parentheses,
 			token_consumer::check_for_next_parameter,
 			reflect_bundle::reflect_trailing_qualifiers );
 		break;
@@ -489,7 +502,7 @@ void ge::parser::push_state( reflect_bundle bundle )
 		break;
 	case reflect_bundle::reflect_traits:
 		queue(
-			token_consumer::skip_to_opening_parentheses,
+			token_consumer::goto_next_opening_parentheses,
 			token_consumer::parse_traits );
 		break;
 	default:
@@ -703,8 +716,9 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 	{
 		if( it->m_str == "<"sv )
 		{
+			m_most_recently_parsed.m_type_specifier += it->m_str;
 			push_state( token_consumer::parse_type_specifier_template_arg );
-			return false;
+			return true;
 		}
 
 		if( !is_type_qualifier_ish( it->m_str )
@@ -724,7 +738,11 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 	{
 		m_most_recently_parsed.m_type_specifier += it->m_str;
 
-		if( it->m_str == ">"sv )
+		if( it->m_str == "<"sv )
+		{
+			push_state( token_consumer::parse_type_specifier_template_arg );
+		}
+		else if( it->m_str == ">"sv )
 		{
 			complete_state();
 		}
@@ -837,9 +855,7 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 	}
 	case token_consumer::check_for_next_parameter:
 	{
-		if( it.parentheses_count() == 0
-		    && it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
-		    && it->m_str == ")"sv )
+		if( it->m_str == ")"sv )
 		{
 			complete_state();
 			return true;
@@ -855,9 +871,11 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 			return false;
 		}
 
-		if( it.parentheses_count() == 1
-		    && it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
-		    && it->m_str == ","sv )
+		if( it->m_str == "="sv )
+		{
+			push_state( token_consumer::skip_to_end_of_default );
+		}
+		else if( it->m_str == ","sv )
 		{
 			complete_state();
 			push_state( reflect_bundle::reflect_parameter );
@@ -867,9 +885,7 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 	}
 	case token_consumer::check_for_next_enum_entry:
 	{
-		if( it.parentheses_count() == 0
-		    && it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 1
-		    && it->m_str == "}"sv )
+		if( it->m_str == "}"sv )
 		{
 			complete_state();
 			return true;
@@ -885,9 +901,11 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 			return false;
 		}
 
-		if( it.parentheses_count() == 0
-		    && it.curly_bracket_count() == m_scope_stack.top().m_curly_brackets_count_before_scope + 2
-		    && it->m_str == ","sv )
+		if( it->m_str == "="sv )
+		{
+			push_state( token_consumer::skip_to_end_of_default );
+		}
+		else if( it->m_str == ","sv )
 		{
 			complete_state();
 			push_state( reflect_bundle::reflect_enum_entry );
@@ -895,7 +913,44 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 
 		return true;
 	}
-	case token_consumer::skip_to_opening_parentheses:
+	case token_consumer::skip_parentheses:
+	{
+		if( it->m_str == ")" )
+		{
+			complete_state();
+		}
+		else if( it->m_str == "(" )
+		{
+			push_state( token_consumer::skip_parentheses );
+		}
+		return true;
+	}
+	case token_consumer::skip_curly_brackets:
+	{
+		if( it->m_str == "}" )
+		{
+			complete_state();
+		}
+		else if( it->m_str == "{" )
+		{
+			push_state( token_consumer::skip_curly_brackets );
+		}
+		return true;
+		
+	}
+	case token_consumer::skip_template_brackets:
+	{
+		if( it->m_str == ">" )
+		{
+			complete_state();
+		}
+		else if( it->m_str == "<" )
+		{
+			push_state( token_consumer::skip_template_brackets );
+		}
+		return true;
+	}
+	case token_consumer::goto_next_opening_parentheses:
 	{
 		if( it->m_str == "("sv )
 		{
@@ -903,7 +958,7 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 		}
 		return true;
 	}
-	case token_consumer::skip_to_opening_curly_bracket:
+	case token_consumer::goto_next_opening_curly_bracket:
 	{
 		if( it->m_str == "{"sv )
 		{
@@ -917,6 +972,31 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 		{
 			complete_state();
 		}
+		return true;
+	}
+	case token_consumer::skip_to_end_of_default:
+	{
+		if( it->m_str == "<"sv )
+		{
+			push_state( token_consumer::skip_template_brackets );
+		}
+		else if( it->m_str == "{" )
+		{
+			push_state( token_consumer::skip_curly_brackets );
+		}
+		else if( it->m_str == "(" )
+		{
+			push_state( token_consumer::skip_parentheses );
+		}
+		else if(
+			it->m_str == ","
+			|| it->m_str == ")"
+			|| it->m_str == "}" )
+		{
+			complete_state();
+			return false;
+		}
+
 		return true;
 	}
 	default:
@@ -995,6 +1075,7 @@ void ge::parser::store( store_event event )
 		parsed_enum& parsed_enum = m_scope_stack.top().m_parsed_scope.get().m_enums.emplace_back();
 		parsed_enum.m_traits = std::move( m_most_recently_parsed.m_traits );
 		parsed_enum.m_name = std::move( m_most_recently_parsed.m_identifier );
+		parsed_enum.m_key = m_most_recently_parsed.m_enum_key;
 		break;
 	}
 	case store_event::store_enum_entry:
@@ -1068,6 +1149,8 @@ void ge::parser::store( store_event event )
 		func.m_trailing_qualifiers = std::move( m_most_recently_parsed.m_type_specifier );
 		break;
 	}
+	case store_event::discard:
+		break;
 	default:
 		std::unreachable();
 	}

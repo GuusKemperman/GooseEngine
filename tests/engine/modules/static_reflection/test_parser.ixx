@@ -28,67 +28,6 @@ static const T& list_at(const std::list<T>& list, size_t index)
 	return *it;
 }
 
-namespace parser
-{
-	REFL_FUNC(ge::test_core::unit_test_trait{})
-	export API void invalid_file()
-	{
-		std::string_view src =
-			"REFL_DATA()\n"
-			"int ? = 5;\n"
-			"\n"
-			"REFL_DATA()\n"
-			"int valid = 69;\n";
-
-		ge::logger logger{};
-		ge::parsed_file result = ge::parse(src);
-
-		is_false(result.m_errors.empty());
-		is_false(result.m_errors.front().m_msg.empty());
-		logger.log_raw(ge::severity::message, result.m_errors.front().m_msg);
-	}
-
-		REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void thing()
-	{
-		ge::parsed_file file = parse_file(
-			"REFL_FUNC()\n"
-			"std::array<std::vector<std::pair<int, float>>, 0x401ul > foo();\n" );
-
-		is_eq( file.m_funcs.size(), 1ull );
-		is_eq( file.m_funcs.front().m_return_type, "std::array<std::vector<std::pair<int, float>>, 0x401ul >" );
-	}
-
-	REFL_FUNC(ge::test_core::unit_test_trait{})
-	export API void complex_function_no_crash()
-	{
-		ge::parsed_file file = parse_file(
-			"        REFL_FUNC(DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable)\n"
-			"        // Hello we are reflect*/ing this\n"
-			"        /*\n"
-			"        /*Comment in comment!\n"
-			"        // Commentttsss\n"
-			"        */\n"
-			R"(        [[nodiscard]] inline /*haha here is another comment */ API  int ___function_name    (const int*& param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)" "\n"
-			"            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), std::array<std::vector<std::pair<int, float>>, 0x401ul > foo = 1.0f);\n"
-		);
-
-		is_eq(file.m_funcs.size(), 1ull);
-		is_eq(file.m_funcs.front().m_return_type, "int");
-		is_eq(file.m_funcs.front().m_name, "___function_name");
-		is_eq(file.m_funcs.front().m_traits, "DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable");
-		is_eq(file.m_funcs.front().m_parameters.at(0).m_type, "const int*&");
-		is_eq(file.m_funcs.front().m_parameters.at(0).m_name, "param0_name");
-		is_eq(file.m_funcs.front().m_parameters.at(1).m_type, "std::string");
-		is_eq(file.m_funcs.front().m_parameters.at(1).m_name, "param1_name");
-		is_eq(file.m_funcs.front().m_parameters.at(2).m_type, "std::string<char>");
-		is_eq(file.m_funcs.front().m_parameters.at(2).m_name, "param2");
-		is_eq(file.m_funcs.front().m_parameters.at(3).m_type, "std::array<std::vector<std::pair<int, float>>, 0x401ul >");
-		is_eq(file.m_funcs.front().m_parameters.at(3).m_name, "foo");
-		is_eq(file.m_funcs.front().m_parameters.size(), 4ull);
-	}
-}
-
 namespace tokeniser
 {
 	REFL_FUNC(ge::test_core::unit_test_trait{})
@@ -175,11 +114,9 @@ namespace parser
 	REFL_FUNC(ge::test_core::unit_test_trait{})
 	export API void simple_func()
 	{
-
-
 		std::string_view src =
 			"REFL_FUNC(attry!, attry2!)\n"
-			"static std::vector<int> global_func(std::array<int, 2> p1 = { 1, 2 }, std::array<int, 3> p2 = std::array<int, 3>(1, 2, 3));";
+			"static std::vector<int> global_func(int p1, float p2);";
 
 		ge::parsed_file file = parse_file(src);
 
@@ -188,10 +125,56 @@ namespace parser
 		is_eq(file.m_funcs.at(0).m_name, "global_func");
 		is_eq(file.m_funcs.at(0).m_keywords, ge::parsed_keywords::static_keyword);
 		is_eq(file.m_funcs.at(0).m_parameters.at(0).m_name, "p1");
-		is_eq(file.m_funcs.at(0).m_parameters.at(0).m_type, "std::array<int, 2>");
+		is_eq(file.m_funcs.at(0).m_parameters.at(0).m_type, "int");
 
 		is_eq(file.m_funcs.at(0).m_parameters.at(1).m_name, "p2");
-		is_eq(file.m_funcs.at(0).m_parameters.at(1).m_type, "std::array<int, 3>");
+		is_eq(file.m_funcs.at(0).m_parameters.at(1).m_type, "float");
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void simple_func_with_default_params()
+	{
+		std::string_view src = "REFL_FUNC()\n"
+							   "void global_func(int p1 = 1, float p2 = 2.0f);";
+
+		ge::parsed_file file = parse_file( src );
+
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_name, "p1" );
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_type, "int" );
+
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_name, "p2" );
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_type, "float" );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void commas_in_parameter_default_within_brackets()
+	{
+		std::string_view src = "REFL_FUNC()\n"
+							   "void foo(std::array<int, 3> p1 = { 1, 2, 3 }, int p2 = 1);";
+
+		ge::parsed_file file = parse_file( src );
+
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_name, "p1" );
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_type, "std::array<int, 3>" );
+
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_name, "p2" );
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_type, "int" );
+	}
+
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void commas_in_parameter_default_type()
+	{
+		std::string_view src = "REFL_FUNC()\n"
+							   "void foo(std::array<int, 3> p1 = std::array<int, 3>{}, int p2 = 1);";
+
+		ge::parsed_file file = parse_file( src );
+
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_name, "p1" );
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_type, "std::array<int, 3>" );
+
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_name, "p2" );
+		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_type, "int" );
 	}
 
 	REFL_FUNC(ge::test_core::unit_test_trait{})
@@ -593,5 +576,52 @@ namespace parser
 		ge::parsed_file result = ge::parse(src);
 
 		is_false(result.m_errors.empty());
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void invalid_file()
+	{
+		std::string_view src = "REFL_DATA()\n"
+							   "int ? = 5;\n"
+							   "\n"
+							   "REFL_DATA()\n"
+							   "int valid = 69;\n";
+
+		ge::logger logger{};
+		ge::parsed_file result = ge::parse( src );
+
+		is_false( result.m_errors.empty() );
+		is_false( result.m_errors.front().m_msg.empty() );
+		logger.log_raw( ge::severity::message, result.m_errors.front().m_msg );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void complex_function_no_crash()
+	{
+		ge::parsed_file file = parse_file(
+			"        REFL_FUNC(DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable)\n"
+			"        // Hello we are reflect*/ing this\n"
+			"        /*\n"
+			"        /*Comment in comment!\n"
+			"        // Commentttsss\n"
+			"        */\n"
+			R"(        [[nodiscard]] inline /*haha here is another comment */ API  int ___function_name    (const int*& param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)"
+			"\n"
+			"            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), "
+			"std::array<std::vector<std::pair<int, float>>, 0x401ul > foo = 1.0f);\n" );
+
+		is_eq( file.m_funcs.size(), 1ull );
+		is_eq( file.m_funcs.front().m_return_type, "int" );
+		is_eq( file.m_funcs.front().m_name, "___function_name" );
+		is_eq( file.m_funcs.front().m_traits, "DisplayName(\"Hello)()}\"), DisplayName(\"Hello)()}\"),IsScriptable" );
+		is_eq( file.m_funcs.front().m_parameters.at( 0 ).m_type, "const int*&" );
+		is_eq( file.m_funcs.front().m_parameters.at( 0 ).m_name, "param0_name" );
+		is_eq( file.m_funcs.front().m_parameters.at( 1 ).m_type, "std::string" );
+		is_eq( file.m_funcs.front().m_parameters.at( 1 ).m_name, "param1_name" );
+		is_eq( file.m_funcs.front().m_parameters.at( 2 ).m_type, "std::string<char>" );
+		is_eq( file.m_funcs.front().m_parameters.at( 2 ).m_name, "param2" );
+		is_eq( file.m_funcs.front().m_parameters.at( 3 ).m_type, "std::array<std::vector<std::pair<int, float>>, 0x401ul >" );
+		is_eq( file.m_funcs.front().m_parameters.at( 3 ).m_name, "foo" );
+		is_eq( file.m_funcs.front().m_parameters.size(), 4ull );
 	}
 }
