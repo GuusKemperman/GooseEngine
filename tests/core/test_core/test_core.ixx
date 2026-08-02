@@ -1,14 +1,17 @@
 export module test_core;
 
-import modules;
-import std;
+import stl;
+import runtime_reflection;
 
 namespace ge::test_core
 {
-	export class context
+	export struct unit_test_trait : refl::func_trait
 	{
-	public:
-		std::reference_wrapper<modules::module_manager> m_module_manager;
+		template<auto Func>
+		static void on_apply(const refl::builders::func_builder<Func>& builder)
+		{
+			builder.add_traits(ge::refl::invocable_trait<void()>{});
+		}
 	};
 
 	export class test_exception
@@ -56,7 +59,7 @@ namespace ge::test_core
 				for (size_t i = 0; i < num_iterations_per_thread; i++)
 				{
 					auto start = std::chrono::high_resolution_clock::now();
-					size_t num_ms_to_wait = std::uniform_int_distribution{ 1, 10 }(eng);
+					int num_ms_to_wait = std::uniform_int_distribution{ 1, 10 }(eng);
 					auto expected_end = start + std::chrono::milliseconds{ num_ms_to_wait };
 
 					while (std::chrono::high_resolution_clock::now() < expected_end)

@@ -1,14 +1,15 @@
+#include <cassert>
 
-import std;
+import stl;
 import modules;
 
 import windows;
 
 int main()
 {
-    ge::modules::module_manager::config config{ { "bin" } };
-    ge::modules::module_manager manager{ std::make_shared<ge::windows::modules::loader>(), config };
+	// TODO Not really good to assume this
+	assert( std::filesystem::current_path().string().ends_with("bin") );
 
-    manager.load_all();
+	ge::windows::modules::loader windows_loader{};
+	ge::modules::load_modules_in_folder( windows_loader, std::filesystem::current_path() );
 }
-

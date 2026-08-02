@@ -1,53 +1,48 @@
+#include <cassert>
 
-import std;
+import stl;
 import modules;
 
 import windows;
 import test_core;
+import runtime_reflection;
 
-int main(int arg_c, char** arg_v)
+int main()
 {
-    if (arg_c < 4)
-    {
-        std::println(std::cerr, "Provided only {} arguments", arg_c);
-        return -1;
-    }
+	// TODO Not really good to assume this
+	assert( std::filesystem::current_path().string().ends_with( "bin" ) );
 
-    const std::string_view module_name = arg_v[1];
-    const std::string_view category_name = arg_v[2];
-    const std::string_view test_name = arg_v[3];
+	ge::windows::modules::loader windows_loader{};
+	std::vector< ge::modules::module > modules
+		= ge::modules::load_modules_in_folder( windows_loader, std::filesystem::current_path() );
 
-    ge::modules::module_manager::config config{ { "bin" } };
-    ge::modules::module_manager manager{ std::make_shared<ge::windows::modules::loader>(), config };
+	std::unique_ptr< ge::refl::registry_data > reg = [ &modules ]
+	{
+		ge::refl::builders::endable_registry_builder reg_builder = ge::refl::builders::begin_registry();
 
-    ge::modules::module_handle module_to_test = manager.load_with_dependencies(module_name);
+		for( ge::modules::module module : modules )
+		{
+			using build_func_t = void ( * )( ge::refl::builders::registry_builder& );
+			build_func_t build_func
+				= reinterpret_cast< build_func_t >( module.m_platform_module->get_exported_func( "build_runtime_reflection" ) );
 
-    std::string get_unit_test_name = std::format("get_unit_test_{}_{}", category_name, test_name);
+			if( build_func == nullptr )
+			{
+				continue;
+			}
 
-    using test_t = void(&)(ge::test_core::context&);
-    using getter_t = test_t(&)();
-    getter_t unit_test_getter = reinterpret_cast<getter_t>(module_to_test.get_function_address(get_unit_test_name));
-    test_t unit_test = unit_test_getter();
+			build_func( reg_builder );
+		}
 
-    ge::test_core::context context{ manager };
+		return std::move( reg_builder ).build();
+	}();
 
-    try
-    {
-        unit_test(context);
-        return 0;
-    }
-    catch (const std::exception& e)
-    {
-        std::println(std::cerr, "Test failed - {}", e.what());
-        return 1;
-    }
-    catch (...)
-    {
-        std::println(std::cerr, "Unknown exception");
-        return 1;
-    }
+	ge::refl::func_query::with< ge::test_core::unit_test_trait >::read< ge::refl::invocable_trait< void() > > unit_tests{
+		reg->m_funcs
+	};
+
+	for( const auto& [ func, invocable ] : unit_tests )
+	{
+		invocable.m_invoke();
+	}
 }
-
-
-
-
