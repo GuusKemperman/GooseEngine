@@ -936,7 +936,6 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 			push_state( token_consumer::skip_curly_brackets );
 		}
 		return true;
-		
 	}
 	case token_consumer::skip_template_brackets:
 	{
