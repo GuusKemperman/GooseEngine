@@ -158,7 +158,7 @@ namespace ge::scheduling
 		arguments_storage m_arguments_storage{};
 	};
 
-	export using environments_query = refl::type_query::read<traits::environment_trait>;
+	export using environments_query = refl::type_query::read<traits::environment>;
 
 	export API environments_map build_environment_map(environments_query types)
 	{
@@ -223,7 +223,7 @@ namespace ge::scheduling
 } // namespace ge::scheduling
 
 
-REFL_TYPE( ge::scheduling::traits::environment_trait{} )
+REFL_TYPE( ge::scheduling::traits::environment{} )
 export struct environment
 {
 	int count{};
