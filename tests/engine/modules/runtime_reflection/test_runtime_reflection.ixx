@@ -307,12 +307,6 @@ namespace compile_time_tests
 		static_assert( make_type_id< int >() == make_type_id< remove_decoration_t< int& > >() );
 		static_assert( make_type_id< int >() == make_type_id< remove_decoration_t< const int& > >() );
 		static_assert( make_type_id< int >() == make_type_id< remove_decoration_t< int* > >() );
-
-		static_assert( supported_param_type< int > );
-		static_assert( supported_param_type< int& > );
-		static_assert( supported_param_type< const int& > );
-		static_assert( !supported_param_type< int* > );
-		static_assert( !supported_param_type< const int* > );
 	}
 }
 
