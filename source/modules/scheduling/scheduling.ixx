@@ -74,7 +74,7 @@ namespace ge::scheduling
 
 	namespace traits
 	{
-		export struct environment_trait : refl::type_trait
+		export struct environment : refl::type_trait
 		{
 			void ( *m_insert_into_map )( environments_map& );
 
@@ -215,29 +215,4 @@ namespace ge::scheduling
 
 		return graph;
 	}
-
-	// Simple variable systems -> kinda like a cycle. Split into sequence ranges (script execution, submitting draw calls, etc).
-	// Systems that span frame boundaries.
-
-	// System must run after X and before Y ->
 } // namespace ge::scheduling
-
-
-REFL_TYPE( ge::scheduling::traits::environment{} )
-export struct environment
-{
-	int count{};
-};
-
-REFL_FUNC( ge::scheduling::traits::system{} )
-export API void system_test( environment& env )
-{
-	env.count++;
-}
-
-REFL_FUNC( ge::scheduling::traits::system{} )
-export API void system_test_2( const environment& env )
-{
-	std::cout << env.count << std::endl;
-}
-
