@@ -23,8 +23,7 @@ target_link_libraries(core_lib PUBLIC stl)
 
 add_executable(GooseEngine "main.cpp")
 add_dependencies(GooseEngine all_modules_target)
-target_link_libraries(GooseEngine PUBLIC core_lib)
-set_target_properties(GooseEngine
-    PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-)
+
+target_link_libraries(GooseEngine core_lib)
+target_link_libraries(GooseEngine scheduling)
+target_link_libraries(GooseEngine runtime_reflection)

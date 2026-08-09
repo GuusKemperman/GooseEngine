@@ -35,7 +35,8 @@ namespace ge::refl
 	struct handle_element : query_element
 	{
 		handle_element( const raw_data_t& data )
-			: query_element( data ), m_data( data )
+			: query_element( data )
+			, m_handle( data )
 		{
 		}
 
@@ -51,7 +52,7 @@ namespace ge::refl
 		{
 			if constexpr( Index == num_elements - 1 )
 			{
-				return m_data;
+				return m_handle;
 			}
 			else
 			{
@@ -59,7 +60,7 @@ namespace ge::refl
 			}
 		}
 
-		const raw_data_t& m_data;
+		const raw_data_t& m_handle;
 	};
 
 	template<typename read, typename base>
@@ -91,6 +92,7 @@ namespace ge::refl
 			}
 		}
 
+	private:
 		const read& m_item;
 	};
 
