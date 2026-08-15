@@ -1,7 +1,6 @@
-export module logger;
+export module io:logger;
 
 import stl;
-import modules;
 
 namespace ge
 {

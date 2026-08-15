@@ -1,7 +1,7 @@
-export module test_logger;
+export module test_io;
 
 import stl;
-import logger;
+import io;
 export import test_core;
 
 using namespace ge::test_core;

@@ -1,7 +1,7 @@
 export module test_static_reflection:test_parser;
 
 import stl;
-import logger;
+import io;
 import static_reflection;
 export import test_core;
 

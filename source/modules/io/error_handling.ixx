@@ -1,8 +1,8 @@
-export module error_handling;
+export module io:error_handling;
 
 import stl;
 
-import logger;
+import :logger;
 
 namespace ge
 {
