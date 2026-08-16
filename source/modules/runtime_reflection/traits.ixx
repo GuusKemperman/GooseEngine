@@ -10,7 +10,7 @@ namespace ge::refl
 	export template<typename FuncSigT>
 	struct invocable_trait;
 
-	export template<typename Ret, typename... Params>
+	template<typename Ret, typename... Params>
 	struct invocable_trait< Ret( Params... ) > : func_trait
 	{
 		Ret ( *m_invoke )( Params... );

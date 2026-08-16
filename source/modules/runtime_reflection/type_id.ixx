@@ -55,37 +55,37 @@ namespace ge::refl
 		static_assert( false, "Not a function signature" );
 	};
 
-	export template<typename Ret, typename... Params>
+	template<typename Ret, typename... Params>
 	struct func_sig< Ret( Params... ) >
 	{
 		using type = func_sig;
 	};
 
-	export template<typename Ret, typename... Params>
+	template<typename Ret, typename... Params>
 	struct func_sig< Ret( * )( Params... ) >
 	{
 		using type = func_sig< Ret( Params... ) >;
 	};
 
-	export template<typename Ret, typename Class, typename... Params>
+	template<typename Ret, typename Class, typename... Params>
 	struct func_sig< Ret( Class::* )( Params... ) >
 	{
 		using type = func_sig< Ret( Class&, Params... ) >;
 	};
 
-	export template<typename Ret, typename Class, typename... Params>
+	template<typename Ret, typename Class, typename... Params>
 	struct func_sig< Ret( Class::* )( Params... ) const >
 	{
 		using type = func_sig< Ret( const Class&, Params... ) >;
 	};
 
-	export template<typename Ret, typename Class, typename... Params>
+	template<typename Ret, typename Class, typename... Params>
 	struct func_sig< Ret( Class::* )( Params... ) && >
 	{
 		using type = func_sig< Ret( Class&&, Params... ) >;
 	};
 
-	export template<typename Ret, typename... Params>
+	template<typename Ret, typename... Params>
 	struct func_sig< Ret( & )( Params... ) >
 	{
 		using type = func_sig< Ret( Params... ) >;
@@ -94,7 +94,7 @@ namespace ge::refl
 	export template<typename T>
 	using func_sig_t = func_sig< T >::type;
 
-	template<auto FuncPtr>
+	export template<auto FuncPtr>
 	concept is_func = requires { typename func_sig< decltype(FuncPtr) >; };
 
 	export template<typename>
@@ -103,7 +103,7 @@ namespace ge::refl
 		static_assert( false, "Not a data pointer" );
 	};
 
-	export template<typename T, typename DataT>
+	template<typename T, typename DataT>
 	struct data_ptr< DataT T::* >
 	{
 		using data_t = DataT;

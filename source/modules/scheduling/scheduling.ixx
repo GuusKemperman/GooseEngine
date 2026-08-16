@@ -34,7 +34,7 @@ namespace ge::scheduling
 	struct argument_factory;
 
 	// For write access to environments
-	export template< typename T >
+	template< typename T >
 	struct argument_factory< T& >
 	{
 		static refl::value construct( const argument_factory_context& context )
@@ -50,7 +50,7 @@ namespace ge::scheduling
 	};
 
 	// For read access to environments
-	export template< typename T >
+	template< typename T >
 	struct argument_factory< const T& >
 	{
 		static refl::value construct( const argument_factory_context& context )

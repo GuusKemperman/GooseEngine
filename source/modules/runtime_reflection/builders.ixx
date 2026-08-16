@@ -389,7 +389,9 @@ namespace ge::refl::builders
 			return std::forward< decltype(self) >( self );
 		}
 
-		template<auto Getter> requires std::is_invocable_r_v< const data_t&, decltype(Getter), const outer_t& >
+		template< auto Getter >
+			requires std::is_invocable_r_v< const data_t&, decltype( Getter ), const outer_t& >
+					 || std::is_invocable_r_v< data_t, decltype( Getter ), const outer_t& >
 		decltype(auto) getter( this auto&& self )
 		{
 			self.m_target.m_get = +[]( const value& target_object )
