@@ -1,0 +1,10 @@
+add_module("runtime_reflection"
+	"builders.ixx"
+	"traits.ixx"
+	"data.ixx"
+	"details.ixx"
+	"query.ixx"
+	"runtime_reflection.ixx"
+	"type_id.ixx"
+	"value.ixx"
+)
