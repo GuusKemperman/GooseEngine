@@ -52,7 +52,7 @@ namespace ge::refl
 		{
 			if constexpr( Index == num_elements - 1 )
 			{
-				return m_handle;
+				return m_handle.get();
 			}
 			else
 			{
@@ -60,7 +60,7 @@ namespace ge::refl
 			}
 		}
 
-		const raw_data_t& m_handle;
+		std::reference_wrapper<const raw_data_t> m_handle;
 	};
 
 	template<typename read, typename base>
@@ -84,7 +84,7 @@ namespace ge::refl
 		{
 			if constexpr( Index == num_elements - 1 )
 			{
-				return m_item;
+				return m_item.get();
 			}
 			else
 			{
@@ -93,7 +93,7 @@ namespace ge::refl
 		}
 
 	private:
-		const read& m_item;
+		std::reference_wrapper<const read> m_item;
 	};
 
 	template<typename with, typename base>
@@ -142,6 +142,8 @@ namespace ge::refl
 
 		template<std::derived_from< typename element_data_type::trait_base_t > T>
 		using read = query< element_data_type, read_element< T, element_t > >;
+
+		using element = element_t;
 
 	private:
 		static auto adapt_range( std::span< const element_data_type > source_range )
