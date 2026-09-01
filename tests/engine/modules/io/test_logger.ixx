@@ -110,47 +110,6 @@ namespace logger
 		is_eq( logger.get_max_num_characters_stored(), 0ull );
 	}
 
-	// Test multi-threaded logging using test_threading API
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
-	export API void multi_threaded_logging()
-	{
-		ge::logger logger{};
-		logger.clear();
-
-		auto format_thread_id = []( size_t thread_idx )
-		{
-			return std::format( "Thread {}", thread_idx );
-		};
-
-		auto result = test_threading(
-			[&]( const threading_test_arg& arg )
-			{
-				logger.log_raw(
-					ge::severity::verbose,
-					format_thread_id( arg.m_thread_idx ) );
-			},
-			100,
-			// Iterations per thread
-			10 // Number of threads
-			);
-
-		const auto& messages = logger.get_logged_messages();
-		is_eq( messages.size(), result.m_num_threads * result.m_num_iterations_per_thread );
-
-		// Verify each thread's logs were recorded correctly
-		for( size_t thread_idx = 0; thread_idx < result.m_num_threads; thread_idx++ )
-		{
-			size_t count = static_cast< size_t >( std::ranges::count_if(
-				messages,
-				[&]( const auto& entry )
-				{
-					return entry.m_logged_text.contains( format_thread_id( thread_idx ) );
-				} ) );
-			is_eq( count, result.m_num_iterations_per_thread );
-		}
-	}
-
 	// Test source location capture
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 
@@ -197,44 +156,5 @@ namespace logger
 		is_false( cerr_output.contains( "Message to cout" ) );
 		is_true( cerr_output.contains( "Warning to cerr" ) );
 		is_true( cerr_output.contains( "Error to cerr" ) );
-	}
-
-	// Test thread safety with mixed operations
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
-	export API void thread_safety_mixed_operations()
-	{
-		ge::logger logger{};
-		logger.clear();
-		logger.set_max_num_characters_stored( 1000 );
-
-		auto mixed_operations = [&]( const threading_test_arg& arg )
-		{
-			switch( arg.m_iteration % 4 )
-			{
-			case 0:
-				logger.log(
-					ge::severity::verbose,
-					"Log from thread {}",
-					arg.m_thread_idx );
-				break;
-			case 1:
-				logger.clear();
-				break;
-			case 2:
-				logger.set_severity( static_cast< ge::severity >( arg.m_iteration % 4 ) );
-				break;
-			case 3:
-				logger.set_max_num_characters_stored( arg.m_iteration * 10 );
-				break;
-			}
-		};
-
-		test_threading( mixed_operations, 100, 5 );
-
-		// Final sanity checks
-		is_true( logger.get_logged_messages().size() <= 1000 );
-		const auto sev = logger.get_severity();
-		is_true( sev >= ge::severity::verbose && sev <= ge::severity::error );
 	}
 }

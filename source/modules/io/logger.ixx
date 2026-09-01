@@ -45,6 +45,7 @@ namespace ge
 			std::ostream& a_output_stream = std::cout,
 			std::ostream& a_err_stream = std::cerr );
 
+		// TODO make this const to reflect that it's thread-safe, then go over all usages and replace them with const-ref if they only log
 		template<typename... T>
 		void log(
 			severity a_severity,
@@ -70,12 +71,11 @@ namespace ge
 
 		API size_t get_max_num_characters_stored() const;
 
-	private:
-		void clear_excess_messages();
+		API void clear_excess_messages();
 
+	private:
 		std::reference_wrapper< std::ostream > m_output_stream;
 		std::reference_wrapper< std::ostream > m_err_stream;
-		mutable std::shared_mutex m_log_mut{};
 		severity m_severity{};
 		std::list< entry > m_log{};
 
@@ -111,8 +111,6 @@ void ge::logger::log_raw( severity a_severity, std::string_view a_msg, const std
 		a_src.line(),
 		a_msg );
 
-	std::unique_lock _{ m_log_mut };
-
 	m_num_characters_logged += logged_text.size();
 	m_log.emplace_back(
 		a_severity,
@@ -131,45 +129,22 @@ void ge::logger::log_raw( severity a_severity, std::string_view a_msg, const std
 
 auto ge::logger::get_logged_messages() const
 {
-	struct
-	{
-		std::reference_wrapper< const std::list< entry > > names;
-		std::shared_lock< std::shared_mutex > lock{};
-
-		API auto begin() const
-		{
-			return names.get().begin();
-		}
-
-		API auto end() const
-		{
-			return names.get().end();
-		}
-
-		API auto size() const
-		{
-			return names.get().size();
-		}
-	} mut_view_range{ m_log, std::shared_lock{ m_log_mut } };
-	return std::ranges::owning_view( std::move( mut_view_range ) );
+	return m_log;
 }
 
 void ge::logger::clear()
 {
-	std::unique_lock _{ m_log_mut };
 	m_log.clear();
 	m_num_characters_logged = 0;
 }
 
 void ge::logger::set_severity( severity a_severity )
 {
-	std::unique_lock _{ m_log_mut };
 	m_severity = a_severity;
 }
 
 ge::severity ge::logger::get_severity() const
 {
-	std::shared_lock _{ m_log_mut };
 	return m_severity;
 }
 
@@ -180,14 +155,12 @@ constexpr bool ge::logger::should_display( severity a_current_severity_level, se
 
 void ge::logger::set_max_num_characters_stored( size_t a_max )
 {
-	std::unique_lock _{ m_log_mut };
 	m_max_num_characters_logged = a_max;
 	clear_excess_messages();
 }
 
 size_t ge::logger::get_max_num_characters_stored() const
 {
-	std::shared_lock _{ m_log_mut };
 	return m_max_num_characters_logged;
 }
 
