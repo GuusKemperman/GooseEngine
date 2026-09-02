@@ -30,6 +30,17 @@ add_compile_options(/Wall /WX
 
 add_compile_options("/FI${CMAKE_SOURCE_DIR}/source/core/globals/defines.h")
 
+# Workaround needed with C++20 + modules + intellisense:
+# https://developercommunity.visualstudio.com/t/C20-modules-causes-Intellisense-to-gen/10403192?sort=active&topics=windows+10.0
+#
+# Visual Studio's IntelliSense reuses these flags for its design-time module scan, but
+# unlike CMake's own compile rules it never appends a /Fd. Without one, cl defaults to 
+# placing vc140.pdb in the root of the project. Looks like Microsoft won't be fixing this, 
+# so, we have this.
+# 
+# CMake appends /Fd$TARGET_COMPILE_PDB after these flags, so real compiles are unaffected.
+add_compile_options("/Fd${CMAKE_BINARY_DIR}/vc140.pdb")
+
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 add_custom_target(all_modules_target)
