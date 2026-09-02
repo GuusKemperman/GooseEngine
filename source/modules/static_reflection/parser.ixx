@@ -229,8 +229,6 @@ namespace ge
 			report_failure( reason, m_current_source );
 		}
 
-		static std::string format_error( std::string_view file, token_iterator error_location, std::string_view reason );
-
 		static std::optional< parsed_access_specifier > get_access_specifier_from_string( std::string_view keyword );
 		static bool is_type_qualifier_ish( std::string_view keyword );
 		static void trim_trailing_whitespace( std::string& str );
@@ -1190,37 +1188,6 @@ void ge::parser::store( store_event event )
 void ge::parser::report_failure( std::string_view reason, source_location source )
 {
 	throw source_error{ reason.data(), source };
-}
-
-std::string ge::parser::format_error( std::string_view file, token_iterator error_location, std::string_view reason )
-{
-	std::string_view parsed_file{ file.data(), file.data() + error_location.num_characters_parsed() };
-	std::int64_t character_index_in_line = std::distance(
-		parsed_file.rbegin(),
-		std::ranges::find( parsed_file.rbegin(), parsed_file.rend(), '\n' ) );
-
-	auto lines = std::views::split( parsed_file, "\n"sv );
-	std::int64_t error_line_number = std::distance( lines.begin(), lines.end() );
-	std::int64_t start_line = std::max( 0ll, error_line_number - 3ll );
-
-	std::string error = "\n";
-
-	for( auto [ index, line ] : lines
-	                            | std::views::drop( start_line )
-	                            | std::views::enumerate )
-	{
-		error += std::format(
-			"{:6} | {}\n"sv,
-			start_line + index,
-			std::string_view{ line.begin(), line.end() } );
-	}
-
-	// + to account for us inserting the line number, and - since that spot will be taken by the '^'
-	error.insert( error.end(), static_cast< size_t >( character_index_in_line + 9 - 1 ), ' ' );
-	error.append( "^\n"sv );
-
-	error.append( reason );
-	return error;
 }
 
 std::optional< ge::parsed_access_specifier > ge::parser::get_access_specifier_from_string( std::string_view keyword )
