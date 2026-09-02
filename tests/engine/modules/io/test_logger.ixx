@@ -32,7 +32,6 @@ namespace logger
 
 	// Test formatted logging
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void formatted_logging()
 	{
 		ge::logger logger{};
@@ -49,7 +48,6 @@ namespace logger
 
 	// Test severity filtering
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void severity_filtering()
 	{
 		std::stringstream output{};
@@ -76,7 +74,6 @@ namespace logger
 
 	// Test log clearing
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void clear_log()
 	{
 		ge::logger logger{};
@@ -89,7 +86,6 @@ namespace logger
 
 	// Test character limit enforcement
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void zero_character_limit()
 	{
 		ge::logger logger{};
@@ -111,7 +107,6 @@ namespace logger
 
 	// Test source location capture
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void source_location()
 	{
 		ge::logger logger{};
@@ -127,7 +122,6 @@ namespace logger
 
 	// Test stream output redirection
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void stream_output()
 	{
 		std::ostringstream cout_buffer;

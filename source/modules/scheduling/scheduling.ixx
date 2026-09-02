@@ -158,13 +158,13 @@ namespace ge::scheduling
 		arguments_storage m_arguments_storage{};
 	};
 
-	export using environments_query = refl::type_query::read<traits::environment>;
+	export using environments_query = refl::type_query::read< traits::environment >;
 
-	export API environments_map build_environment_map(environments_query types)
+	export API environments_map build_environment_map( environments_query types )
 	{
 		environments_map map{};
 
-		for( auto [_, env_trait] : types )
+		for( auto [ _, env_trait ] : types )
 		{
 			env_trait.m_insert_into_map( map );
 		}

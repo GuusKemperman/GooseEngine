@@ -9,7 +9,7 @@ namespace ge::modules
 	public:
 		API virtual ~platform_module() = default;
 
-		API virtual auto get_exported_func( std::string_view func_name ) const -> void( * )() = 0;
+		API virtual auto get_exported_func( std::string_view func_name ) const -> void ( * )() = 0;
 	};
 
 	export class platform_loader
@@ -25,7 +25,7 @@ namespace ge::modules
 
 		API virtual std::shared_ptr< platform_module > load_platform_module( const std::filesystem::path& shared_lib ) const = 0;
 	};
-}
+} // namespace ge::modules
 
 std::string ge::modules::platform_loader::get_module_name( const std::filesystem::path& path ) const
 {

@@ -8,9 +8,7 @@ export import test_core;
 using namespace ge::test_core;
 using namespace ge::test_core::assert;
 
-static ge::parsed_file parse_file(
-	std::string_view file,
-	const std::source_location& src = std::source_location::current() )
+static ge::parsed_file parse_file( std::string_view file, const std::source_location& src = std::source_location::current() )
 {
 	ge::parsed_file result = ge::parse( file );
 
@@ -21,7 +19,7 @@ static ge::parsed_file parse_file(
 	return result;
 }
 
-template<typename T>
+template< typename T >
 static const T& list_at( const std::list< T >& list, size_t index )
 {
 	auto it = list.begin();
@@ -32,7 +30,6 @@ static const T& list_at( const std::list< T >& list, size_t index )
 namespace tokeniser
 {
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void simple_func()
 	{
 		ge::token_range tokeniser{ "int func_name() { return 1; }" };
@@ -68,20 +65,18 @@ namespace tokeniser
 		++it;
 		is_eq( it, tokeniser.end() );
 	}
-}
+} // namespace tokeniser
 
 namespace parser
 {
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void simple_namespace()
 	{
-		std::string_view src =
-			"namespace hello\n"
-			"{\n"
-			"    namespace         world {}\n"
-			"}\n"
-			"namespace {}\n";
+		std::string_view src = "namespace hello\n"
+							   "{\n"
+							   "    namespace         world {}\n"
+							   "}\n"
+							   "namespace {}\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -92,12 +87,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void simple_data()
 	{
-		std::string_view src =
-			"REFL_DATA(attry!, attry2!)\n"
-			"static int global_data = 5;";
+		std::string_view src = "REFL_DATA(attry!, attry2!)\n"
+							   "static int global_data = 5;";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -110,11 +103,10 @@ namespace parser
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void no_param_func()
 	{
-		std::string_view src =
-			"REFL_FUNC()\n"
-			"void do_thing( /*with comment*/);\n"
-			"REFL_FUNC()\n"
-			"void do_thing_again();";
+		std::string_view src = "REFL_FUNC()\n"
+							   "void do_thing( /*with comment*/);\n"
+							   "REFL_FUNC()\n"
+							   "void do_thing_again();";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -130,12 +122,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void simple_func()
 	{
-		std::string_view src =
-			"REFL_FUNC(attry!, attry2!)\n"
-			"static std::vector<int> global_func(int p1, float p2);";
+		std::string_view src = "REFL_FUNC(attry!, attry2!)\n"
+							   "static std::vector<int> global_func(int p1, float p2);";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -151,11 +141,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void simple_func_with_default_params()
 	{
 		std::string_view src = "REFL_FUNC()\n"
-			"void global_func(int p1 = 1, float p2 = 2.0f);";
+							   "void global_func(int p1 = 1, float p2 = 2.0f);";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -167,11 +156,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void commas_in_parameter_default_within_brackets()
 	{
 		std::string_view src = "REFL_FUNC()\n"
-			"void foo(std::array<int, 3> p1 = { 1, 2, 3 }, int p2 = 1);";
+							   "void foo(std::array<int, 3> p1 = { 1, 2, 3 }, int p2 = 1);";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -182,13 +170,11 @@ namespace parser
 		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_type, "int" );
 	}
 
-
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void commas_in_parameter_default_type()
 	{
 		std::string_view src = "REFL_FUNC()\n"
-			"void foo(std::array<int, 3> p1 = std::array<int, 3>{}, int p2 = 1);";
+							   "void foo(std::array<int, 3> p1 = std::array<int, 3>{}, int p2 = 1);";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -200,7 +186,6 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void complete_file()
 	{
 		std::string_view src =
@@ -293,24 +278,22 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void simple_class()
 	{
-		std::string_view src =
-			"namespace my_name_spacey\n"
-			"{\n"
-			"    REFL_TYPE(i_am_an_trait = 5)\n"
-			"        class __myClassName :\n"
-			"        public foo, private bar, protected _foobar<foo, bar>, barfoo\n"
-			"    {\n"
-			"        REFL_DATA(me_is_data!)\n"
-			"            std::vector<char> vecy{};\n"
-			"\n"
-			"    public:\n"
-			"        REFL_FUNC(hi)\n"
-			"            bool is_alpha(char al = ')', char ot = '\\'') const & -> bool { return al == '}'; }\n"
-			"    };\n"
-			"}\n";
+		std::string_view src = "namespace my_name_spacey\n"
+							   "{\n"
+							   "    REFL_TYPE(i_am_an_trait = 5)\n"
+							   "        class __myClassName :\n"
+							   "        public foo, private bar, protected _foobar<foo, bar>, barfoo\n"
+							   "    {\n"
+							   "        REFL_DATA(me_is_data!)\n"
+							   "            std::vector<char> vecy{};\n"
+							   "\n"
+							   "    public:\n"
+							   "        REFL_FUNC(hi)\n"
+							   "            bool is_alpha(char al = ')', char ot = '\\'') const & -> bool { return al == '}'; }\n"
+							   "    };\n"
+							   "}\n";
 
 		ge::parsed_file file = parse_file( src );
 		is_eq( list_at( file.m_namespaces, 0 ).m_name, "my_name_spacey" );
@@ -354,33 +337,31 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void enums()
 	{
-		std::string_view src =
-			"REFL_ENUM(attry!)\n"
-			"        enum empty\n"
-			"	    {\n"
-			"	    };\n"
-			"\n"
-			"REFL_ENUM(attry!)\n"
-			"	    enum class empty_class {};\n"
-			"\n"
-			"REFL_ENUM(attry!)\n"
-			"	    enum simple_entries\n"
-			"	    {\n"
-			"	        hello,\n"
-			"	        world\n"
-			"	    };\n"
-			"\n"
-			"REFL_ENUM(attry!)\n"
-			"	    enum class complex_entries : std::uint64_t\n"
-			"	    {\n"
-			"	        hello = 1,\n"
-			"	        world = hello, /*,*/\n"
-			"	        goodnight = some_struct<simple_entries, hello>::size<1, 2>(int test = { hello }),\n"
-			"	        darling\n"
-			"	    };\n";
+		std::string_view src = "REFL_ENUM(attry!)\n"
+							   "        enum empty\n"
+							   "	    {\n"
+							   "	    };\n"
+							   "\n"
+							   "REFL_ENUM(attry!)\n"
+							   "	    enum class empty_class {};\n"
+							   "\n"
+							   "REFL_ENUM(attry!)\n"
+							   "	    enum simple_entries\n"
+							   "	    {\n"
+							   "	        hello,\n"
+							   "	        world\n"
+							   "	    };\n"
+							   "\n"
+							   "REFL_ENUM(attry!)\n"
+							   "	    enum class complex_entries : std::uint64_t\n"
+							   "	    {\n"
+							   "	        hello = 1,\n"
+							   "	        world = hello, /*,*/\n"
+							   "	        goodnight = some_struct<simple_entries, hello>::size<1, 2>(int test = { hello }),\n"
+							   "	        darling\n"
+							   "	    };\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -408,16 +389,14 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void struct_type()
 	{
-		std::string_view src =
-			"REFL_TYPE()\n"
-			"struct my_struct\n"
-			"{\n"
-			"    REFL_DATA()\n"
-			"    int field = 1;\n"
-			"};\n";
+		std::string_view src = "REFL_TYPE()\n"
+							   "struct my_struct\n"
+							   "{\n"
+							   "    REFL_DATA()\n"
+							   "    int field = 1;\n"
+							   "};\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -433,19 +412,17 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void class_member_access_and_virtual()
 	{
-		std::string_view src =
-			"REFL_TYPE()\n"
-			"class my_class\n"
-			"{\n"
-			"    REFL_DATA()\n"
-			"    int hidden = 1;\n"
-			"public:\n"
-			"    REFL_FUNC()\n"
-			"    virtual void overridable();\n"
-			"};\n";
+		std::string_view src = "REFL_TYPE()\n"
+							   "class my_class\n"
+							   "{\n"
+							   "    REFL_DATA()\n"
+							   "    int hidden = 1;\n"
+							   "public:\n"
+							   "    REFL_FUNC()\n"
+							   "    virtual void overridable();\n"
+							   "};\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -459,12 +436,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void keywords_accumulate()
 	{
-		std::string_view src =
-			"REFL_FUNC()\n"
-			"export inline static void f();\n";
+		std::string_view src = "REFL_FUNC()\n"
+							   "export inline static void f();\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -475,16 +450,14 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void enum_keys()
 	{
-		std::string_view src =
-			"REFL_ENUM()\n"
-			"enum plain { an_entry };\n"
-			"REFL_ENUM()\n"
-			"enum class scoped {};\n"
-			"REFL_ENUM()\n"
-			"enum struct scoped_struct {};\n";
+		std::string_view src = "REFL_ENUM()\n"
+							   "enum plain { an_entry };\n"
+							   "REFL_ENUM()\n"
+							   "enum class scoped {};\n"
+							   "REFL_ENUM()\n"
+							   "enum struct scoped_struct {};\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -499,12 +472,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void pointer_return_type()
 	{
-		std::string_view src =
-			"REFL_FUNC()\n"
-			"const char* stringify();\n";
+		std::string_view src = "REFL_FUNC()\n"
+							   "const char* stringify();\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -513,12 +484,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void unnamed_parameter()
 	{
-		std::string_view src =
-			"REFL_FUNC()\n"
-			"void f(int);\n";
+		std::string_view src = "REFL_FUNC()\n"
+							   "void f(int);\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -528,12 +497,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void trailing_reference_qualifier()
 	{
-		std::string_view src =
-			"REFL_FUNC()\n"
-			"int f() &&;\n";
+		std::string_view src = "REFL_FUNC()\n"
+							   "int f() &&;\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -542,15 +509,13 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void using_statements_skipped()
 	{
 		// "using namespace ...;" must not open a parsed namespace scope.
-		std::string_view src =
-			"using my_alias = std::vector<int>;\n"
-			"using namespace outer;\n"
-			"REFL_FUNC()\n"
-			"bool check();\n";
+		std::string_view src = "using my_alias = std::vector<int>;\n"
+							   "using namespace outer;\n"
+							   "REFL_FUNC()\n"
+							   "bool check();\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -560,14 +525,12 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void unreflected_code_ignored()
 	{
-		std::string_view src =
-			"int not_reflected() { return 3; }\n"
-			"class plain_class { int x = 0; };\n"
-			"REFL_FUNC()\n"
-			"bool reflected();\n";
+		std::string_view src = "int not_reflected() { return 3; }\n"
+							   "class plain_class { int x = 0; };\n"
+							   "REFL_FUNC()\n"
+							   "bool reflected();\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -580,13 +543,11 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void scope_line_numbers()
 	{
-		std::string_view src =
-			"namespace outer\n"
-			"{\n"
-			"}\n";
+		std::string_view src = "namespace outer\n"
+							   "{\n"
+							   "}\n";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -595,12 +556,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void unclosed_scope_reports_error()
 	{
-		std::string_view src =
-			"namespace foo\n"
-			"{\n";
+		std::string_view src = "namespace foo\n"
+							   "{\n";
 
 		ge::parsed_file result = ge::parse( src );
 
@@ -609,12 +568,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void truncated_function_reports_error()
 	{
-		std::string_view src =
-			"REFL_FUNC()\n"
-			"void f(";
+		std::string_view src = "REFL_FUNC()\n"
+							   "void f(";
 
 		ge::parsed_file result = ge::parse( src );
 
@@ -622,12 +579,10 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void missing_type_identifier_reports_error()
 	{
-		std::string_view src =
-			"REFL_TYPE()\n"
-			"class;\n";
+		std::string_view src = "REFL_TYPE()\n"
+							   "class;\n";
 
 		ge::parsed_file result = ge::parse( src );
 
@@ -635,14 +590,13 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void invalid_file()
 	{
 		std::string_view src = "REFL_DATA()\n"
-			"int ? = 5;\n"
-			"\n"
-			"REFL_DATA()\n"
-			"int valid = 69;\n";
+							   "int ? = 5;\n"
+							   "\n"
+							   "REFL_DATA()\n"
+							   "int valid = 69;\n";
 
 		ge::logger logger{};
 		ge::parsed_file result = ge::parse( src );
@@ -678,7 +632,6 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void complex_function_no_crash()
 	{
 		ge::parsed_file file = parse_file(
@@ -707,4 +660,4 @@ namespace parser
 		is_eq( file.m_funcs.front().m_parameters.at( 3 ).m_name, "foo" );
 		is_eq( file.m_funcs.front().m_parameters.size(), 4ull );
 	}
-}
+} // namespace parser

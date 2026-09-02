@@ -18,7 +18,6 @@ struct test_struct
 namespace smart_refs
 {
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void ref_base_constructor_nullptr_throwsInvalidArgument()
 	{
 		std::invalid_argument e = assert::expect_exception< std::invalid_argument >(
@@ -32,7 +31,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ref_partialDeduction_assignmentFromTypedInstance_deducesCorrectly()
 	{
 		ge::shared_ref ref = ge::make_shared_ref< test_struct >( 99 ); // Deduction here
@@ -40,7 +38,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ref_conversionFromUniqueRef_thenConstAssigns_maintainsCorrectValue()
 	{
 		ge::unique_ref< int > unique = ge::make_unique_ref< int >( 123 );
@@ -57,7 +54,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ptr_conversionFromUniquePtr_thenConstAssigns_maintainsCorrectValue()
 	{
 		ge::unique_ptr< int > unique = ge::make_unique_ptr< int >( 456 );
@@ -74,7 +70,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void make_shared_ref_validArgs_constructsExpectedSharedRef()
 	{
 		auto ref = ge::make_shared_ref< test_struct >();
@@ -85,7 +80,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void make_unique_ref_validArgs_constructsExpectedUniqueRef()
 	{
 		auto ref = ge::make_unique_ref< test_struct >();
@@ -95,7 +89,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ref_copyConstruct_copiesAndSharesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref< test_struct >();
@@ -106,7 +99,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ref_moveConstruct_movesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref< test_struct >();
@@ -116,7 +108,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ref_copyAssign_copiesAndSharesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref< test_struct >();
@@ -127,7 +118,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void shared_ref_moveAssign_movesOwnership()
 	{
 		auto ref1 = ge::make_shared_ref< test_struct >();
@@ -137,7 +127,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void unique_ref_moveConstruct_transfersOwnership()
 	{
 		auto ref1 = ge::make_unique_ref< test_struct >();
@@ -147,7 +136,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void unique_ref_moveAssign_transfersOwnership()
 	{
 		auto ref1 = ge::make_unique_ref< test_struct >();
@@ -157,7 +145,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void ref_base_getPtr_rvalueAndLvalue_yieldsCorrectPointer()
 	{
 		auto ref = ge::make_shared_ref< test_struct >();
@@ -169,7 +156,6 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void ref_base_operatorConversionToElementRef_returnsReference()
 	{
 		auto ref = ge::make_shared_ref< test_struct >();
@@ -178,15 +164,13 @@ namespace smart_refs
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void ref_base_operatorConversionToSharedRef_compatibleTypes_conversionSucceeds()
 	{
 		auto base = ge::make_shared_ref< test_struct >();
 		ge::shared_ref< const test_struct > converted = base;
 		assert::is_eq( converted->get_value(), 42 );
 	}
-}
-
+} // namespace smart_refs
 
 // Concepts
 static_assert( ge::SharedPtr< std::shared_ptr< int > > );
@@ -241,23 +225,15 @@ static_assert( std::is_move_constructible_v< ge::unique_ref< int > > );
 static_assert( std::is_move_assignable_v< ge::unique_ref< int > > );
 
 // Member function return types
-static_assert( std::is_same_v< decltype(std::declval< ge::shared_ref< int > >().get()), int& > );
-static_assert( std::is_same_v< decltype(std::declval< ge::shared_ref< const int > >().get()), const int& > );
-static_assert( std::is_same_v< decltype(std::declval< ge::unique_ref< int > >().get()), int& > );
-static_assert( std::is_same_v< decltype(*std::declval< ge::shared_ref< int > >()), int& > );
-static_assert( std::is_same_v< decltype(std::declval< ge::unique_ref< int > >().operator->()), int* > );
+static_assert( std::is_same_v< decltype( std::declval< ge::shared_ref< int > >().get() ), int& > );
+static_assert( std::is_same_v< decltype( std::declval< ge::shared_ref< const int > >().get() ), const int& > );
+static_assert( std::is_same_v< decltype( std::declval< ge::unique_ref< int > >().get() ), int& > );
+static_assert( std::is_same_v< decltype( *std::declval< ge::shared_ref< int > >() ), int& > );
+static_assert( std::is_same_v< decltype( std::declval< ge::unique_ref< int > >().operator->() ), int* > );
 
 // Factory function return types
-static_assert(
-	std::is_same_v<
-		decltype(ge::make_shared_ref< int >( 0 )),
-		ge::shared_ref< int >
-	> );
-static_assert(
-	std::is_same_v<
-		decltype(ge::make_unique_ref< int >( 0 )),
-		ge::unique_ref< int >
-	> );
+static_assert( std::is_same_v< decltype( ge::make_shared_ref< int >( 0 ) ), ge::shared_ref< int > > );
+static_assert( std::is_same_v< decltype( ge::make_unique_ref< int >( 0 ) ), ge::unique_ref< int > > );
 
 // Convertible
 static_assert( std::convertible_to< ge::shared_ref< int >, ge::shared_ref< const int > > );

@@ -40,13 +40,11 @@ int main()
 	ge::scheduling::environments_map envs
 		= ge::scheduling::build_environment_map( ge::scheduling::environments_query{ reg->m_types } );
 
-
 	ge::scheduling::execution_graph graph = ge::scheduling::build_graph( ge::scheduling::systems_query{ reg->m_funcs }, envs );
 
-
-	while(true)
+	while( true )
 	{
-		for(const ge::scheduling::cached_system& sys : graph.m_systems)
+		for( const ge::scheduling::cached_system& sys : graph.m_systems )
 		{
 			sys.m_invoke( sys.m_cached_arguments );
 		}

@@ -23,7 +23,7 @@ namespace ge::refl
 			virtual void destruct( void* addr ) const = 0;
 		};
 
-		template<undecorated T>
+		template< undecorated T >
 		struct vtable_impl final : vtable
 		{
 			type_id get_type_id() const override
@@ -45,7 +45,7 @@ namespace ge::refl
 			{
 				if constexpr( std::is_copy_constructible_v< T > )
 				{
-					new( dst )T( *static_cast< const T* >( src ) );
+					new( dst ) T( *static_cast< const T* >( src ) );
 				}
 				else
 				{
@@ -62,7 +62,7 @@ namespace ge::refl
 			{
 				if constexpr( std::is_move_constructible_v< T > )
 				{
-					new( dst )T( std::move( *static_cast< T* >( src ) ) );
+					new( dst ) T( std::move( *static_cast< T* >( src ) ) );
 				}
 				else
 				{
@@ -77,7 +77,7 @@ namespace ge::refl
 			};
 		};
 
-		template<typename T>
+		template< typename T >
 		static inplace_vtable< vtable > create_vtable()
 		{
 			inplace_vtable< vtable > dst{};
@@ -86,22 +86,24 @@ namespace ge::refl
 		}
 
 		API value( inplace_vtable< vtable > vtable, void* value, bool is_mutable, bool is_owning )
-			: m_vtable( vtable ),
-			  m_value( value ),
-			  m_is_mutable( is_mutable ),
-			  m_is_owning( is_owning )
+			: m_vtable( vtable )
+			, m_value( value )
+			, m_is_mutable( is_mutable )
+			, m_is_owning( is_owning )
 		{
 		}
 
 	public:
-		template<undecorated T>
-		static value create_view( const T* obj ) requires !std::is_same_v< remove_decoration_t< T >, value >
+		template< undecorated T >
+		static value create_view( const T* obj )
+			requires !std::is_same_v< remove_decoration_t< T >, value >
 		{
 			return value{ create_vtable< T >(), const_cast< T* >( obj ), false, false };
 		}
 
-		template<undecorated T>
-		static value create_view( const T& obj ) requires !std::is_same_v< remove_decoration_t< T >, value >
+		template< undecorated T >
+		static value create_view( const T& obj )
+			requires !std::is_same_v< remove_decoration_t< T >, value >
 		{
 			return create_view( &obj );
 		}
@@ -111,14 +113,16 @@ namespace ge::refl
 			return value{ obj.m_vtable, obj.m_value, false, false };
 		}
 
-		template<undecorated T>
-		static value create_ref( T* obj ) requires !std::is_same_v< remove_decoration_t< T >, value >
+		template< undecorated T >
+		static value create_ref( T* obj )
+			requires !std::is_same_v< remove_decoration_t< T >, value >
 		{
 			return value{ create_vtable< T >(), obj, true, false };
 		}
 
-		template<undecorated T>
-		static value create_ref( T& obj ) requires !std::is_same_v< remove_decoration_t< T >, value >
+		template< undecorated T >
+		static value create_ref( T& obj )
+			requires !std::is_same_v< remove_decoration_t< T >, value >
 		{
 			return create_ref( &obj );
 		}
@@ -129,21 +133,21 @@ namespace ge::refl
 			return value{ obj.m_vtable, obj.m_value, true, false };
 		}
 
-		template<typename Arg, undecorated T = remove_decoration_t< Arg >>
+		template< typename Arg, undecorated T = remove_decoration_t< Arg > >
 		static value create_owning( Arg&& args )
 		{
 			void* buffer = std::malloc( sizeof( T ) );
-			new( buffer )T( std::forward< Arg >( args ) );
+			new( buffer ) T( std::forward< Arg >( args ) );
 			return value{ create_vtable< T >(), buffer, true, true };
 		}
 
 		API value() = default;
 
 		API value( const value& other )
-			: m_vtable( other.m_vtable ),
-			  m_value( other.m_value ),
-			  m_is_mutable( other.m_is_mutable ),
-			  m_is_owning( other.m_is_owning )
+			: m_vtable( other.m_vtable )
+			, m_value( other.m_value )
+			, m_is_mutable( other.m_is_mutable )
+			, m_is_owning( other.m_is_owning )
 		{
 			if( m_is_owning && m_value != nullptr )
 			{
@@ -154,10 +158,10 @@ namespace ge::refl
 		}
 
 		API value( value&& other ) noexcept
-			: m_vtable( other.m_vtable ),
-			  m_value( std::exchange( other.m_value, nullptr ) ),
-			  m_is_mutable( other.m_is_mutable ),
-			  m_is_owning( other.m_is_owning )
+			: m_vtable( other.m_vtable )
+			, m_value( std::exchange( other.m_value, nullptr ) )
+			, m_is_mutable( other.m_is_mutable )
+			, m_is_owning( other.m_is_owning )
 		{
 		}
 
@@ -236,13 +240,13 @@ namespace ge::refl
 			return m_value;
 		}
 
-		template<typename T>
+		template< typename T >
 		const T* as_constant() const
 		{
 			return static_cast< const T* >( const_data() );
 		}
 
-		template<typename T>
+		template< typename T >
 		T* as_mutable()
 		{
 			return static_cast< T* >( mutable_data() );
@@ -271,7 +275,7 @@ namespace ge::refl
 	private:
 		inplace_vtable< vtable > m_vtable{};
 		void* m_value{};
-		std::uint8_t m_is_mutable : 1{};
-		std::uint8_t m_is_owning : 1{};
+		std::uint8_t m_is_mutable : 1 {};
+		std::uint8_t m_is_owning : 1 {};
 	};
-}
+} // namespace ge::refl

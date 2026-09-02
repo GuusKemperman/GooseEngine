@@ -24,7 +24,7 @@ namespace ge::windows::modules
 
 		API ~module() override;
 
-		API auto get_exported_func( std::string_view func_name ) const -> void( * )() override;
+		API auto get_exported_func( std::string_view func_name ) const -> void ( * )() override;
 
 	private:
 		HMODULE m_module{};
@@ -35,10 +35,10 @@ namespace ge::windows::modules
 	public:
 		API std::filesystem::path get_platform_shared_lib_file_extension() const override;
 
-		API std::shared_ptr< ge::modules::platform_module >
-			load_platform_module( const std::filesystem::path& shared_lib ) const override;
+		API std::shared_ptr< ge::modules::platform_module > load_platform_module(
+			const std::filesystem::path& shared_lib ) const override;
 	};
-}
+} // namespace ge::windows::modules
 
 ge::windows::modules::module::module( const std::filesystem::path& a_path )
 	: m_module( LoadLibraryW( a_path.c_str() ) )
@@ -55,9 +55,9 @@ ge::windows::modules::module::~module()
 	FreeLibrary( m_module );
 }
 
-auto ge::windows::modules::module::get_exported_func( std::string_view func_name ) const -> void( * )()
+auto ge::windows::modules::module::get_exported_func( std::string_view func_name ) const -> void ( * )()
 {
-	return reinterpret_cast< void( * )() >( GetProcAddress( m_module, func_name.data() ) );
+	return reinterpret_cast< void ( * )() >( GetProcAddress( m_module, func_name.data() ) );
 }
 
 std::filesystem::path ge::windows::modules::loader::get_platform_shared_lib_file_extension() const

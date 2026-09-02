@@ -4,23 +4,16 @@ import stl;
 
 namespace ge
 {
-	export enum severity
-	{
-		verbose,
-		message,
-		warning,
-		error
-	};
+	export enum severity { verbose, message, warning, error };
 
-	export template<typename... types_t>
+	export template< typename... types_t >
 	struct basic_format_with_location
 	{
-		template<typename arg_t> requires( std::convertible_to< const arg_t&, std::format_string< types_t... > > )
-		consteval basic_format_with_location(
-			const arg_t& a_str,
-			std::source_location a_src = std::source_location::current() )
-			: m_str( a_str ),
-			  m_src( std::move( a_src ) )
+		template< typename arg_t >
+			requires( std::convertible_to< const arg_t&, std::format_string< types_t... > > )
+		consteval basic_format_with_location( const arg_t& a_str, std::source_location a_src = std::source_location::current() )
+			: m_str( a_str )
+			, m_src( std::move( a_src ) )
 		{
 		}
 
@@ -28,7 +21,7 @@ namespace ge
 		std::source_location m_src{};
 	};
 
-	export template<typename... types_t>
+	export template< typename... types_t >
 	using format_with_location = basic_format_with_location< std::type_identity_t< types_t >... >;
 
 	export class logger
@@ -41,16 +34,11 @@ namespace ge
 			std::source_location m_src{};
 		};
 
-		API logger(
-			std::ostream& a_output_stream = std::cout,
-			std::ostream& a_err_stream = std::cerr );
+		API logger( std::ostream& a_output_stream = std::cout, std::ostream& a_err_stream = std::cerr );
 
 		// TODO make this const to reflect that it's thread-safe, then go over all usages and replace them with const-ref if they only log
-		template<typename... T>
-		void log(
-			severity a_severity,
-			format_with_location< T... > a_format,
-			T&&... a_args );
+		template< typename... T >
+		void log( severity a_severity, format_with_location< T... > a_format, T&&... a_args );
 
 		API void log_raw(
 			severity a_severity,
@@ -82,41 +70,28 @@ namespace ge
 		size_t m_num_characters_logged{};
 		size_t m_max_num_characters_logged = 2097152; // 2mb
 	};
-}
+} // namespace ge
 
 ge::logger::logger( std::ostream& a_output_stream, std::ostream& a_err_stream )
-	: m_output_stream( a_output_stream ),
-	  m_err_stream( a_err_stream )
+	: m_output_stream( a_output_stream )
+	, m_err_stream( a_err_stream )
 {
 }
 
-template<typename... T>
-void ge::logger::log(
-	severity a_severity,
-	format_with_location< T... > a_format,
-	T&&... a_args )
+template< typename... T >
+void ge::logger::log( severity a_severity, format_with_location< T... > a_format, T&&... a_args )
 {
 	std::string formatted = std::format( a_format.m_str, std::forward< T >( a_args )... );
-	log_raw(
-		a_severity,
-		formatted,
-		a_format.m_src );
+	log_raw( a_severity, formatted, a_format.m_src );
 }
 
 void ge::logger::log_raw( severity a_severity, std::string_view a_msg, const std::source_location& a_src )
 {
-	std::string logged_text = std::format(
-		"{}({}): '{}'\n",
-		std::filesystem::path{ a_src.file_name() }.filename().string(),
-		a_src.line(),
-		a_msg );
+	std::string logged_text
+		= std::format( "{}({}): '{}'\n", std::filesystem::path{ a_src.file_name() }.filename().string(), a_src.line(), a_msg );
 
 	m_num_characters_logged += logged_text.size();
-	m_log.emplace_back(
-		a_severity,
-		logged_text,
-		a_src
-		).m_logged_text;
+	m_log.emplace_back( a_severity, logged_text, a_src ).m_logged_text;
 
 	clear_excess_messages();
 
