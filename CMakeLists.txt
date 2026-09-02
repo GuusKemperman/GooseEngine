@@ -26,6 +26,8 @@ add_compile_options(/Wall /WX
 /wd4865
 /wd4868
 /wd4355
+/wd4710
+/wd4711
 )
 
 add_compile_options("/FI${CMAKE_SOURCE_DIR}/source/core/globals/defines.h")
