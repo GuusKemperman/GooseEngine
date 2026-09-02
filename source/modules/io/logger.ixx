@@ -57,7 +57,7 @@ namespace ge
 			std::string_view a_msg,
 			const std::source_location& a_src = std::source_location::current() );
 
-		API auto get_logged_messages() const;
+		API const std::list< entry >& get_logged_messages() const;
 
 		API void clear();
 
@@ -127,7 +127,7 @@ void ge::logger::log_raw( severity a_severity, std::string_view a_msg, const std
 	}
 }
 
-auto ge::logger::get_logged_messages() const
+const std::list< ge::logger::entry >& ge::logger::get_logged_messages() const
 {
 	return m_log;
 }

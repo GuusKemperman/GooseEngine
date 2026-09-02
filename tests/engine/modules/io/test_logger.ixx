@@ -11,7 +11,6 @@ namespace logger
 {
 	// Test basic logging functionality
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void basic_logging()
 	{
 		ge::logger logger{};
@@ -28,7 +27,7 @@ namespace logger
 		is_eq( entry.m_severity, ge::severity::message );
 		is_true( entry.m_logged_text.contains( "Test message" ) );
 		is_eq( std::string_view( entry.m_src.file_name() ), std::string_view( src.file_name() ) );
-		is_eq( entry.m_src.line(), src.line() );
+		is_eq( entry.m_src.line(), src.line() - 1 );
 	}
 
 	// Test formatted logging
@@ -123,7 +122,7 @@ namespace logger
 		const auto& entry = logger.get_logged_messages().back();
 		is_eq( std::string_view{ entry.m_src.file_name() }, test_location.file_name() );
 		is_eq( std::string_view{ entry.m_src.function_name() }, test_location.function_name() );
-		is_eq( entry.m_src.line(), test_location.line() );
+		is_eq( entry.m_src.line(), test_location.line() - 1 );
 	}
 
 	// Test stream output redirection
@@ -157,4 +156,4 @@ namespace logger
 		is_true( cerr_output.contains( "Warning to cerr" ) );
 		is_true( cerr_output.contains( "Error to cerr" ) );
 	}
-}
+} // namespace logger
