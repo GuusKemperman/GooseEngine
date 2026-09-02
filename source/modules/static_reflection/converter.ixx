@@ -6,8 +6,9 @@ namespace ge::converter
 {
 	export struct module_partition
 	{
-		// For error messages
-		std::string_view m_file_name{};
+		// Optional, for error messages
+		std::string m_file_name{};
+		std::string m_file_contents{};
 
 		parsed_file m_parse_result{};
 	};
@@ -167,10 +168,14 @@ namespace
 			write_line( ".end_type()" );
 		}
 
-		void emit_error( const ge::source_error& error, std::string_view filename )
+		void emit_error( const ge::source_error& error, std::string_view filename, std::string_view file_contents )
 		{
-			write_line_fmt( "#line {} \"{}\"", error.m_source.m_line_number, filename );
-			write_line_fmt( "static_assert(false, R\"({})\");", error.m_msg );
+			if( !filename.empty() )
+			{
+				write_line_fmt( "#line {} \"{}\"", error.m_source.m_line_number, filename );
+			}
+
+			write_line_fmt( "static_assert(false, R\"({})\");", ge::format_source_error( file_contents, error ) );
 		}
 	};
 }
@@ -190,7 +195,7 @@ std::string ge::converter::convert_module( const module& module )
 		{
 			for( const source_error& error : partition.m_parse_result.m_errors )
 			{
-				converter.emit_error( error, partition.m_file_name );
+				converter.emit_error( error, partition.m_file_name, partition.m_file_contents );
 			}
 		}
 	}

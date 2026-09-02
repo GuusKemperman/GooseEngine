@@ -84,14 +84,14 @@ namespace ge
 
 		API source_location get_source() const
 		{
-			return { .m_line_number = m_line_number };
+			return m_location;
 		}
 
 	private:
 		std::string_view m_file{};
 		size_t m_num_characters_parsed{};
 		token m_token{};
-		std::uint32_t m_line_number = 1u;
+		source_location m_location{ 1u, 1u };
 		int m_parentheses_count{};
 		int m_curly_brackets_count{};
 	};
@@ -150,10 +150,18 @@ ge::token_iterator& ge::token_iterator::operator++()
 		[&]( size_t amount = 1 )
 	{
 		// This is the only place where m_num_characters_parsed is incremented, 
-		// so we also update the line number count here
+		// so we also update the location count here
 		for( size_t i = 0; i < amount; i++ )
 		{
-			m_line_number += peek( i, '\n' );
+			bool is_new_line = peek( i, '\n' );
+
+			m_location.m_line_number += is_new_line;
+			m_location.m_column_number++;
+
+			if( is_new_line )
+			{
+				m_location.m_column_number = 1u;
+			}
 		}
 
 		m_num_characters_parsed += amount;

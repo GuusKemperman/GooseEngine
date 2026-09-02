@@ -24,7 +24,7 @@ int main( int arg_c, const char** arg_v )
 		}();
 
 		ge::token_range tokenized{ contents };
-		partitions.push_back( { .m_file_name = *it, .m_parse_result = ge::parse( tokenized ) } );
+		partitions.push_back( { .m_file_name = *it, .m_file_contents = contents, .m_parse_result = ge::parse( tokenized ) } );
 	}
 
 	module_to_convert.m_partitions = partitions;

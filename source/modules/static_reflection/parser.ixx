@@ -142,7 +142,6 @@ namespace ge
 
 		enum class reflect_bundle : enum_type
 		{
-			reflect_namespace,
 			reflect_type_definition,
 			reflect_base,
 			reflect_enum,
@@ -169,6 +168,7 @@ namespace ge
 			parse_access_specifier,
 			parse_type_key,
 			parse_enum_key,
+			parse_namespace_name,
 
 			check_for_next_base,
 			check_for_next_parameter,
@@ -185,7 +185,6 @@ namespace ge
 
 		enum class store_event : enum_type
 		{
-			store_reflected_namespace,
 			store_reflected_type,
 			store_base,
 			store_reflected_enum,
@@ -245,6 +244,7 @@ namespace ge
 			std::string m_traits{};
 			std::string m_type_specifier{};
 			std::string m_identifier{};
+			std::string m_namespace_name{};
 			parsed_keywords m_keywords{};
 			parsed_type_key m_type_key{};
 			parsed_enum_key m_enum_key{};
@@ -279,8 +279,9 @@ ge::parsed_file ge::parser::parse( token_range tokenised_source )
 
 			try
 			{
-				if( bool was_token_consumed = receive_token( m_state_stack.top().m_token_consumer, it ) )
+				if( receive_token( m_state_stack.top().m_token_consumer, it ) )
 				{
+					// Token was consumed
 					break;
 				}
 			}
@@ -372,6 +373,8 @@ ge::parsed_file ge::parser::parse( token_range tokenised_source )
 					return "token_consumer::parse_type_key";
 				case token_consumer::parse_enum_key:
 					return "token_consumer::parse_enum_key";
+				case token_consumer::parse_namespace_name:
+					return "token_consumer::parse_namespace_name";
 				case token_consumer::check_for_next_base:
 					return "token_consumer::check_for_next_base";
 				case token_consumer::check_for_next_parameter:
@@ -429,11 +432,6 @@ void ge::parser::push_state( reflect_bundle bundle )
 
 	switch( bundle )
 	{
-	case reflect_bundle::reflect_namespace:
-		queue(
-			token_consumer::parse_identifier,
-			store_event::store_reflected_namespace );
-		break;
 	case reflect_bundle::reflect_type_definition:
 		queue(
 			reflect_bundle::reflect_traits,
@@ -573,7 +571,7 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 
 		if( it->m_str == "namespace"sv )
 		{
-			push_state( reflect_bundle::reflect_namespace );
+			push_state( token_consumer::parse_namespace_name );
 			return true;
 		}
 
@@ -705,7 +703,7 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 
 		if( it->m_flag != token::flag::valid_identifier )
 		{
-			report_failure( "No valid type found"sv );
+			report_failure( "invalid identifier"sv );
 		}
 
 		m_most_recently_parsed.m_type_specifier += it->m_str;
@@ -832,6 +830,49 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 		{
 			complete_state();
 			return false;
+		}
+
+		return true;
+	}
+	case token_consumer::parse_namespace_name:
+	{
+		// note that 'using' gets filtered out earlier, so here we only have to deal with:
+		// namespace foo {}
+		// namespace foo::bar {}
+		// namespace {}
+		// namespace foo = bar;
+
+		if( it->m_flag == token::flag::white_space )
+		{
+			return true;
+		}
+
+		if( it->m_flag == token::flag::valid_identifier || it->m_str == "::" )
+		{
+			m_most_recently_parsed.m_namespace_name += it->m_str;
+		}
+		else if( it->m_str == "{" || it->m_str == "=" )
+		{
+			parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
+			parsed_scope& new_namespace = parent.m_namespaces.emplace_back();
+
+			new_namespace.m_name = std::move( m_most_recently_parsed.m_namespace_name );
+			new_namespace.m_scope_start = m_current_source;
+
+			if( it->m_str == "{" )
+			{
+				m_scope_stack.emplace( new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1 );
+			}
+
+			complete_state();
+		}
+		else
+		{
+			report_failure(
+				std::format(
+					"unexpected token after 'namespace {}': '{}'. Expected '{{' or '='.",
+					m_most_recently_parsed.m_namespace_name,
+					it->m_str ) );
 		}
 
 		return true;
@@ -1007,17 +1048,6 @@ void ge::parser::store( store_event event )
 {
 	switch( event )
 	{
-	case store_event::store_reflected_namespace:
-	{
-		parsed_scope& parent = m_scope_stack.top().m_parsed_scope;
-		parsed_scope& new_namespace = parent.m_namespaces.emplace_back();
-
-		new_namespace.m_name = std::move( m_most_recently_parsed.m_identifier );
-		new_namespace.m_scope_start = m_current_source;
-
-		m_scope_stack.emplace( new_namespace, m_scope_stack.top().m_curly_brackets_count_before_scope + 1 );
-		break;
-	}
 	case store_event::store_reflected_type:
 	{
 		if( m_most_recently_parsed.m_identifier.empty() )

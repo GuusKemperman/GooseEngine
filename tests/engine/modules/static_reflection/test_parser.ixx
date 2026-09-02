@@ -108,7 +108,6 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void no_param_func()
 	{
 		std::string_view src =
@@ -591,7 +590,7 @@ namespace parser
 
 		ge::parsed_file file = parse_file( src );
 
-		is_eq( list_at( file.m_namespaces, 0 ).m_scope_start.m_line_number, 1u );
+		is_eq( list_at( file.m_namespaces, 0 ).m_scope_start.m_line_number, 2u );
 		is_eq( list_at( file.m_namespaces, 0 ).m_scope_end.m_line_number, 3u );
 	}
 
@@ -651,6 +650,31 @@ namespace parser
 		is_false( result.m_errors.empty() );
 		is_false( result.m_errors.front().m_msg.empty() );
 		logger.log_raw( ge::severity::message, result.m_errors.front().m_msg );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void namespace_alias()
+	{
+		std::string_view src = "export namespace foo = bar";
+
+		ge::logger logger{};
+		ge::parsed_file result = ge::parse( src );
+
+		is_eq( result.m_errors.size(), 0ull );
+		is_eq( result.m_namespaces.size(), 1ull );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void unexpected_character_after_namespace()
+	{
+		std::string_view src = "export namespace foo;";
+
+		ge::logger logger{};
+		ge::parsed_file result = ge::parse( src );
+
+		is_eq( result.m_errors.size(), 1ull );
+		is_eq( result.m_errors.front().m_msg, "unexpected token after 'namespace foo': ';'. Expected '{' or '='." );
+		is_eq( result.m_namespaces.size(), 0ull );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
