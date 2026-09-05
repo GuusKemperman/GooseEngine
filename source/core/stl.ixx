@@ -36,8 +36,8 @@ module;
 
 export module stl;
 
-#pragma warning(push)
-#pragma warning(disable : 5244) // '#include <meow>' in the purview of module 'std' appears erroneous.
+#pragma warning( push )
+#pragma warning( disable : 5244 ) // '#include <meow>' in the purview of module 'std' appears erroneous.
 
 // "C++ library headers" [tab:headers.cpp]
 #include <algorithm>
@@ -55,24 +55,25 @@ export module stl;
 #include <compare>
 #include <complex>
 #include <concepts>
-#include <condition_variable>
 #include <coroutine>
 #include <deque>
 #include <exception>
 #include <execution>
+
+#include <condition_variable>
 #if _HAS_CXX23
 #include <expected>
 #endif // _HAS_CXX23
 #include <filesystem>
 #include <format>
-#include <forward_list>
 #include <fstream>
 #include <functional>
 #include <future>
+
+#include <forward_list>
 #if _HAS_CXX23
 #include <generator>
 #endif // _HAS_CXX23
-#include <initializer_list>
 #include <iomanip>
 #include <ios>
 #include <iosfwd>
@@ -84,17 +85,20 @@ export module stl;
 #include <list>
 #include <locale>
 #include <map>
+
+#include <initializer_list>
 #if _HAS_CXX23
 #include <mdspan>
 #endif // _HAS_CXX23
 #include <memory>
-#include <memory_resource>
 #include <mutex>
 #include <new>
 #include <numbers>
 #include <numeric>
 #include <optional>
 #include <ostream>
+
+#include <memory_resource>
 #if _HAS_CXX23
 #include <print>
 #endif // _HAS_CXX23
@@ -103,12 +107,13 @@ export module stl;
 #include <ranges>
 #include <ratio>
 #include <regex>
-#include <scoped_allocator>
 #include <semaphore>
 #include <set>
+#include <span>
+
+#include <scoped_allocator>
 #include <shared_mutex>
 #include <source_location>
-#include <span>
 #if _HAS_CXX23
 #include <spanstream>
 #endif // _HAS_CXX23
@@ -121,25 +126,26 @@ export module stl;
 #if _HAS_CXX23
 #include <stdfloat>
 #endif // _HAS_CXX23
-#include <stop_token>
 #include <streambuf>
 #include <string>
-#include <string_view>
 #include <strstream>
 #include <syncstream>
-#include <system_error>
 #include <thread>
 #include <tuple>
-#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <valarray>
 #include <variant>
 #include <vector>
 #include <version>
+
+#include <stop_token>
+#include <string_view>
+#include <system_error>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 
 // "C++ headers for C library facilities" [tab:headers.cpp.c]
 #include <cassert>
@@ -164,4 +170,4 @@ export module stl;
 #include <cwchar>
 #include <cwctype>
 
-#pragma warning(pop)
+#pragma warning( pop )

@@ -7,24 +7,19 @@ namespace ge::test_core
 {
 	export struct unit_test_trait : refl::func_trait
 	{
-		template<auto Func>
+		template< auto Func >
 		static void on_apply( const refl::builders::func_builder< Func >& builder )
 		{
 			builder.add_traits( ge::refl::invocable_trait< void() >{} );
 		}
 	};
 
-	export class test_exception
-		: public std::exception
+	export class test_exception : public std::exception
 	{
 	public:
 		API test_exception( const std::source_location& a_src = std::source_location::current() )
-			: m_src( a_src ),
-			  m_what(
-				  std::format(
-					  "{}({})",
-					  m_src.file_name(),
-					  m_src.line() ) )
+			: m_src( a_src )
+			, m_what( std::format( "{}({})", m_src.file_name(), m_src.line() ) )
 		{
 		}
 
@@ -45,8 +40,7 @@ namespace ge::test_core
 
 	namespace assert
 	{
-		export [[noreturn]] API void failure(
-			const std::source_location& src = std::source_location::current() )
+		export [[noreturn]] API void failure( const std::source_location& src = std::source_location::current() )
 		{
 			throw test_exception{ src };
 		}
@@ -58,9 +52,7 @@ namespace ge::test_core
 			throw test_exception{ msg, src };
 		}
 
-		export API void is_true(
-			bool cond,
-			const std::source_location& src = std::source_location::current() )
+		export API void is_true( bool cond, const std::source_location& src = std::source_location::current() )
 		{
 			if( !cond )
 			{
@@ -68,17 +60,14 @@ namespace ge::test_core
 			}
 		}
 
-		export API void is_false(
-			bool cond,
-			const std::source_location& src = std::source_location::current() )
+		export API void is_false( bool cond, const std::source_location& src = std::source_location::current() )
 		{
 			return is_true( !cond, src );
 		}
 
-		export template<typename exception_t, typename func_t> requires std::invocable< func_t >
-		exception_t expect_exception(
-			func_t&& a_func,
-			const std::source_location& src = std::source_location::current() )
+		export template< typename exception_t, typename func_t >
+			requires std::invocable< func_t >
+		exception_t expect_exception( func_t&& a_func, const std::source_location& src = std::source_location::current() )
 		{
 			try
 			{
@@ -95,27 +84,23 @@ namespace ge::test_core
 			}
 		}
 
-		export void is_null(
-			const auto& ptr,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ ptr == nullptr } -> std::same_as< bool >;
-		}
+		export void is_null( const auto& ptr, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ ptr == nullptr } -> std::same_as< bool >;
+			}
 		{
 			return is_true( ptr == nullptr, src );
 		}
 
-		export void is_not_null(
-			const auto& ptr,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ ptr != nullptr } -> std::same_as< bool >;
-		}
+		export void is_not_null( const auto& ptr, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ ptr != nullptr } -> std::same_as< bool >;
+			}
 		{
 			return is_true( ptr != nullptr, src );
 		}
 
-		template<typename t1, typename t2>
+		template< typename t1, typename t2 >
 		void assert_template(
 			std::string_view operator_as_txt,
 			bool failed,
@@ -138,74 +123,56 @@ namespace ge::test_core
 			}
 		}
 
-		export template<typename t1, typename t2>
-		void is_eq(
-			const t1& lhs,
-			const t2& rhs,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ lhs == rhs } -> std::same_as< bool >;
-		}
+		export template< typename t1, typename t2 >
+		void is_eq( const t1& lhs, const t2& rhs, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ lhs == rhs } -> std::same_as< bool >;
+			}
 		{
 			assert_template( "==", lhs == rhs, lhs, rhs, src );
 		}
 
-		export void is_ne(
-			const auto& lhs,
-			const auto& rhs,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ lhs != rhs } -> std::same_as< bool >;
-		}
+		export void is_ne( const auto& lhs, const auto& rhs, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ lhs != rhs } -> std::same_as< bool >;
+			}
 		{
 			assert_template( "!=", lhs != rhs, lhs, rhs, src );
 		}
 
-		export void is_lt(
-			const auto& lhs,
-			const auto& rhs,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ lhs < rhs } -> std::same_as< bool >;
-		}
+		export void is_lt( const auto& lhs, const auto& rhs, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ lhs < rhs } -> std::same_as< bool >;
+			}
 		{
 			assert_template( "<", lhs < rhs, lhs, rhs, src );
 		}
 
-		export void is_gt(
-			const auto& lhs,
-			const auto& rhs,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ lhs > rhs } -> std::same_as< bool >;
-		}
+		export void is_gt( const auto& lhs, const auto& rhs, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ lhs > rhs } -> std::same_as< bool >;
+			}
 		{
 			assert_template( ">", lhs > rhs, lhs, rhs, src );
 		}
 
-		export void is_le(
-			const auto& lhs,
-			const auto& rhs,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ lhs <= rhs } -> std::same_as< bool >;
-		}
+		export void is_le( const auto& lhs, const auto& rhs, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ lhs <= rhs } -> std::same_as< bool >;
+			}
 		{
 			assert_template( "<=", lhs <= rhs, lhs, rhs, src );
 		}
 
-		export void is_ge(
-			const auto& lhs,
-			const auto& rhs,
-			const std::source_location& src = std::source_location::current() ) requires requires
-		{
-			{ lhs >= rhs } -> std::same_as< bool >;
-		}
+		export void is_ge( const auto& lhs, const auto& rhs, const std::source_location& src = std::source_location::current() )
+			requires requires {
+				{ lhs >= rhs } -> std::same_as< bool >;
+			}
 		{
 			assert_template( ">=", lhs >= rhs, lhs, rhs, src );
 		}
-	}
+	} // namespace assert
 
-	// TODO make equivalents that continue execution after a failed assertion 
+	// TODO make equivalents that continue execution after a failed assertion
 	export namespace expect = assert;
-}
+} // namespace ge::test_core

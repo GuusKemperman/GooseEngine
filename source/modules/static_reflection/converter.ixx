@@ -21,7 +21,7 @@ namespace ge::converter
 
 	// For converting from C++ to the generated files needed to construct the runtime type registry
 	export API std::string convert_module( const module& module );
-}
+} // namespace ge::converter
 
 namespace
 {
@@ -91,7 +91,7 @@ namespace
 			}
 		}
 
-		template<typename... Args>
+		template< typename... Args >
 		void write_line_fmt( std::format_string< Args... > fmt, Args&&... fmtArgs )
 		{
 			write_line( std::format( fmt, std::forward< Args >( fmtArgs )... ) );
@@ -178,18 +178,15 @@ namespace
 			write_line_fmt( "static_assert(false, R\"({})\");", ge::format_source_error( file_contents, error ) );
 		}
 	};
-}
+} // namespace
 
 std::string ge::converter::convert_module( const module& module )
 {
 	converter_state converter{};
 
 	if( std::ranges::any_of(
-		module.m_partitions,
-		[]( const module_partition& partition )
-		{
-			return !partition.m_parse_result.m_errors.empty();
-		} ) )
+			module.m_partitions,
+			[]( const module_partition& partition ) { return !partition.m_parse_result.m_errors.empty(); } ) )
 	{
 		for( const module_partition& partition : module.m_partitions )
 		{

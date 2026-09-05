@@ -1,6 +1,5 @@
 export module test_static_reflection:test_tokeniser;
 
-
 import stl;
 import io;
 import static_reflection;
@@ -36,12 +35,11 @@ namespace
 		}
 		is_eq( it, range.end(), src );
 	}
-}
+} // namespace
 
 namespace tokeniser
 {
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void complex_function_no_crash()
 	{
 		ge::token_range{
@@ -53,18 +51,18 @@ namespace tokeniser
 			"        */\n"
 			R"(        [[nodiscard]] inline /*haha here is another comment */int function_name(int param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)"
 			"\n"
-			"            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), int foo = 1.0f);\n"
+			"            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), int foo = "
+			"1.0f);\n"
 		};
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void iterators()
 	{
 		ge::token_range tokeniser{ "1 2 3 4" };
 
 		( void )expect_exception< std::out_of_range >(
-			[&]
+			[ & ]
 			{
 				ge::token_iterator end = tokeniser.end();
 				++end;
@@ -96,14 +94,12 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void empty_input()
 	{
 		expect_tokens( "", {} );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void whitespace_only_collapses()
 	{
 		expect_tokens(
@@ -114,7 +110,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void whitespace_between_tokens_collapses()
 	{
 		expect_tokens(
@@ -127,7 +122,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void identifiers_with_underscores_and_digits()
 	{
 		expect_tokens(
@@ -140,7 +134,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void leading_digit_terminates_before_identifier()
 	{
 		expect_tokens(
@@ -152,7 +145,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void line_comment_discards_newline()
 	{
 		expect_tokens(
@@ -165,7 +157,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void line_comment_at_eof_is_unreachable()
 	{
 		// The comment token is produced, but consuming it advances the iterator
@@ -178,7 +169,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void block_comment()
 	{
 		expect_tokens(
@@ -191,7 +181,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void block_comments_do_not_nest()
 	{
 		expect_tokens(
@@ -203,7 +192,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void unterminated_block_comment_overshoots()
 	{
 		// Documents current behavior: the unterminated comment consumes to the end
@@ -215,15 +203,10 @@ namespace tokeniser
 		is_eq( it->m_flag, ge::token::flag::comment );
 		is_ne( it, range.end() );
 
-		( void )expect_exception< std::out_of_range >(
-			[&]
-			{
-				++it;
-			} );
+		( void )expect_exception< std::out_of_range >( [ & ] { ++it; } );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void attribute_token_strips_brackets()
 	{
 		expect_tokens(
@@ -235,7 +218,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void string_literal_is_single_token()
 	{
 		expect_tokens(
@@ -251,7 +233,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void string_with_escaped_quotes()
 	{
 		expect_tokens(
@@ -267,7 +248,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void string_prefixes_included_in_token()
 	{
 		expect_tokens(
@@ -284,7 +264,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void raw_string_is_single_token()
 	{
 		expect_tokens(
@@ -297,7 +276,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void char_literals()
 	{
 		// Only plain characters and the escaped quote are supported.
@@ -311,7 +289,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void multi_char_operators_combine()
 	{
 		expect_tokens(
@@ -328,7 +305,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void other_operators_do_not_combine()
 	{
 		// Only "::", "->" and "&&" are combined into a single token.
@@ -346,7 +322,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void number_literals()
 	{
 		expect_tokens(
@@ -367,7 +342,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void bracket_counting()
 	{
 		ge::token_range range{ "(({}))" };
@@ -395,7 +369,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void line_numbers()
 	{
 		ge::token_range range{ "a\nb\n\nc" };
@@ -413,7 +386,6 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-
 	export API void postfix_increment_returns_previous()
 	{
 		ge::token_range range{ "a b" };
@@ -422,4 +394,4 @@ namespace tokeniser
 		is_eq( old->m_str, "a" );
 		is_eq( it->m_str, " " );
 	}
-}
+} // namespace tokeniser

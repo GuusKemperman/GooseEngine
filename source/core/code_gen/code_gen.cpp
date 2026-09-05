@@ -16,7 +16,7 @@ int main( int arg_c, const char** arg_v )
 
 	for( const char** it = arg_v + 3; it < arg_v + arg_c; ++it )
 	{
-		const std::string contents = [it]()
+		const std::string contents = [ it ]()
 		{
 			std::ifstream stream{ *it };
 			assert( stream.is_open() );

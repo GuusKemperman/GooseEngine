@@ -43,8 +43,8 @@ namespace ge::refl
 	{
 		using trait_base_t = data_trait;
 
-		using setter_t = void( * )( value target_object, const value& new_value );
-		using getter_t = value( * )( const value& target_object );
+		using setter_t = void ( * )( value target_object, const value& new_value );
+		using getter_t = value ( * )( const value& target_object );
 
 		cached_type_data_ref m_type;
 		std::reference_wrapper< const type_data > m_outer_type;
@@ -86,14 +86,14 @@ namespace ge::refl
 		std::string_view m_name{};
 	};
 
-	export template<typename T, size_t Capacity>
+	export template< typename T, size_t Capacity >
 	struct buffer
 	{
 		T& push_back( T&& item )
 		{
 			assert( m_size < Capacity );
 			T* dst = end();
-			new( dst )T( std::move( item ) );
+			new( dst ) T( std::move( item ) );
 			m_size++;
 			return *dst;
 		}
@@ -158,4 +158,4 @@ namespace ge::refl
 		buffer< data_data, 1024 > m_datas{};
 		buffer< value, 1024 > m_values{};
 	};
-}
+} // namespace ge::refl

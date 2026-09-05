@@ -18,7 +18,7 @@ namespace ge::modules
 
 	export API std::vector< module > load_modules_in_folder( const platform_loader& loader, const std::filesystem::path& folder )
 	{
-		assert( std::filesystem::is_directory(folder) );
+		assert( std::filesystem::is_directory( folder ) );
 
 		std::vector< module > loaded_modules{};
 
@@ -42,4 +42,4 @@ namespace ge::modules
 
 		return loaded_modules;
 	}
-}
+} // namespace ge::modules
