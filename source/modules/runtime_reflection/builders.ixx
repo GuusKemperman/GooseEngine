@@ -157,7 +157,7 @@ namespace ge::refl::builders
 		}
 	};
 
-	class module_builder
+	export class module_builder
 		: public builder_base,
 		  public type_part,
 		  public func_part

@@ -6,6 +6,7 @@ export module scheduling;
 
 import runtime_reflection;
 import stl;
+import io;
 
 namespace ge::scheduling
 {
@@ -59,6 +60,22 @@ namespace ge::scheduling
 		}
 	};
 
+	export struct sequence_point
+	{
+		[[maybe_unused]] sequence_point() = default;
+
+		template< typename... Params >
+		constexpr sequence_point( void ( *other_system )( Params... ) )
+			: m_data( std::bit_cast< void* >( other_system ) )
+		{
+			static_assert( sizeof( void ( * )() ) == sizeof( void* ) );
+		}
+
+		constexpr auto operator<=>( const sequence_point& ) const = default;
+
+		void* m_data{};
+	};
+
 	// TODO specialization for entity-component queries
 
 	// Supported arguments:
@@ -93,9 +110,13 @@ namespace ge::scheduling
 			void ( *m_initialize_system )( cached_system&, const argument_factory_context& );
 			size_t m_num_params{};
 
+			sequence_point m_func_sequence_point{};
+
 			template< auto Func >
 			void on_apply( const refl::builders::func_builder< Func >& )
 			{
+				m_func_sequence_point = sequence_point{ Func };
+
 				m_initialize_system = +[]( cached_system& system, const argument_factory_context& context ) -> void
 				{
 					[ & ]< typename Ret, typename... ParamsT >( refl::func_sig< Ret( ParamsT... ) > ) -> void
@@ -149,13 +170,51 @@ namespace ge::scheduling
 				}( refl::func_sig_t< decltype( Func ) >{} );
 			}
 		};
+
+		template<size_t>
+		struct ordering_type_erased : refl::func_trait
+		{
+			sequence_point m_point{};
+		};
+
+		export template< auto OtherSystem, typename impl_t >
+		struct ordering : refl::func_trait
+		{
+			template< auto Func >
+			void on_apply( refl::builders::func_builder< Func >& func )
+			{
+				func.add_traits( impl_t{ .m_point = sequence_point{ OtherSystem } } );
+			}
+		};
+
+		using type_erased_order_before = ordering_type_erased<0>;
+		using type_erased_order_after = ordering_type_erased<1>;
+
+		export template< auto OtherSystem>
+			requires ge::refl::is_func< OtherSystem >
+		using order_before = ordering<OtherSystem, type_erased_order_before>;
+
+		export template< auto OtherSystem>
+			requires ge::refl::is_func< OtherSystem >
+		using order_after = ordering<OtherSystem, type_erased_order_after>;
 	} // namespace traits
 
 	export struct execution_graph
 	{
-		// TODO make graph that supports multi-threading
-		std::vector< cached_system > m_systems{};
-		arguments_storage m_arguments_storage{};
+		struct group
+		{
+			struct system_node
+			{
+				std::string_view m_name;
+
+				// TODO store resources here (e.g., environment writes)
+			};
+
+			// Each system_node in a group can be executed using parallel-for without any race conditions on environments/entities
+			std::vector< system_node > m_nodes{};
+		};
+
+		std::vector< group > m_groups{};
 	};
 
 	export using environments_query = refl::type_query::read<traits::environment>;
@@ -174,45 +233,171 @@ namespace ge::scheduling
 
 	export using systems_query = refl::func_query::read< traits::system >;
 
-	export API execution_graph build_graph( systems_query systems, environments_map& environments )
+	export API std::optional<execution_graph> build_graph( systems_query systems, logger& logger )
 	{
-		struct count
+		// Phase 1: place system_node only based on user-specified ordering.
+		// Phase 2: for each group, check if there are system_nodes that have conflicts, e.g., multiple writes or readers + writers. If so, warn as underconstrained.
+		// Phase 3: 
+		
+		static constexpr std::uint16_t s_unassigned_group = std::numeric_limits< std::uint16_t >::max();
+
+		struct pending_system
 		{
-			size_t num_systems{};
-			size_t num_arguments{};
+			std::reference_wrapper< const ge::refl::func_data > m_func;
+			std::reference_wrapper< const traits::system > m_system_trait;
+
+			std::vector< std::uint16_t > m_execute_after{}; 
+
+			std::uint16_t m_group_idx = s_unassigned_group; 
 		};
 
-		auto [ num_systems, num_arguments ] = std::ranges::fold_left(
-			systems,
-			count{},
-			[]( count count, const auto& element )
+		size_t num_errors = 0;
+
+		std::vector< pending_system > pending_systems = systems
+												| std::views::transform(
+													[]( const systems_query::element& element ) -> pending_system
+													{
+														auto [ func, system ] = element;
+														return { .m_func = func, .m_system_trait = system };
+													} )
+												| std::ranges::to< std::vector< pending_system > >();
+
+		for( pending_system& pending : pending_systems )
+		{
+			auto sequence_point_to_func_idx = [ &pending, &pending_systems, &logger, &num_errors](const sequence_point point) -> std::optional<std::uint16_t>
 			{
-				auto [ _, system ] = element;
-				count.num_arguments += system.m_num_params;
-				count.num_systems++;
-				return count;
-			} );
+				auto it = std::ranges::find_if(
+					pending_systems,
+					[ & ]( const pending_system& other ) -> bool
+					{ return other.m_system_trait.get().m_func_sequence_point == point; } );
 
-		execution_graph graph{
-			.m_systems = std::vector< cached_system >( num_systems ),
-			.m_arguments_storage = std::make_unique< refl::value[] >( num_arguments ),
-		};
+				if( it == pending_systems.end() )
+				{
+					logger.log(
+						error,
+						"invalid ordering for system {}: ordered constraint against function that was not a system.",
+						pending.m_func.get().m_name );
+					num_errors++;
+					return std::nullopt;
+				}
 
-		argument_factory_context argument_factory_context{ environments, graph.m_arguments_storage };
+				if( &*it == &pending )
+				{
+					logger.log( error, "invalid ordering for system {}: ordered against itself.", pending.m_func.get().m_name );
+					num_errors++;
+					return std::nullopt;
+				}
 
-		count count{};
+				return static_cast< std::uint16_t >( it - pending_systems.begin() );
+			};
 
-		for( auto [ _, system_trait ] : systems )
+			//for( const refl::value& trait : pending.m_func.get().m_traits )
+			//{
+			//	switch(trait.get_type_id().m_id)
+			//	{
+			//	//case ge::refl::make_type_id< traits::type_erased_order_before >().m_id:
+			//	//{
+			//	//	if( std::optional< std::uint16_t > idx_of_system_that_runs_after_us = sequence_point_to_func_idx( before ) )
+			//	//	{
+			//	//		pending_system& system_that_runs_after_us = pending_systems[ *idx_of_system_that_runs_after_us ];
+			//	//		// This system ^ will run after us
+			//	//		system_that_runs_after_us.m_execute_after.emplace_back( *idx_of_system_that_runs_after_us );
+			//	//	}
+			//	//	break;
+			//	//}
+			//	//case ge::refl::make_type_id< traits::type_erased_order_after >().m_id:
+			//	//{
+			//	//	//traits::type_erased_order_after* trait = trait.as_const< traits::type_erased_order_after >();
+			//	//	//if( std::optional< std::uint16_t > idx_of_system_that_runs_before_us = sequence_point_to_func_idx(after) )
+			//	//	//{
+			//	//	//	// We execute after this system
+			//	//	//	pending.m_execute_after.emplace_back( *idx_of_system_that_runs_before_us );
+			//	//	//}
+			//	//	//break;
+			//	//}
+
+			//	default:
+			//	}
+			//}
+		}
+
+		// TODO Loop detection
+		for (pending_system& system : pending_systems)
 		{
-			cached_system& system = graph.m_systems[ count.num_systems ];
-			system.m_cached_arguments = &graph.m_arguments_storage[ count.num_arguments ];
+			if (system.m_group_idx != s_unassigned_group)
+			{
+				continue;
+			}
 
-			system_trait.m_initialize_system( graph.m_systems[ count.num_systems ], argument_factory_context );
+			auto assign_group = [ &pending_systems ]( const auto& self, pending_system& current ) -> std::uint16_t
+			{
+				// Already processed
+				if(current.m_group_idx != s_unassigned_group)
+				{
+					return current.m_group_idx + 1u;
+				}
 
-			count.num_arguments += system_trait.m_num_params;
-			count.num_systems++;
+				if( current.m_execute_after.empty() )
+				{
+					current.m_group_idx = 0;
+					return 1u;
+				}
+
+				std::uint16_t highest_group_index{};
+				for(std::uint16_t idx_of_system_that_runs_before_us : current.m_execute_after)
+				{
+					pending_system& system_before_us = pending_systems[ idx_of_system_that_runs_before_us ];
+					highest_group_index = std::max( self( self, system_before_us ), highest_group_index );
+				}
+
+				current.m_group_idx = highest_group_index;
+				return current.m_group_idx + 1u;
+			};
+
+			assign_group( assign_group, system );
+		}
+
+		// TODO sort + validate environments here?
+
+		if(num_errors > 0)
+		{
+			return std::nullopt;
+		}
+
+		execution_graph graph{};
+
+		for(const pending_system system : pending_systems)
+		{
+			graph.m_groups.resize( system.m_group_idx + 1u );
+			graph.m_groups[ system.m_group_idx ].m_nodes.push_back(
+				execution_graph::group::system_node{ .m_name = system.m_func.get().m_name } );
 		}
 
 		return graph;
 	}
+
+	//export API void cache_system_arguments( execution_graph& graph, environments_map& environments )
+	//{
+	//	size_t total_num_arguments = std::ranges::fold_left(
+	//		graph.m_systems,
+	//		size_t{},
+	//		[]( size_t count, const cached_system& system )
+	//		{
+	//			count += system.m_num_arguments_to_cache;
+	//			return count;
+	//		} );
+
+	//	graph.m_arguments_storage = std::make_unique< refl::value[] >( total_num_arguments );
+
+	//	refl::value* cached_arguments = graph.m_arguments_storage.get();
+	//	for( cached_system& system : graph.m_systems )
+	//	{
+	//		size_t num_arguments = system.m_num_arguments_to_cache;
+	//		system.m_cached_arguments = cached_arguments;
+	//		cached_arguments += num_arguments;
+
+	//		system_trait.m_initialize_system( system, argument_factory_context );
+	//	}
+
+	//}
 } // namespace ge::scheduling
