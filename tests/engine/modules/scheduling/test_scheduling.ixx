@@ -241,4 +241,30 @@ namespace ordering_tests
 			"invalid ordering for 'system1': ordered constraint against function that was not a system." );
 	}
 
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void infinite_loop_gives_error()
+	{
+		result result = ::build_test_graph(
+			[]( ge::refl::builders::module_builder& builder )
+			{
+				builder.begin_func< ::dummy_system< 1 > >( "system1" )
+					.add_traits(
+						ge::scheduling::traits::system{},
+						ge::scheduling::traits::order_before< &::dummy_system< 2 > >{} )
+					.end_func();
+				builder.begin_func< ::dummy_system< 2 > >( "system2" )
+					.add_traits(
+						ge::scheduling::traits::system{},
+						ge::scheduling::traits::order_before< &::dummy_system< 1 > >{} )
+					.end_func();
+			} );
+		expect::is_eq( get_build_error_count( result ), 1ull );
+		expect_build_error(
+			result,
+			"invalid ordering: infinite loop:\n"
+			"  0 | 'system1'\n"
+			"  1 | 'system2'\n"
+			"  2 | 'system1'\n" );
+	}
+
 } // namespace ordering_tests

@@ -142,19 +142,6 @@ namespace ge::scheduling
 		void* m_data{};
 	};
 
-	// TODO specialization for entity-component queries
-
-	// Supported arguments:
-	// - Globals
-	// - World-environments
-	// - entities/component-queries (assumes trivially destructible const refs)
-
-	// Future, maybe?
-	// - refl queries?
-
-	// Get all traits with argument_factory_base trait
-	// Get all types with those traits
-
 	namespace traits
 	{
 		export struct system : refl::func_trait
@@ -275,10 +262,6 @@ namespace ge::scheduling
 
 	export API std::optional< execution_graph > build_graph( systems_query systems, logger& logger )
 	{
-		// Phase 1: place system_node only based on user-specified ordering.
-		// Phase 2: for each group, check if there are system_nodes that have conflicts, e.g., multiple writes or readers + writers. If so, warn as underconstrained.
-		// Phase 3:
-
 		static constexpr std::uint16_t s_unassigned_group = std::numeric_limits< std::uint16_t >::max();
 
 		struct pending_system
@@ -368,7 +351,6 @@ namespace ge::scheduling
 			}
 		}
 
-		// TODO Loop detection
 		for( pending_system& system : pending_systems )
 		{
 			if( system.m_group_idx != s_unassigned_group )
@@ -376,12 +358,38 @@ namespace ge::scheduling
 				continue;
 			}
 
-			auto assign_group = []( const auto& self, pending_system& current ) -> std::uint16_t
+			auto assign_group
+				= [ &logger, &num_errors ](
+					  const auto& self,
+					  pending_system& current,
+					  std::vector< std::reference_wrapper< const pending_system > > systems_in_loop ) -> std::uint16_t
 			{
 				// Already processed
 				if( current.m_group_idx != s_unassigned_group )
 				{
 					return current.m_group_idx + 1u;
+				}
+
+				systems_in_loop.emplace_back( current );
+
+				if( std::int64_t loop_start_idx
+					= std::ranges::find_if(
+						  systems_in_loop,
+						  [ &current ]( const pending_system& existing ) { return &current == &existing; } )
+					  - systems_in_loop.begin();
+					loop_start_idx + 1 != std::ssize( systems_in_loop ) )
+				{
+					std::string error = "invalid ordering: infinite loop:\n";
+
+					for( auto [ idx, system_in_loop ] :
+						 systems_in_loop | std::views::drop( loop_start_idx ) | std::views::enumerate )
+					{
+						error += std::format( "{:3} | '{}'\n", idx, system_in_loop.get().m_func.get().m_name );
+					}
+
+					logger.log_raw( severity::error, error );
+					num_errors++;
+					return 1u;
 				}
 
 				if( current.m_execute_after.empty() )
@@ -393,18 +401,15 @@ namespace ge::scheduling
 				std::uint16_t highest_group_index{};
 				for( pending_system& system_before_us : current.m_execute_after )
 				{
-					highest_group_index = std::max( self( self, system_before_us ), highest_group_index );
+					highest_group_index = std::max( self( self, system_before_us, systems_in_loop ), highest_group_index );
 				}
 
 				current.m_group_idx = highest_group_index;
 				return current.m_group_idx + 1u;
 			};
 
-			assign_group( assign_group, system );
+			assign_group( assign_group, system, {} );
 		}
-
-		// For each environment
-		// Collect all systems that read/write.
 
 		{
 			struct accessor
