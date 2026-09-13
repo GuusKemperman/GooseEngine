@@ -49,13 +49,11 @@ namespace ge::scheduling
 
 	export struct access
 	{
-		std::vector< std::reference_wrapper<const refl::type_data > > m_reads{};
+		std::vector< std::reference_wrapper< const refl::type_data > > m_reads{};
 		std::vector< std::reference_wrapper< const refl::type_data > > m_writes{};
 	};
 
-
-
-	API void fold_access(access& access)
+	API void fold_access( access& access )
 	{
 		static constexpr auto dedup = []( std::vector< std::reference_wrapper< const refl::type_data > >& vec )
 		{
@@ -78,8 +76,9 @@ namespace ge::scheduling
 			[ &access ]( const refl::type_data& readable )
 			{
 				return std::ranges::find_if(
-					access.m_writes,
-					[ & ]( const refl::type_data& writeable ) { return &readable == &writeable; } ) != access.m_writes.end();
+						   access.m_writes,
+						   [ & ]( const refl::type_data& writeable ) { return &readable == &writeable; } )
+					   != access.m_writes.end();
 			} );
 	}
 
@@ -167,7 +166,6 @@ namespace ge::scheduling
 			access m_access{};
 			access ( *m_populate_accesses )( const refl::builders::post_build_context& );
 
-
 			template< auto Func >
 			void on_apply( const refl::builders::func_builder< Func >& )
 			{
@@ -192,7 +190,7 @@ namespace ge::scheduling
 								[ & ]< typename ParamT, size_t Idx >()
 								{
 									using factory = argument_factory< ParamT >;
-									access fromParam = factory::declare_access( factory_context ); 
+									access fromParam = factory::declare_access( factory_context );
 
 									combined.m_writes.append_range( fromParam.m_writes );
 									combined.m_reads.append_range( fromParam.m_reads );
@@ -207,7 +205,7 @@ namespace ge::scheduling
 				};
 			}
 
-			void post_build( const refl::builders::post_build_context& context, const refl::func_data& )
+			API void post_build( const refl::builders::post_build_context& context, const refl::func_data& )
 			{
 				m_access = m_populate_accesses( context );
 			}
@@ -406,7 +404,7 @@ namespace ge::scheduling
 		}
 
 		// For each environment
-		// Collect all systems that read/write. 
+		// Collect all systems that read/write.
 
 		{
 			struct accessor
@@ -420,9 +418,28 @@ namespace ge::scheduling
 			};
 			using accessors = std::vector< accessor >;
 
+			static constexpr auto is_scheduled_in_this_order = []( const auto& self,
+																   const pending_system& potentially_scheduled_before,
+																   const pending_system& potentially_scheduled_after ) -> bool
+			{
+				for( const pending_system& before : potentially_scheduled_after.m_execute_after )
+				{
+					if( &before == &potentially_scheduled_before || self( self, before, potentially_scheduled_before ) )
+					{
+						return true;
+					}
+				}
+				return false;
+			};
+
+			static constexpr auto is_conflict = []( const accessor& first, const accessor& second )
+			{
+				return ( first.m_type == accessor::write || second.m_type == accessor::write )
+					   && !is_scheduled_in_this_order( is_scheduled_in_this_order, first.m_system, second.m_system );
+			};
+
 			std::unordered_map<
-				std::reference_wrapper<
-					const refl::type_data >,
+				std::reference_wrapper< const refl::type_data >,
 				accessors,
 				decltype( []( const refl::type_data& type ) { return type.m_id.m_id; } ),
 				decltype( []( const refl::type_data& lhs, const refl::type_data& rhs ) { return &lhs == &rhs; } ) >
@@ -430,12 +447,12 @@ namespace ge::scheduling
 
 			for( const pending_system& system : pending_systems )
 			{
-				for( const refl::type_data& write : system.m_system_trait.get().m_access.m_writes)
+				for( const refl::type_data& write : system.m_system_trait.get().m_access.m_writes )
 				{
 					accessors_map[ write ].push_back( accessor{ .m_system = system, .m_type = accessor::write } );
 				}
-				
-				for( const refl::type_data& read : system.m_system_trait.get().m_access.m_writes )
+
+				for( const refl::type_data& read : system.m_system_trait.get().m_access.m_reads )
 				{
 					accessors_map[ read ].push_back( accessor{ .m_system = system, .m_type = accessor::read } );
 				}
@@ -443,27 +460,16 @@ namespace ge::scheduling
 
 			for( auto [ type, accessors ] : accessors_map )
 			{
-				std::ranges::sort( accessors,
-								   []( const accessor& lhs, const accessor& rhs )
-								   {
-									   return lhs.m_system.get().m_group_idx < rhs.m_system.get().m_group_idx;
-								   } );
+				std::ranges::sort(
+					accessors,
+					[]( const accessor& lhs, const accessor& rhs )
+					{ return lhs.m_system.get().m_group_idx < rhs.m_system.get().m_group_idx; } );
 
-
-				for( auto systems_in_group :
-					 accessors
-						 | std::views::chunk_by( []( const accessor& lhs, const accessor& rhs )
-												 { return lhs.m_system.get().m_group_idx != rhs.m_system.get().m_group_idx; } ) )
+				for( auto [ idx, first ] : accessors | std::views::enumerate )
 				{
-					if( systems_in_group.size() == 1
-						|| std::ranges::find( systems_in_group, accessor::write, &accessor::m_type ) == systems_in_group.end() )
+					for( const accessor& second : accessors | std::views::drop( idx + 1 ) )
 					{
-						continue;
-					}
-
-					for( auto [i, first] : systems_in_group | std::views::enumerate )
-					{
-						for( const accessor& second : systems_in_group | std::views::drop(i + 1) )
+						if( is_conflict( first, second ) )
 						{
 							logger.log(
 								error,
@@ -474,10 +480,8 @@ namespace ge::scheduling
 							num_errors++;
 						}
 					}
-
 				}
 			}
-
 		}
 
 		if( num_errors > 0 )
@@ -494,43 +498,6 @@ namespace ge::scheduling
 				execution_graph::group::system_node{ .m_name = system.m_func.get().m_name } );
 		}
 
-		//for( auto [ idx, group ] : graph.m_groups | std::views::enumerate )
-		//{
-		//	std::cout << std::format( "Group {}\n", idx + 1 );
-		//
-		//			for( const auto& node : group.m_nodes)
-		//			{
-		//				std::cout << std::format( "\t'{}'", node.m_name);
-		//			}
-		//}
-
-		//std::cout << std::endl;
-
 		return graph;
 	}
-
-	//export API void cache_system_arguments( execution_graph& graph, environments_map& environments )
-	//{
-	//	size_t total_num_arguments = std::ranges::fold_left(
-	//		graph.m_systems,
-	//		size_t{},
-	//		[]( size_t count, const cached_system& system )
-	//		{
-	//			count += system.m_num_arguments_to_cache;
-	//			return count;
-	//		} );
-
-	//	graph.m_arguments_storage = std::make_unique< refl::value[] >( total_num_arguments );
-
-	//	refl::value* cached_arguments = graph.m_arguments_storage.get();
-	//	for( cached_system& system : graph.m_systems )
-	//	{
-	//		size_t num_arguments = system.m_num_arguments_to_cache;
-	//		system.m_cached_arguments = cached_arguments;
-	//		cached_arguments += num_arguments;
-
-	//		system_trait.m_initialize_system( system, argument_factory_context );
-	//	}
-
-	//}
 } // namespace ge::scheduling
