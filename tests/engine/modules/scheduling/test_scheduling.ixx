@@ -10,10 +10,15 @@ using namespace ge::test_core;
 
 namespace
 {
-	template< size_t >
-	void dummy_system()
+	template< size_t, typename... Args >
+	void dummy_system( Args... )
 	{
 	}
+
+	template< size_t >
+	struct dummy_env
+	{
+	};
 
 	struct result
 	{
@@ -133,6 +138,7 @@ namespace ordering_tests
 			} );
 
 		expect::is_eq( get_build_error_count( result ), 0ull );
+
 		expect::is_true( do_systems_run_in_parallel( result, { "system1", "system2" } ) );
 	}
 
@@ -181,6 +187,25 @@ namespace ordering_tests
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void two_underconstrained_writers_gives_error()
+	{
+		result result = ::build_test_graph(
+			[]( ge::refl::builders::module_builder& builder )
+			{
+				builder.begin_type< ::dummy_env< 1 > >( "env1" ).add_traits( ge::scheduling::traits::environment{} ).end_type();
+				builder.begin_func< ::dummy_system< 1, ::dummy_env< 1 >& > >( "system1" )
+					.add_traits( ge::scheduling::traits::system{} )
+					.end_func();
+				builder.begin_func< ::dummy_system< 2, ::dummy_env< 1 >& > >( "system2" )
+					.add_traits( ge::scheduling::traits::system{} )
+					.end_func();
+			} );
+
+		expect::is_eq( get_build_error_count( result ), 1ull );
+		expect_build_error( result, "underconstrained access to 'env1': no order specified between 'system1' and 'system2'" );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void order_against_self_gives_error()
 	{
 		result result = ::build_test_graph(
@@ -215,4 +240,5 @@ namespace ordering_tests
 			result,
 			"invalid ordering for 'system1': ordered constraint against function that was not a system." );
 	}
+
 } // namespace ordering_tests

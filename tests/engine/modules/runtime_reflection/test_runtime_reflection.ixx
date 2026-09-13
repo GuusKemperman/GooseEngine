@@ -216,21 +216,21 @@ namespace
 			++rec->on_apply_data;
 		}
 
-		void post_build( const ge::refl::type_data& type )
+		void post_build( const ge::refl::builders::post_build_context&, const ge::refl::type_data& type )
 		{
 			note_post_build();
 			++rec->post_build_type;
 			rec->last_type_name = type.m_name;
 		}
 
-		void post_build( const ge::refl::func_data& func )
+		void post_build( const ge::refl::builders::post_build_context&, const ge::refl::func_data& func )
 		{
 			note_post_build();
 			++rec->post_build_func;
 			rec->last_func_name = func.m_name;
 		}
 
-		void post_build( const ge::refl::data_data& data )
+		void post_build( const ge::refl::builders::post_build_context&, const ge::refl::data_data& data )
 		{
 			note_post_build();
 			++rec->post_build_data;

@@ -40,6 +40,11 @@ namespace ge::refl::builders
 		requires is_data< DataPtr >
 	class endable_data_builder;
 
+	export struct post_build_context
+	{
+		const registry_data& m_reg;
+	};
+
 	template< typename TraitBase >
 	class trait_part;
 
@@ -137,15 +142,17 @@ namespace ge::refl::builders
 
 					using data_t = std::remove_reference_t< decltype( self.m_target ) >;
 
-					if constexpr( requires( TraitT& mutTrait, const data_t& handle ) { mutTrait.post_build( handle ); } )
+					if constexpr( requires( TraitT& mutTrait, const post_build_context& context, const data_t& handle ) {
+									  mutTrait.post_build( context, handle );
+								  } )
 					{
 						registry_builder& reg_builder = self.get_registry_builder();
-						reg_builder.post_build_events.push_back(
+						reg_builder.m_post_build_events.push_back(
 						{
-							.m_invoke = +[]( void* data, value* trait )
+							.m_invoke = +[]( void* data, const post_build_context& context, value* trait )
 							{
 								const data_t& handle{ *static_cast< data_t* >( data ) };
-								trait->as_mutable< TraitT >()->post_build( handle );
+								trait->as_mutable< TraitT >()->post_build( context, handle );
 							},
 							.m_trait = &data,
 							.m_data = &self.m_target
@@ -232,12 +239,12 @@ namespace ge::refl::builders
 
 		struct post_build_event
 		{
-			void ( *m_invoke )( void*, value* );
+			void ( *m_invoke )( void*, const post_build_context&, value* );
 			value* m_trait{};
 			void* m_data{};
 		};
 
-		std::vector< post_build_event > post_build_events{};
+		std::vector< post_build_event > m_post_build_events{};
 	};
 
 	export class endable_registry_builder : public registry_builder
@@ -252,11 +259,11 @@ namespace ge::refl::builders
 					[ &data ]( const type_data& type_data ) { return type_data.m_id == data.m_type.type_id; } );
 			}
 
-			for( post_build_event& post_build : post_build_events )
+			for( post_build_event& post_build : m_post_build_events )
 			{
-				post_build.m_invoke( post_build.m_data, post_build.m_trait );
+				post_build.m_invoke( post_build.m_data, post_build_context{ .m_reg = *m_reg }, post_build.m_trait );
 			}
-			post_build_events.clear();
+			m_post_build_events.clear();
 
 			for( value& trait : m_reg->m_values )
 			{
