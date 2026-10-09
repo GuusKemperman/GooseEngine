@@ -24,8 +24,11 @@ REM Deliberately not a for loop -- cmd.exe silently discards "exit /b 1" from a
 REM multi-statement loop body, which would let a failing build pass the pre-commit hook.
 call :build x64-Debug || exit /b 1
 call :build x64-Release || exit /b 1
+call :build x64-RelWithDebInfo || exit /b 1
+
 call :test x64-Debug || exit /b 1
 call :test x64-Release || exit /b 1
+call :test x64-RelWithDebInfo || exit /b 1
 exit /b 0
 
 :build
