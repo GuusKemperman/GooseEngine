@@ -10,42 +10,6 @@ import io;
 import utils;
 import core_traits;
 
-namespace
-{
-	ge::traits::details::access fold_access( const ge::traits::details::access& access )
-	{
-		ge::traits::details::access folded = access;
-
-		static constexpr auto dedup = []( std::vector< std::reference_wrapper< const ge::refl::type_data > >& vec )
-		{
-			std::ranges::sort(
-				vec,
-				[]( const ge::refl::type_data& lhs, const ge::refl::type_data& rhs ) { return lhs.m_name < rhs.m_name; } );
-			vec.erase(
-				std::unique(
-					vec.begin(),
-					vec.end(),
-					[]( const ge::refl::type_data& lhs, const ge::refl::type_data& rhs ) { return &lhs == &rhs; } ),
-				vec.end() );
-		};
-
-		dedup( folded.m_reads );
-		dedup( folded.m_writes );
-
-		std::erase_if(
-			folded.m_reads,
-			[ &folded ]( const ge::refl::type_data& readable )
-			{
-				return std::ranges::find_if(
-						   folded.m_writes,
-						   [ & ]( const ge::refl::type_data& writeable ) { return &readable == &writeable; } )
-					   != folded.m_writes.end();
-			} );
-
-		return folded;
-	}
-} // namespace
-
 namespace ge::scheduling
 {
 	// Each function  in a execution_group can be executed using parallel-for without any race conditions on environments/entities
@@ -213,14 +177,12 @@ namespace ge::scheduling
 		}
 
 		{
+			using access = traits::details::system_param::access;
+
 			struct accessor
 			{
 				std::reference_wrapper< const pending_system > m_system;
-				enum
-				{
-					read,
-					write
-				} m_type;
+				access m_access{};
 			};
 			using accessors = std::vector< accessor >;
 
@@ -240,8 +202,9 @@ namespace ge::scheduling
 
 			static constexpr auto is_conflict = []( const accessor& first, const accessor& second )
 			{
-				return ( first.m_type == accessor::write || second.m_type == accessor::write )
-					   && !is_scheduled_in_this_order( is_scheduled_in_this_order, first.m_system, second.m_system );
+				return ( first.m_access == access::write || second.m_access == access::write )
+					   && !is_scheduled_in_this_order( is_scheduled_in_this_order, first.m_system, second.m_system )
+					   && &first.m_system.get() != &second.m_system.get();
 			};
 
 			std::unordered_map<
@@ -253,16 +216,9 @@ namespace ge::scheduling
 
 			for( const pending_system& system : pending_systems )
 			{
-				traits::details::access folded = fold_access( system.m_system_trait.get().m_access );
-
-				for( const refl::type_data& write : folded.m_writes )
+				for( const traits::details::system_param& param : system.m_system_trait.get().m_params )
 				{
-					accessors_map[ write ].push_back( accessor{ .m_system = system, .m_type = accessor::write } );
-				}
-
-				for( const refl::type_data& read : folded.m_reads )
-				{
-					accessors_map[ read ].push_back( accessor{ .m_system = system, .m_type = accessor::read } );
+					accessors_map[ param.m_type.get() ].push_back( accessor{ .m_system = system, .m_access = param.m_access } );
 				}
 			}
 

@@ -11,10 +11,14 @@ namespace ge::traits
 {
 	namespace details
 	{
-		export struct access
+		export struct system_param
 		{
-			std::vector< std::reference_wrapper< const refl::type_data > > m_reads{};
-			std::vector< std::reference_wrapper< const refl::type_data > > m_writes{};
+			enum class access : std::uint8_t
+			{
+				read,
+				write
+			} m_access{};
+			std::reference_wrapper< const refl::type_data > m_type;
 		};
 
 		export struct sequence_point
@@ -38,9 +42,9 @@ namespace ge::traits
 	{
 		details::sequence_point m_func_sequence_point{};
 
-		// TODO change this to store args (in the correct order)
-		details::access m_access{};
-		details::access ( *m_populate_accesses )( const refl::builders::post_build_context& );
+		std::vector< details::system_param > m_params{};
+
+		std::vector< details::system_param > ( *m_populate_accesses )( const refl::builders::post_build_context& );
 
 		template< auto Func >
 		void on_apply( const refl::builders::func_builder< Func >& )
@@ -51,11 +55,9 @@ namespace ge::traits
 			{
 				return [ & ]< typename Ret, typename... ParamsT >( refl::func_sig< Ret( ParamsT... ) > )
 				{
-					details::access combined{};
-
-					[ & ]< size_t... Indices >( std::index_sequence< Indices... > ) -> void
+					return [ & ]< size_t... Indices >( std::index_sequence< Indices... > )
 					{
-						(
+						std::vector< details::system_param > params{
 							[ & ]< typename ParamT, size_t Idx >()
 							{
 								static_assert( std::is_reference_v< ParamT >, "Only references are supported" );
@@ -69,26 +71,22 @@ namespace ge::traits
 
 								assert( it != context.m_reg.m_types.end() && "Parameter type was either not reflected" );
 
-								if constexpr( std::is_const_v< NonRef > )
-								{
-									combined.m_reads.push_back( *it );
-								}
-								else
-								{
-									combined.m_writes.push_back( *it );
-								}
-							}.template operator()< ParamsT, Indices >(),
-							... );
-					}( std::make_index_sequence< sizeof...( ParamsT ) >() );
+								return details::system_param{ .m_access = std::is_const_v< NonRef >
+																			  ? details::system_param::access::read
+																			  : details::system_param::access::write,
+															  .m_type = *it };
+							}.template operator()< ParamsT, Indices >()...
+						};
 
-					return combined;
+						return params;
+					}( std::make_index_sequence< sizeof...( ParamsT ) >() );
 				}( refl::func_sig_t< decltype( Func ) >{} );
 			};
 		}
 
 		API void post_build( const refl::builders::post_build_context& context, const refl::func_data& )
 		{
-			m_access = m_populate_accesses( context );
+			m_params = m_populate_accesses( context );
 		}
 	};
 
