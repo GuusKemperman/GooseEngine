@@ -34,7 +34,6 @@ namespace ge::traits
 		};
 	} // namespace details
 
-
 	export struct system : refl::func_trait
 	{
 		details::sequence_point m_func_sequence_point{};
@@ -66,8 +65,7 @@ namespace ge::traits
 
 								auto it = std::ranges::find_if(
 									context.m_reg.m_types,
-									[]( const refl::type_data& type )
-									{ return type.m_id == refl::make_type_id< NonRef >(); } );
+									[]( const refl::type_data& type ) { return type.m_id == refl::make_type_id< NonRef >(); } );
 
 								assert( it != context.m_reg.m_types.end() && "Parameter type was either not reflected" );
 

@@ -9,8 +9,7 @@ namespace ge::traits
 		template< auto Func >
 		void on_apply( const refl::builders::func_builder< Func >& )
 		{
-			
 		}
 	};
 
-}
+} // namespace ge::traits

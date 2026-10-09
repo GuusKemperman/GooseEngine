@@ -44,7 +44,7 @@ namespace
 
 		return folded;
 	}
-}
+} // namespace
 
 namespace ge::scheduling
 {
@@ -112,7 +112,7 @@ namespace ge::scheduling
 			// TODO replace with try_get_trait
 			for( const refl::value& trait : pending.m_func.get().m_traits )
 			{
-				if( trait.get_type_id() != refl::make_type_id < traits::details::ordering_base >())
+				if( trait.get_type_id() != refl::make_type_id< traits::details::ordering_base >() )
 				{
 					continue;
 				}
@@ -122,7 +122,7 @@ namespace ge::scheduling
 
 				pending_system* ordered_against = sequence_point_to_func( order_request->m_point );
 
-				if (ordered_against == nullptr)
+				if( ordered_against == nullptr )
 				{
 					// sequence_point_to_func reported the error for us
 					continue;
@@ -149,7 +149,6 @@ namespace ge::scheduling
 				default:
 					std::unreachable();
 				}
-				
 			}
 		}
 

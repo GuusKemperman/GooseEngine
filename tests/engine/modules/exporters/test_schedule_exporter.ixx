@@ -176,9 +176,7 @@ namespace ordering_tests
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
 				builder.begin_func< ::dummy_system< 2 > >( "system2" )
-					.add_traits(
-						ge::traits::system{},
-						ge::traits::order_before< &::dummy_system< 1 > >{} )
+					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 
@@ -213,9 +211,7 @@ namespace ordering_tests
 			[]( ge::refl::builders::module_builder& builder )
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" )
-					.add_traits(
-						ge::traits::system{},
-						ge::traits::order_before< &::dummy_system< 1 > >{} )
+					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 
@@ -230,9 +226,7 @@ namespace ordering_tests
 			[]( ge::refl::builders::module_builder& builder )
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" )
-					.add_traits(
-						ge::traits::system{},
-						ge::traits::order_before< &::dummy_system< 2 > >{} )
+					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 2 > >{} )
 					.end_func();
 			} );
 
@@ -249,14 +243,10 @@ namespace ordering_tests
 			[]( ge::refl::builders::module_builder& builder )
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" )
-					.add_traits(
-						ge::traits::system{},
-						ge::traits::order_before< &::dummy_system< 2 > >{} )
+					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 2 > >{} )
 					.end_func();
 				builder.begin_func< ::dummy_system< 2 > >( "system2" )
-					.add_traits(
-						ge::traits::system{},
-						ge::traits::order_before< &::dummy_system< 1 > >{} )
+					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 		expect::is_eq( get_build_error_count( result ), 1ull );

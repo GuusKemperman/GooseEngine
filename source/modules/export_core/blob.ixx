@@ -13,15 +13,16 @@ namespace ge::exporter
 	{
 	public:
 		API pack_writer( size_t capacity )
-			:
-			m_data(std::make_unique<std::byte[]>(capacity)),
-		m_capacity( capacity ) {}
-		
+			: m_data( std::make_unique< std::byte[] >( capacity ) )
+			, m_capacity( capacity )
+		{
+		}
+
 		API std::byte* reserve_bytes( size_t count, size_t min_alignment )
-		{ 
+		{
 			size_t size = m_size.load();
 
-			while(true)
+			while( true )
 			{
 				std::byte* address = &m_data[ size ];
 
@@ -44,7 +45,7 @@ namespace ge::exporter
 
 		API size_t capacity() const
 		{
-			return m_capacity;  
+			return m_capacity;
 		}
 
 	private:
@@ -52,4 +53,4 @@ namespace ge::exporter
 		size_t m_capacity{};
 		std::atomic_size_t m_size{};
 	};
-}
+} // namespace ge::exporter

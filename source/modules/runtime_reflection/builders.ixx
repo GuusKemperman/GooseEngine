@@ -167,9 +167,9 @@ namespace ge::refl::builders
 	};
 
 	export class module_builder
-		: public builder_base,
-		  public type_part,
-		  public func_part
+		: public builder_base
+		, public type_part
+		, public func_part
 	{
 	public:
 		API module_builder( const builder_base& prev, std::string_view name )
