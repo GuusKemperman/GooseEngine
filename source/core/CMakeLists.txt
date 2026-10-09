@@ -25,5 +25,5 @@ add_executable(GooseEngine "main.cpp")
 add_dependencies(GooseEngine all_modules_target)
 
 target_link_libraries(GooseEngine core_lib)
-target_link_libraries(GooseEngine scheduling)
+target_link_libraries(GooseEngine exporters)
 target_link_libraries(GooseEngine runtime_reflection)

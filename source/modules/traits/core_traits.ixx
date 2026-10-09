@@ -1,6 +1,7 @@
-export module utils;
+export module core_traits;
 
-export import :memory;
+export import :environment;
+export import :system;
 
 namespace ge
 {
@@ -8,7 +9,7 @@ namespace ge
 	// template-only module. Consumers link `utils` purely to obtain its
 	// module BMI for `import utils;`; without at least one exported symbol
 	// no `utils.lib` is produced and linking against it fails (LNK1104).
-	export API void utils_link_anchor()
+	export API void core_traits_link_anchor()
 	{
 	}
 } // namespace ge

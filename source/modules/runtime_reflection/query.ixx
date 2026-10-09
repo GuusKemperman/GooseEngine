@@ -125,16 +125,29 @@ namespace ge::refl
 		query( std::span< const element_data_type > source_range )
 			: m_source_range( adapt_range( source_range ) )
 		{
+			// The filter view needs to cache the begin iterator,
+			// after which we can safely have our own begin/end as const
+			( void )m_source_range.begin();
 		}
 
-		auto begin( this auto& self )
+		auto begin()
 		{
-			return self.m_source_range.begin();
+			return m_source_range.begin();
 		}
 
-		auto end( this auto& self )
+		auto begin() const
 		{
-			return self.m_source_range.end();
+			return const_cast< query& >( *this ).begin();
+		}
+
+		auto end()
+		{
+			return m_source_range.end();
+		}
+
+		auto end() const
+		{
+			return const_cast< query& >( *this ).end();
 		}
 
 		template< std::derived_from< typename element_data_type::trait_base_t > T >

@@ -1,5 +1,5 @@
 add_subdirectory("io")
 add_subdirectory("static_reflection")
 add_subdirectory("runtime_reflection")
-add_subdirectory("scheduling")
+add_subdirectory("exporters")
 add_subdirectory("utils")

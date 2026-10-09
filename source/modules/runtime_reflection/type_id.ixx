@@ -113,3 +113,12 @@ namespace ge::refl
 	template< auto DataPtr >
 	concept is_data = requires { typename data_ptr< decltype( DataPtr ) >::outer_type_t; };
 } // namespace ge::refl
+
+template<>
+struct std::hash<ge::refl::type_id>
+{
+	static constexpr size_t operator()(const ge::refl::type_id type_id)
+	{
+		return std::hash< size_t >{}( type_id.m_id );
+	}
+};

@@ -1,9 +1,10 @@
-export module test_scheduling;
+export module test_exporters:test_schedule_exporter;
 
 import stl;
 import runtime_reflection;
-import scheduling;
 import io;
+import exporters;
+import core_traits;
 export import test_core;
 
 using namespace ge::test_core;
@@ -22,6 +23,7 @@ namespace
 
 	struct result
 	{
+		std::unique_ptr< ge::refl::registry_data > m_reg{};
 		ge::logger m_logger{};
 		std::optional< ge::scheduling::execution_graph > m_graph{};
 	};
@@ -36,10 +38,8 @@ namespace
 
 		module_builder.end_module();
 
-		std::unique_ptr< ge::refl::registry_data > reg = std::move( reg_builder ).build();
-
-		result result{};
-		result.m_graph = ge::scheduling::build_graph( { reg->m_funcs }, result.m_logger );
+		result result{ .m_reg = std::move( reg_builder ).build() };
+		result.m_graph = ge::scheduling::build_graph( { result.m_reg->m_funcs }, result.m_logger );
 		return std::move( result );
 	}
 
@@ -56,13 +56,12 @@ namespace
 			return false;
 		}
 
-		for( const ge::scheduling::execution_graph::group& group : result.m_graph->m_groups )
+		for( const ge::scheduling::execution_group& group : *result.m_graph )
 		{
 			std::int64_t num_in_group = std::ranges::count_if(
-				group.m_nodes,
-				[ &system_names ]( const ge::scheduling::execution_graph::group::system_node& node )
-				{ return std::ranges::find( system_names, node.m_name ) != system_names.end(); } );
-
+				group,
+				[ &system_names ]( const ge::refl::func_data& func )
+				{ return std::ranges::find( system_names, func.m_name ) != system_names.end(); } );
 			if( num_in_group > 0 )
 			{
 				return num_in_group == std::ssize( system_names );
@@ -79,23 +78,23 @@ namespace
 			return false;
 		}
 
-		for( const ge::scheduling::execution_graph::group& group : result.m_graph->m_groups )
+		for( const ge::scheduling::execution_group& group : *result.m_graph )
 		{
 			if( system_names.empty() )
 			{
 				return true;
 			}
 
-			bool is_in_this_group = std::ranges::find(
-										group.m_nodes,
-										system_names.front(),
-										&ge::scheduling::execution_graph::group::system_node::m_name )
-									!= group.m_nodes.end();
+			bool is_in_this_group
+				= std::ranges::find_if(
+					  group,
+					  [ &system_names ]( const ge::refl::func_data& func ) { return func.m_name == system_names.front(); } )
+				  != group.end();
 
 			std::int64_t num_in_group = std::ranges::count_if(
-				group.m_nodes,
-				[ &system_names ]( const ge::scheduling::execution_graph::group::system_node& node )
-				{ return std::ranges::find( system_names, node.m_name ) != system_names.end(); } );
+				group,
+				[ &system_names ]( const ge::refl::func_data& func )
+				{ return std::ranges::find( system_names, func.m_name ) != system_names.end(); } );
 
 			if( num_in_group == 0 )
 			{
@@ -133,8 +132,8 @@ namespace ordering_tests
 		result result = ::build_test_graph(
 			[]( ge::refl::builders::module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::scheduling::traits::system{} ).end_func();
-				builder.begin_func< ::dummy_system< 2 > >( "system2" ).add_traits( ge::scheduling::traits::system{} ).end_func();
+				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
+				builder.begin_func< ::dummy_system< 2 > >( "system2" ).add_traits( ge::traits::system{} ).end_func();
 			} );
 
 		expect::is_eq( get_build_error_count( result ), 0ull );
@@ -156,9 +155,9 @@ namespace ordering_tests
 		result result = ::build_test_graph(
 			[]( ge::refl::builders::module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::scheduling::traits::system{} ).end_func();
+				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
 				builder.begin_func< ::dummy_system< 2 > >( "system2" )
-					.add_traits( ge::scheduling::traits::system{}, ge::scheduling::traits::order_after< &::dummy_system< 1 > >{} )
+					.add_traits( ge::traits::system{}, ge::traits::order_after< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 
@@ -173,11 +172,11 @@ namespace ordering_tests
 		result result = ::build_test_graph(
 			[]( ge::refl::builders::module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::scheduling::traits::system{} ).end_func();
+				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
 				builder.begin_func< ::dummy_system< 2 > >( "system2" )
 					.add_traits(
-						ge::scheduling::traits::system{},
-						ge::scheduling::traits::order_before< &::dummy_system< 1 > >{} )
+						ge::traits::system{},
+						ge::traits::order_before< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 
@@ -192,12 +191,12 @@ namespace ordering_tests
 		result result = ::build_test_graph(
 			[]( ge::refl::builders::module_builder& builder )
 			{
-				builder.begin_type< ::dummy_env< 1 > >( "env1" ).add_traits( ge::scheduling::traits::environment{} ).end_type();
+				builder.begin_type< ::dummy_env< 1 > >( "env1" ).add_traits( ge::traits::environment{} ).end_type();
 				builder.begin_func< ::dummy_system< 1, ::dummy_env< 1 >& > >( "system1" )
-					.add_traits( ge::scheduling::traits::system{} )
+					.add_traits( ge::traits::system{} )
 					.end_func();
 				builder.begin_func< ::dummy_system< 2, ::dummy_env< 1 >& > >( "system2" )
-					.add_traits( ge::scheduling::traits::system{} )
+					.add_traits( ge::traits::system{} )
 					.end_func();
 			} );
 
@@ -213,8 +212,8 @@ namespace ordering_tests
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" )
 					.add_traits(
-						ge::scheduling::traits::system{},
-						ge::scheduling::traits::order_before< &::dummy_system< 1 > >{} )
+						ge::traits::system{},
+						ge::traits::order_before< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 
@@ -230,8 +229,8 @@ namespace ordering_tests
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" )
 					.add_traits(
-						ge::scheduling::traits::system{},
-						ge::scheduling::traits::order_before< &::dummy_system< 2 > >{} )
+						ge::traits::system{},
+						ge::traits::order_before< &::dummy_system< 2 > >{} )
 					.end_func();
 			} );
 
@@ -249,13 +248,13 @@ namespace ordering_tests
 			{
 				builder.begin_func< ::dummy_system< 1 > >( "system1" )
 					.add_traits(
-						ge::scheduling::traits::system{},
-						ge::scheduling::traits::order_before< &::dummy_system< 2 > >{} )
+						ge::traits::system{},
+						ge::traits::order_before< &::dummy_system< 2 > >{} )
 					.end_func();
 				builder.begin_func< ::dummy_system< 2 > >( "system2" )
 					.add_traits(
-						ge::scheduling::traits::system{},
-						ge::scheduling::traits::order_before< &::dummy_system< 1 > >{} )
+						ge::traits::system{},
+						ge::traits::order_before< &::dummy_system< 1 > >{} )
 					.end_func();
 			} );
 		expect::is_eq( get_build_error_count( result ), 1ull );
