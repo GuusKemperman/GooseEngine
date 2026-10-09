@@ -117,7 +117,7 @@ namespace ge::refl
 template<>
 struct std::hash<ge::refl::type_id>
 {
-	constexpr size_t operator()(const ge::refl::type_id type_id) noexcept
+	size_t operator()( ge::refl::type_id type_id ) const noexcept 
 	{
 		return std::hash< size_t >{}( type_id.m_id );
 	}
