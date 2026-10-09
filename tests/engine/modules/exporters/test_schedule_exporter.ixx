@@ -14,6 +14,8 @@ namespace
 	template< size_t, typename... Args >
 	void dummy_system( Args... )
 	{
+		// Needed to prevent the function from being folded
+		std::puts( __FUNCSIG__ );
 	}
 
 	template< size_t >
