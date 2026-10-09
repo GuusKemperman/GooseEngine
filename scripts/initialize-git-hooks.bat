@@ -23,7 +23,7 @@ if not defined HOOK (
 >>"%HOOK%" echo if ! git diff --cached -z --name-only --diff-filter=ACM -- '*.cpp' '*.h' '*.ixx' ^| xargs -0 -r clang-format --dry-run -Werror; then
 >>"%HOOK%" echo 	echo "" ^>^&2
 >>"%HOOK%" echo 	echo "pre-commit: the file(s) above are not formatted to _clang-format." ^>^&2
->>"%HOOK%" echo 	echo "            Fix them with: clang-format -i PATH..." ^>^&2
+>>"%HOOK%" echo 	echo "            Fix them with: scripts/clang-format-all.bat" ^>^&2
 >>"%HOOK%" echo 	exit 1
 >>"%HOOK%" echo fi
 >>"%HOOK%" echo.
