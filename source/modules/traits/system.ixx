@@ -46,6 +46,9 @@ namespace ge::traits
 
 		std::vector< details::system_param > ( *m_populate_accesses )( const refl::builders::post_build_context& );
 
+		using invoke_t = void ( * )( void** );
+		invoke_t m_invoke{};
+
 		template< auto Func >
 		void on_apply( const refl::builders::func_builder< Func >& )
 		{
@@ -79,6 +82,29 @@ namespace ge::traits
 						};
 
 						return params;
+					}( std::make_index_sequence< sizeof...( ParamsT ) >() );
+				}( refl::func_sig_t< decltype( Func ) >{} );
+			};
+
+			m_invoke = +[]( void** args )
+			{
+				[ & ]< typename Ret, typename... ParamsT >( refl::func_sig< Ret( ParamsT... ) > )
+				{
+					[ & ]< size_t... Indices >( std::index_sequence< Indices... > )
+					{
+						std::invoke(
+							Func,
+							[ & ]< typename ParamT, size_t Idx >() -> ParamT
+																	  {
+																		  static_assert(
+																			  std::is_reference_v< ParamT >,
+																			  "Only references are supported" );
+																		  void* arg_address = args[ Idx ];
+																		  using NonRef = std::remove_reference_t< ParamT >;
+																		  static_assert( ge::refl::undecorated< NonRef > );
+
+																		  return *std::bit_cast< NonRef* >( arg_address );
+																	  }.template operator()< ParamsT, Indices >()... );
 					}( std::make_index_sequence< sizeof...( ParamsT ) >() );
 				}( refl::func_sig_t< decltype( Func ) >{} );
 			};

@@ -146,8 +146,7 @@ namespace rel
 		constexpr T* get() const
 		{
 			std::ptrdiff_t address = std::bit_cast< std::ptrdiff_t >( this );
-			T* obj = std::bit_cast< T* >( address + m_offset );
-			return *obj;
+			return std::bit_cast< T* >( address + m_offset );
 		}
 
 		constexpr auto& operator*() const
@@ -174,13 +173,27 @@ namespace rel
 			return obj_addr - self_addr;
 		}
 
-		std::ptrdiff_t m_offset;
+		std::ptrdiff_t m_offset{};
 	};
 
 	export template< typename T >
 	class span
 	{
 	public:
+		span() = default;
+
+		span( T* data, size_t size )
+			: m_data( data )
+			, m_size( size )
+		{
+		}
+
+		explicit span( std::span< T > span )
+			: m_data( span.data() )
+			, m_size( span.size() )
+		{
+		}
+
 		constexpr ptr< T > begin() const
 		{
 			return m_data;
@@ -224,7 +237,8 @@ namespace rel
 			return m_data;
 		}
 
-		ptr< T > m_data;
+	private:
+		ptr< T > m_data{};
 		size_t m_size{};
 	};
 } // namespace rel

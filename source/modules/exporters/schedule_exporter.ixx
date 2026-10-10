@@ -9,10 +9,11 @@ import stl;
 import io;
 import utils;
 import core_traits;
+import :environments;
 
 namespace ge::exporter
 {
-	// Each function  in a execution_group can be executed using parallel-for without any race conditions on environments/entities
+	// Each function in a execution_group can be executed using parallel-for without any race conditions on environments/entities
 	export using execution_group = std::vector< std::reference_wrapper< const refl::func_data > >;
 	export using execution_graph = std::vector< execution_group >;
 
@@ -262,5 +263,51 @@ namespace ge::exporter
 		}
 
 		return graph;
+	}
+
+	// runtime
+	struct exported_scheduled_system
+	{
+		// TODO don't directly store a function ptr in an exported pack, they are very much not stable
+		traits::system::invoke_t m_invoke{};
+		rel::ptr< void* > m_arguments_buffer{};
+	};
+
+	using exported_scheduled_group = rel::span< const exported_scheduled_system >;
+	using exported_schedule = rel::span< const exported_scheduled_group >;
+
+	export API exported_schedule& export_schedule(
+		pack_writer& writer,
+		execution_graph graph,
+		const environments_map& environments_map )
+	{
+		std::span< exported_scheduled_group > exported_groups = writer.emplace_array< exported_scheduled_group >( graph.size() );
+		exported_schedule& schedule = writer.emplace< exported_schedule >( exported_groups );
+
+		for( auto [ intermediate_group, exported_group ] : std::views::zip( graph, exported_groups ) )
+		{
+			std::span< exported_scheduled_system > exported_systems
+				= writer.emplace_array< exported_scheduled_system >( intermediate_group.size() );
+
+			exported_group = exported_scheduled_group{ exported_systems };
+
+			for( auto [ intermediate_system, exported_system ] : std::views::zip( intermediate_group, exported_systems ) )
+			{
+				const traits::system& system_trait
+					= *refl::find_value_of_type< traits::system >( intermediate_system.get().m_traits );
+
+				std::span< void* > arguments_buffer = writer.emplace_array< void* >( system_trait.m_params.size() );
+
+				for( auto [ reflected_param, arg_ptr ] : std::views::zip( system_trait.m_params, arguments_buffer ) )
+				{
+					arg_ptr = environments_map.at( reflected_param.m_type.get().m_id );
+				}
+
+				exported_system.m_arguments_buffer = rel::ptr< void* >{ arguments_buffer.data() };
+				exported_system.m_invoke = system_trait.m_invoke;
+			}
+		}
+
+		return schedule;
 	}
 } // namespace ge::exporter

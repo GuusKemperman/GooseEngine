@@ -43,6 +43,23 @@ namespace ge::exporter
 			}
 		}
 
+		template< typename T >
+		std::span< T > emplace_array( size_t count )
+		{
+			std::byte* address = reserve_bytes( sizeof( T ) * count, alignof( T ) );
+			std::span span{ std::bit_cast< T* >( address ), count };
+			std::uninitialized_default_construct_n( span.data(), count );
+			return span;
+		}
+
+		template< typename T, typename... Args >
+		T& emplace( Args&&... args )
+			requires std::is_constructible_v< T, Args... >
+		{
+			std::byte* address = reserve_bytes( sizeof( T ), alignof( T ) );
+			return *new( address ) T( std::forward< Args >( args )... );
+		}
+
 		API size_t capacity() const
 		{
 			return m_capacity;

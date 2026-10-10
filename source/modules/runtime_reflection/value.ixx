@@ -257,6 +257,12 @@ namespace ge::refl
 			return m_vtable->get_type_id();
 		}
 
+		template< typename T >
+		bool is_a() const
+		{
+			return get_type_id() == refl::make_type_id< T >();
+		}
+
 		API bool is_mutable() const
 		{
 			return m_is_mutable;
@@ -278,4 +284,19 @@ namespace ge::refl
 		std::uint8_t m_is_mutable : 1 {};
 		std::uint8_t m_is_owning : 1 {};
 	};
+
+	export template< undecorated T, std::ranges::forward_range R >
+		requires std::same_as< std::ranges::range_value_t< R >, value >
+	const T* find_value_of_type( R&& r )
+	{
+		auto it = std::ranges::find_if( r, &value::is_a< T > );
+
+		if( it == r.end() )
+		{
+			return nullptr;
+		}
+
+		const value& v = *it;
+		return v.as_constant< T >();
+	}
 } // namespace ge::refl

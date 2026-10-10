@@ -9,14 +9,14 @@ namespace ge::traits
 		size_t m_size{};
 		size_t m_alignment{};
 
-		void ( *m_emplace )( void* dst );
+		void ( *m_construct_at )( void* dst );
 
 		template< typename T >
 		void on_apply( const refl::builders::type_builder< T >& )
 		{
 			m_size = sizeof( T );
 			m_alignment = alignof( T );
-			m_emplace = +[]( void* dst )
+			m_construct_at = +[]( void* dst )
 			{
 				new( dst ) T();
 			};
