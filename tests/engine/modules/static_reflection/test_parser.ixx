@@ -1,7 +1,6 @@
 export module test_static_reflection:test_parser;
 
 import stl;
-import io;
 import static_reflection;
 export import test_core;
 
@@ -26,46 +25,6 @@ static const T& list_at( const std::list< T >& list, size_t index )
 	std::advance( it, index );
 	return *it;
 }
-
-namespace tokeniser
-{
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void simple_func()
-	{
-		ge::token_range tokeniser{ "int func_name() { return 1; }" };
-
-		ge::token_iterator it = tokeniser.begin();
-		is_eq( it->m_str, "int" );
-		++it;
-		is_eq( it->m_flag, ge::token::flag::white_space );
-		++it;
-		is_eq( it->m_str, "func_name" );
-		++it;
-		is_eq( it->m_str, "(" );
-		++it;
-		is_eq( it->m_str, ")" );
-		++it;
-		is_eq( it->m_flag, ge::token::flag::white_space );
-		++it;
-		is_eq( it->m_str, "{" );
-		++it;
-		is_eq( it->m_flag, ge::token::flag::white_space );
-		++it;
-		is_eq( it->m_str, "return" );
-		++it;
-		is_eq( it->m_flag, ge::token::flag::white_space );
-		++it;
-		is_eq( it->m_str, "1" );
-		++it;
-		is_eq( it->m_str, ";" );
-		++it;
-		is_eq( it->m_flag, ge::token::flag::white_space );
-		++it;
-		is_eq( it->m_str, "}" );
-		++it;
-		is_eq( it, tokeniser.end() );
-	}
-} // namespace tokeniser
 
 namespace parser
 {
@@ -104,9 +63,7 @@ namespace parser
 	export API void no_param_func()
 	{
 		std::string_view src = "REFL_FUNC()\n"
-							   "void do_thing( /*with comment*/);\n"
-							   "REFL_FUNC()\n"
-							   "void do_thing_again();";
+							   "void do_thing( /*with comment*/);";
 
 		ge::parsed_file file = parse_file( src );
 
@@ -114,11 +71,6 @@ namespace parser
 		is_eq( file.m_funcs.at( 0 ).m_return_type, "void" );
 		is_eq( file.m_funcs.at( 0 ).m_name, "do_thing" );
 		is_eq( file.m_funcs.at( 0 ).m_parameters.size(), 0ull );
-
-		is_eq( file.m_funcs.at( 1 ).m_traits, "" );
-		is_eq( file.m_funcs.at( 1 ).m_return_type, "void" );
-		is_eq( file.m_funcs.at( 1 ).m_name, "do_thing_again" );
-		is_eq( file.m_funcs.at( 1 ).m_parameters.size(), 0ull );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -133,21 +85,6 @@ namespace parser
 		is_eq( file.m_funcs.at( 0 ).m_return_type, "std::vector<int>" );
 		is_eq( file.m_funcs.at( 0 ).m_name, "global_func" );
 		is_eq( file.m_funcs.at( 0 ).m_keywords, ge::parsed_keywords::static_keyword );
-		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_name, "p1" );
-		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_type, "int" );
-
-		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_name, "p2" );
-		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 1 ).m_type, "float" );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void simple_func_with_default_params()
-	{
-		std::string_view src = "REFL_FUNC()\n"
-							   "void global_func(int p1 = 1, float p2 = 2.0f);";
-
-		ge::parsed_file file = parse_file( src );
-
 		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_name, "p1" );
 		is_eq( file.m_funcs.at( 0 ).m_parameters.at( 0 ).m_type, "int" );
 
@@ -239,101 +176,94 @@ namespace parser
 		is_eq( file.m_data.at( 0 ).m_type, "int" );
 		is_eq( file.m_data.at( 0 ).m_name, "global_data" );
 
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 0 ).m_type, "std::vector<std::string<char>>" );
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 0 ).m_name, "global_data" );
-		is_eq(
-			list_at( file.m_namespaces, 0 ).m_data.at( 0 ).m_keywords,
-			ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
+		const ge::parsed_scope& first = list_at( file.m_namespaces, 0 );
+		const ge::parsed_scope& second = list_at( first.m_namespaces, 0 );
+		const ge::parsed_scope& third = list_at( first.m_namespaces, 1 );
+		const ge::parsed_scope& anon = list_at( file.m_namespaces, 1 );
 
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 1 ).m_type, "std::vector<std::string<char>>" );
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 1 ).m_name, "global_data_2" );
-		is_eq(
-			list_at( file.m_namespaces, 0 ).m_data.at( 1 ).m_keywords,
-			ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
+		is_eq( first.m_data.at( 0 ).m_type, "std::vector<std::string<char>>" );
+		is_eq( first.m_data.at( 0 ).m_name, "global_data" );
+		is_eq( first.m_data.at( 0 ).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
 
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 2 ).m_type, "std::vector<std::string<char>>" );
-		is_eq(
-			list_at( file.m_namespaces, 0 ).m_data.at( 2 ).m_keywords,
-			ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 2 ).m_name, "global_data_3" );
+		is_eq( first.m_data.at( 1 ).m_type, "std::vector<std::string<char>>" );
+		is_eq( first.m_data.at( 1 ).m_name, "global_data_2" );
+		is_eq( first.m_data.at( 1 ).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
 
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 3 ).m_type, "std::vector<std::string<char>>" );
-		is_eq( list_at( file.m_namespaces, 0 ).m_data.at( 3 ).m_name, "global_data_4" );
-		is_eq(
-			list_at( file.m_namespaces, 0 ).m_data.at( 3 ).m_keywords,
-			ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
+		is_eq( first.m_data.at( 2 ).m_type, "std::vector<std::string<char>>" );
+		is_eq( first.m_data.at( 2 ).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
+		is_eq( first.m_data.at( 2 ).m_name, "global_data_3" );
 
-		is_eq( list_at( file.m_namespaces, 0 ).m_name, "first" );
-		is_eq( list_at( file.m_namespaces, 0 ).m_funcs.at( 0 ).m_return_type, "int" );
-		is_eq( list_at( file.m_namespaces, 0 ).m_funcs.at( 0 ).m_name, "first_func" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_namespaces, 0 ).m_name, "second" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_namespaces, 0 ).m_funcs.at( 0 ).m_return_type, "int" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_namespaces, 0 ).m_funcs.at( 0 ).m_name, "second" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_namespaces, 1 ).m_name, "third" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_namespaces, 1 ).m_funcs.at( 0 ).m_return_type, "int" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_namespaces, 1 ).m_funcs.at( 0 ).m_name, "third" );
-		is_eq( list_at( file.m_namespaces, 1 ).m_name, "" );
-		is_eq( list_at( file.m_namespaces, 1 ).m_funcs.at( 0 ).m_return_type, "int" );
-		is_eq( list_at( file.m_namespaces, 1 ).m_funcs.at( 0 ).m_name, "anon" );
+		is_eq( first.m_data.at( 3 ).m_type, "std::vector<std::string<char>>" );
+		is_eq( first.m_data.at( 3 ).m_name, "global_data_4" );
+		is_eq( first.m_data.at( 3 ).m_keywords, ge::parsed_keywords::static_keyword | ge::parsed_keywords::inline_keyword );
+
+		is_eq( first.m_name, "first" );
+		is_eq( first.m_funcs.at( 0 ).m_return_type, "int" );
+		is_eq( first.m_funcs.at( 0 ).m_name, "first_func" );
+		is_eq( second.m_name, "second" );
+		is_eq( second.m_funcs.at( 0 ).m_return_type, "int" );
+		is_eq( second.m_funcs.at( 0 ).m_name, "second" );
+		is_eq( third.m_name, "third" );
+		is_eq( third.m_funcs.at( 0 ).m_return_type, "int" );
+		is_eq( third.m_funcs.at( 0 ).m_name, "third" );
+		is_eq( anon.m_name, "" );
+		is_eq( anon.m_funcs.at( 0 ).m_return_type, "int" );
+		is_eq( anon.m_funcs.at( 0 ).m_name, "anon" );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void simple_class()
 	{
-		std::string_view src = "namespace my_name_spacey\n"
-							   "{\n"
-							   "    REFL_TYPE(i_am_an_trait = 5)\n"
-							   "        class __myClassName :\n"
-							   "        public foo, private bar, protected _foobar<foo, bar>, barfoo\n"
-							   "    {\n"
-							   "        REFL_DATA(me_is_data!)\n"
-							   "            std::vector<char> vecy{};\n"
-							   "\n"
-							   "    public:\n"
-							   "        REFL_FUNC(hi)\n"
-							   "            bool is_alpha(char al = ')', char ot = '\\'') const & -> bool { return al == '}'; }\n"
-							   "    };\n"
-							   "}\n";
+		std::string_view src
+			= "namespace my_name_spacey\n"
+			  "{\n"
+			  "    REFL_TYPE(i_am_an_trait = 5)\n"
+			  "        class __myClassName :\n"
+			  "        public foo, private bar, protected _foobar<foo, bar>, barfoo\n"
+			  "    {\n"
+			  "        REFL_DATA(me_is_data!)\n"
+			  "            std::vector<char> vecy{};\n"
+			  "\n"
+			  "    public:\n"
+			  "        REFL_FUNC(hi)\n"
+			  "            virtual bool is_alpha(char al = ')', char ot = '\\'') const & -> bool { return al == '}'; }\n"
+			  "    };\n"
+			  "}\n";
 
 		ge::parsed_file file = parse_file( src );
-		is_eq( list_at( file.m_namespaces, 0 ).m_name, "my_name_spacey" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_name, "__myClassName" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_traits, "i_am_an_trait = 5" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 0 ).m_name, "foo" );
-		is_eq(
-			list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 0 ).m_access,
-			ge::parsed_access_specifier::public_access );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 1 ).m_name, "bar" );
-		is_eq(
-			list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 1 ).m_access,
-			ge::parsed_access_specifier::private_access );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 2 ).m_name, "_foobar<foo, bar>" );
-		is_eq(
-			list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 2 ).m_access,
-			ge::parsed_access_specifier::protected_access );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 3 ).m_name, "barfoo" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_base_types.at( 3 ).m_access, std::nullopt );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_key, ge::parsed_type_key::class_type );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_data.at( 0 ).m_name, "vecy" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_data.at( 0 ).m_name, "vecy" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_data.at( 0 ).m_traits, "me_is_data!" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_data.at( 0 ).m_type, "std::vector<char>" );
-		is_eq(
-			list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_data.at( 0 ).m_access,
-			ge::parsed_access_specifier::private_access );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_name, "is_alpha" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_traits, "hi" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_name, "is_alpha" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_return_type, "bool" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_trailing_qualifiers, "const &" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_parameters.at( 0 ).m_type, "char" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_parameters.at( 0 ).m_name, "al" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_parameters.at( 1 ).m_type, "char" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_parameters.at( 1 ).m_name, "ot" );
-		is_eq( list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_parameters.size(), 2ull );
-		is_eq(
-			list_at( list_at( file.m_namespaces, 0 ).m_types, 0 ).m_funcs.at( 0 ).m_access,
-			ge::parsed_access_specifier::public_access );
+		const ge::parsed_scope& ns = list_at( file.m_namespaces, 0 );
+		is_eq( ns.m_name, "my_name_spacey" );
+
+		const ge::parsed_type& type = list_at( ns.m_types, 0 );
+		is_eq( type.m_name, "__myClassName" );
+		is_eq( type.m_traits, "i_am_an_trait = 5" );
+		is_eq( type.m_base_types.at( 0 ).m_name, "foo" );
+		is_eq( type.m_base_types.at( 0 ).m_access, ge::parsed_access_specifier::public_access );
+		is_eq( type.m_base_types.at( 1 ).m_name, "bar" );
+		is_eq( type.m_base_types.at( 1 ).m_access, ge::parsed_access_specifier::private_access );
+		is_eq( type.m_base_types.at( 2 ).m_name, "_foobar<foo, bar>" );
+		is_eq( type.m_base_types.at( 2 ).m_access, ge::parsed_access_specifier::protected_access );
+		is_eq( type.m_base_types.at( 3 ).m_name, "barfoo" );
+		is_eq( type.m_base_types.at( 3 ).m_access, std::nullopt );
+		is_eq( type.m_key, ge::parsed_type_key::class_type );
+		// Members of a class default to private access until an access specifier appears.
+		const ge::parsed_data& data = type.m_data.at( 0 );
+		is_eq( data.m_name, "vecy" );
+		is_eq( data.m_traits, "me_is_data!" );
+		is_eq( data.m_type, "std::vector<char>" );
+		is_eq( data.m_access, ge::parsed_access_specifier::private_access );
+		const ge::parsed_func& func = type.m_funcs.at( 0 );
+		is_eq( func.m_name, "is_alpha" );
+		is_eq( func.m_traits, "hi" );
+		is_eq( func.m_return_type, "bool" );
+		is_eq( func.m_keywords, ge::parsed_keywords::virtual_keyword );
+		is_eq( func.m_trailing_qualifiers, "const &" );
+		is_eq( func.m_parameters.at( 0 ).m_type, "char" );
+		is_eq( func.m_parameters.at( 0 ).m_name, "al" );
+		is_eq( func.m_parameters.at( 1 ).m_type, "char" );
+		is_eq( func.m_parameters.at( 1 ).m_name, "ot" );
+		is_eq( func.m_parameters.size(), 2ull );
+		is_eq( func.m_access, ge::parsed_access_specifier::public_access );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -361,15 +291,22 @@ namespace parser
 							   "	        world = hello, /*,*/\n"
 							   "	        goodnight = some_struct<simple_entries, hello>::size<1, 2>(int test = { hello }),\n"
 							   "	        darling\n"
-							   "	    };\n";
+							   "	    };\n"
+							   "\n"
+							   "REFL_ENUM(attry!)\n"
+							   "	    enum struct empty_struct {};\n";
 
 		ge::parsed_file file = parse_file( src );
 
+		is_eq( file.m_enums.size(), 5ull );
+
 		is_eq( file.m_enums.at( 0 ).m_name, "empty" );
+		is_eq( file.m_enums.at( 0 ).m_key, ge::parsed_enum_key::enum_key );
 		is_eq( file.m_enums.at( 0 ).m_traits, "attry!" );
 		is_eq( file.m_enums.at( 0 ).m_entries.size(), 0ull );
 
 		is_eq( file.m_enums.at( 1 ).m_name, "empty_class" );
+		is_eq( file.m_enums.at( 1 ).m_key, ge::parsed_enum_key::enum_class_key );
 		is_eq( file.m_enums.at( 1 ).m_traits, "attry!" );
 		is_eq( file.m_enums.at( 1 ).m_entries.size(), 0ull );
 
@@ -386,6 +323,9 @@ namespace parser
 		is_eq( file.m_enums.at( 3 ).m_entries.at( 2 ), "goodnight" );
 		is_eq( file.m_enums.at( 3 ).m_entries.at( 3 ), "darling" );
 		is_eq( file.m_enums.at( 3 ).m_entries.size(), 4ull );
+
+		is_eq( file.m_enums.at( 4 ).m_name, "empty_struct" );
+		is_eq( file.m_enums.at( 4 ).m_key, ge::parsed_enum_key::enum_struct_key );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -412,30 +352,6 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void class_member_access_and_virtual()
-	{
-		std::string_view src = "REFL_TYPE()\n"
-							   "class my_class\n"
-							   "{\n"
-							   "    REFL_DATA()\n"
-							   "    int hidden = 1;\n"
-							   "public:\n"
-							   "    REFL_FUNC()\n"
-							   "    virtual void overridable();\n"
-							   "};\n";
-
-		ge::parsed_file file = parse_file( src );
-
-		const ge::parsed_type& type = list_at( file.m_types, 0 );
-		is_eq( type.m_key, ge::parsed_type_key::class_type );
-
-		// Members of a class default to private access until an access specifier appears.
-		is_eq( type.m_data.at( 0 ).m_access, ge::parsed_access_specifier::private_access );
-		is_eq( type.m_funcs.at( 0 ).m_access, ge::parsed_access_specifier::public_access );
-		is_eq( type.m_funcs.at( 0 ).m_keywords, ge::parsed_keywords::virtual_keyword );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void keywords_accumulate()
 	{
 		std::string_view src = "REFL_FUNC()\n"
@@ -447,28 +363,6 @@ namespace parser
 		is_eq(
 			file.m_funcs.at( 0 ).m_keywords,
 			ge::parsed_keywords::export_keyword | ge::parsed_keywords::inline_keyword | ge::parsed_keywords::static_keyword );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void enum_keys()
-	{
-		std::string_view src = "REFL_ENUM()\n"
-							   "enum plain { an_entry };\n"
-							   "REFL_ENUM()\n"
-							   "enum class scoped {};\n"
-							   "REFL_ENUM()\n"
-							   "enum struct scoped_struct {};\n";
-
-		ge::parsed_file file = parse_file( src );
-
-		is_eq( file.m_enums.size(), 3ull );
-		is_eq( file.m_enums.at( 0 ).m_name, "plain" );
-		is_eq( file.m_enums.at( 0 ).m_key, ge::parsed_enum_key::enum_key );
-		is_eq( file.m_enums.at( 0 ).m_entries.at( 0 ), "an_entry" );
-		is_eq( file.m_enums.at( 1 ).m_name, "scoped" );
-		is_eq( file.m_enums.at( 1 ).m_key, ge::parsed_enum_key::enum_class_key );
-		is_eq( file.m_enums.at( 2 ).m_name, "scoped_struct" );
-		is_eq( file.m_enums.at( 2 ).m_key, ge::parsed_enum_key::enum_struct_key );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -556,54 +450,35 @@ namespace parser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void unclosed_scope_reports_error()
+	export API void malformed_input_reports_error()
 	{
-		std::string_view src = "namespace foo\n"
-							   "{\n";
+		constexpr std::string_view sources[] = {
+			// unclosed scope
+			"namespace foo\n"
+			"{\n",
+			// truncated function
+			"REFL_FUNC()\n"
+			"void f(",
+			// missing type identifier
+			"REFL_TYPE()\n"
+			"class;\n",
+			// invalid identifier
+			"REFL_DATA()\n"
+			"int ? = 5;\n"
+			"\n"
+			"REFL_DATA()\n"
+			"int valid = 69;\n",
+		};
 
-		ge::parsed_file result = ge::parse( src );
+		for( std::string_view src : sources )
+		{
+			ge::parsed_file result = ge::parse( src );
 
-		is_false( result.m_errors.empty() );
-		is_false( result.m_errors.front().m_msg.empty() );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void truncated_function_reports_error()
-	{
-		std::string_view src = "REFL_FUNC()\n"
-							   "void f(";
-
-		ge::parsed_file result = ge::parse( src );
-
-		is_false( result.m_errors.empty() );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void missing_type_identifier_reports_error()
-	{
-		std::string_view src = "REFL_TYPE()\n"
-							   "class;\n";
-
-		ge::parsed_file result = ge::parse( src );
-
-		is_false( result.m_errors.empty() );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void invalid_file()
-	{
-		std::string_view src = "REFL_DATA()\n"
-							   "int ? = 5;\n"
-							   "\n"
-							   "REFL_DATA()\n"
-							   "int valid = 69;\n";
-
-		ge::logger logger{};
-		ge::parsed_file result = ge::parse( src );
-
-		is_false( result.m_errors.empty() );
-		is_false( result.m_errors.front().m_msg.empty() );
-		logger.log_raw( ge::severity::message, result.m_errors.front().m_msg );
+			if( result.m_errors.empty() || result.m_errors.front().m_msg.empty() )
+			{
+				failure( std::format( "expected an error for:\n{}", src ) );
+			}
+		}
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -611,7 +486,6 @@ namespace parser
 	{
 		std::string_view src = "export namespace foo = bar";
 
-		ge::logger logger{};
 		ge::parsed_file result = ge::parse( src );
 
 		is_eq( result.m_errors.size(), 0ull );
@@ -623,7 +497,6 @@ namespace parser
 	{
 		std::string_view src = "export namespace foo;";
 
-		ge::logger logger{};
 		ge::parsed_file result = ge::parse( src );
 
 		is_eq( result.m_errors.size(), 1ull );

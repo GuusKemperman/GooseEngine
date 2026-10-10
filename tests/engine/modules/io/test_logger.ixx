@@ -14,19 +14,17 @@ namespace logger
 	export API void basic_logging()
 	{
 		ge::logger logger{};
-		logger.clear();
-		const size_t initial_size = std::ranges::size( logger.get_logged_messages() );
-
 		logger.log( ge::severity::message, "Test message" );
 		const auto src = std::source_location::current();
 
 		const auto& messages = logger.get_logged_messages();
-		is_eq( messages.size(), initial_size + 1 );
+		is_eq( messages.size(), 1ull );
 
 		const auto& entry = messages.back();
 		is_eq( entry.m_severity, ge::severity::message );
 		is_true( entry.m_logged_text.contains( "Test message" ) );
 		is_eq( std::string_view( entry.m_src.file_name() ), std::string_view( src.file_name() ) );
+		is_eq( std::string_view( entry.m_src.function_name() ), std::string_view( src.function_name() ) );
 		is_eq( entry.m_src.line(), src.line() - 1 );
 	}
 
@@ -35,7 +33,6 @@ namespace logger
 	export API void formatted_logging()
 	{
 		ge::logger logger{};
-		logger.clear();
 		const int value = 42;
 
 		logger.log( ge::severity::verbose, "Value: {}", value );
@@ -53,12 +50,11 @@ namespace logger
 		std::stringstream output{};
 
 		ge::logger logger{ output, output };
-		logger.clear();
 		logger.set_severity( ge::severity::warning );
 
 		logger.log( ge::severity::message, "Should not appear" );
-		logger.log( ge::severity::warning, "Should appear" );
-		logger.log( ge::severity::error, "Should appear" );
+		logger.log( ge::severity::warning, "Warning should appear" );
+		logger.log( ge::severity::error, "Error should appear" );
 
 		const auto& messages = logger.get_logged_messages();
 		is_eq( messages.size(), 3ull );
@@ -68,8 +64,9 @@ namespace logger
 
 		std::string output_str = output.str();
 
-		is_true( output_str.contains( "Should appear" ) );
-		is_true( !output_str.contains( "Should not appear" ) );
+		is_true( output_str.contains( "Warning should appear" ) );
+		is_true( output_str.contains( "Error should appear" ) );
+		is_false( output_str.contains( "Should not appear" ) );
 	}
 
 	// Test log clearing
@@ -89,7 +86,6 @@ namespace logger
 	export API void zero_character_limit()
 	{
 		ge::logger logger{};
-		logger.clear();
 		logger.log( ge::severity::message, "Message1" );
 
 		// Lower to less than currently available
@@ -105,21 +101,6 @@ namespace logger
 		is_eq( logger.get_max_num_characters_stored(), 0ull );
 	}
 
-	// Test source location capture
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void source_location()
-	{
-		ge::logger logger{};
-		logger.clear();
-		logger.log( ge::severity::warning, "Location test" );
-		const auto test_location = std::source_location::current();
-
-		const auto& entry = logger.get_logged_messages().back();
-		is_eq( std::string_view{ entry.m_src.file_name() }, test_location.file_name() );
-		is_eq( std::string_view{ entry.m_src.function_name() }, test_location.function_name() );
-		is_eq( entry.m_src.line(), test_location.line() - 1 );
-	}
-
 	// Test stream output redirection
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void stream_output()
@@ -129,7 +110,6 @@ namespace logger
 
 		{
 			ge::logger logger{ cout_buffer, cerr_buffer };
-			logger.clear();
 
 			logger.log( ge::severity::verbose, "Verbose to cout" );
 			logger.log( ge::severity::message, "Message to cout" );

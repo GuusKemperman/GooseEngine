@@ -11,6 +11,8 @@ using namespace ge::test_core;
 
 namespace
 {
+	using module_builder = ge::refl::builders::module_builder;
+
 	template< size_t, typename... Args >
 	void dummy_system( Args... )
 	{
@@ -23,107 +25,101 @@ namespace
 	{
 	};
 
-	struct result
+	struct graph_result
 	{
 		std::unique_ptr< ge::refl::registry_data > m_reg{};
 		ge::logger m_logger{};
 		std::optional< ge::exporter::execution_graph > m_graph{};
 	};
 
-	result build_test_graph( std::invocable< ge::refl::builders::module_builder& > auto&& func )
+	graph_result build_test_graph( std::invocable< module_builder& > auto&& func )
 	{
 		ge::refl::builders::endable_registry_builder reg_builder = ge::refl::builders::begin_registry();
-		ge::refl::builders::endable_module_builder< ge::refl::builders::endable_registry_builder > module_builder
-			= reg_builder.begin_module( "scheduling" );
+		auto mod = reg_builder.begin_module( "scheduling" );
+		func( mod );
+		mod.end_module();
 
-		func( static_cast< ge::refl::builders::module_builder& >( module_builder ) );
-
-		module_builder.end_module();
-
-		result result{ .m_reg = std::move( reg_builder ).build() };
+		graph_result result{ .m_reg = std::move( reg_builder ).build() };
 		result.m_graph = ge::exporter::build_graph( { result.m_reg->m_funcs }, result.m_logger );
-		return std::move( result );
+		return result;
 	}
 
-	size_t get_build_error_count( const result& result )
+	template< auto Func >
+	void add_system( module_builder& builder, std::string_view name, auto&&... extra_traits )
+	{
+		builder.begin_func< Func >( name )
+			.add_traits( ge::traits::system{}, std::forward< decltype( extra_traits ) >( extra_traits )... )
+			.end_func();
+	}
+
+	void expect_no_build_errors( const graph_result& result )
 	{
 		// Assume the build graph only logs errors/warnings
-		return result.m_logger.get_logged_messages().size();
+		expect::is_eq( result.m_logger.get_logged_messages().size(), 0ull );
+		expect::is_true( result.m_graph.has_value() );
 	}
 
-	bool do_systems_run_in_parallel( const result& result, std::vector< std::string_view > system_names )
+	void expect_single_build_error( const graph_result& result, std::string_view error )
+	{
+		const std::list< ge::logger::entry >& logged = result.m_logger.get_logged_messages();
+		expect::is_eq( logged.size(), 1ull );
+		expect::is_eq( logged.front().m_logged_text, error );
+		expect::is_false( result.m_graph.has_value() );
+	}
+
+	bool is_in_group( const ge::exporter::execution_group& group, std::string_view name )
+	{
+		return std::ranges::find( group, name, &ge::refl::func_data::m_name ) != group.end();
+	}
+
+	// True if all systems are scheduled in the same group.
+	bool do_systems_run_in_parallel( const graph_result& result, std::initializer_list< std::string_view > system_names )
 	{
 		if( !result.m_graph.has_value() )
 		{
 			return false;
 		}
 
-		for( const ge::exporter::execution_group& group : *result.m_graph )
-		{
-			std::int64_t num_in_group = std::ranges::count_if(
-				group,
-				[ &system_names ]( const ge::refl::func_data& func )
-				{ return std::ranges::find( system_names, func.m_name ) != system_names.end(); } );
-			if( num_in_group > 0 )
+		return std::ranges::any_of(
+			*result.m_graph,
+			[ system_names ]( const ge::exporter::execution_group& group )
 			{
-				return num_in_group == std::ssize( system_names );
-			}
-		}
-
-		return false;
+				return std::ranges::all_of(
+					system_names,
+					[ &group ]( std::string_view name ) { return is_in_group( group, name ); } );
+			} );
 	}
 
-	bool do_systems_in_this_order( const result& result, std::vector< std::string_view > system_names )
+	// True if all systems are scheduled, each in a strictly later group than the one before it.
+	bool do_systems_run_in_this_order( const graph_result& result, std::initializer_list< std::string_view > system_names )
 	{
 		if( !result.m_graph.has_value() )
 		{
 			return false;
 		}
 
-		for( const ge::exporter::execution_group& group : *result.m_graph )
+		const ge::exporter::execution_graph& graph = *result.m_graph;
+		std::optional< std::ptrdiff_t > previous_group{};
+		for( std::string_view name : system_names )
 		{
-			if( system_names.empty() )
-			{
-				return true;
-			}
-
-			bool is_in_this_group
-				= std::ranges::find_if(
-					  group,
-					  [ &system_names ]( const ge::refl::func_data& func ) { return func.m_name == system_names.front(); } )
-				  != group.end();
-
-			std::int64_t num_in_group = std::ranges::count_if(
-				group,
-				[ &system_names ]( const ge::refl::func_data& func )
-				{ return std::ranges::find( system_names, func.m_name ) != system_names.end(); } );
-
-			if( num_in_group == 0 )
-			{
-				continue;
-			}
-
-			if( is_in_this_group && num_in_group == 1 )
-			{
-				system_names.erase( system_names.begin() );
-				continue;
-			}
-
-			if( is_in_this_group && num_in_group > 1 )
+			const auto group = std::ranges::find_if(
+				graph,
+				[ name ]( const ge::exporter::execution_group& candidate ) { return is_in_group( candidate, name ); } );
+			if( group == graph.end() )
 			{
 				return false;
 			}
+
+			const std::ptrdiff_t group_index = std::ranges::distance( graph.begin(), group );
+			if( previous_group.has_value() && group_index <= *previous_group )
+			{
+				return false;
+			}
+			previous_group = group_index;
 		}
 
 		return true;
 	}
-
-	void expect_build_error( const result& result, std::string_view error )
-	{
-		const std::list< ge::logger::entry >& logged = result.m_logger.get_logged_messages();
-		expect::is_ne( std::ranges::find( logged, error, &ge::logger::entry::m_logged_text ), logged.end() );
-	}
-
 } // namespace
 
 namespace ordering_tests
@@ -131,107 +127,90 @@ namespace ordering_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void two_systems_run_in_parallel()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
-				builder.begin_func< ::dummy_system< 2 > >( "system2" ).add_traits( ge::traits::system{} ).end_func();
+				add_system< &dummy_system< 1 > >( builder, "system1" );
+				add_system< &dummy_system< 2 > >( builder, "system2" );
 			} );
 
-		expect::is_eq( get_build_error_count( result ), 0ull );
-
+		expect_no_build_errors( result );
 		expect::is_true( do_systems_run_in_parallel( result, { "system1", "system2" } ) );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void zero_systems_no_error()
 	{
-		result result = ::build_test_graph( []( ge::refl::builders::module_builder& builder ) { ( void )builder; } );
+		const graph_result result = build_test_graph( []( module_builder& ) {} );
 
-		expect::is_eq( get_build_error_count( result ), 0ull );
+		expect_no_build_errors( result );
+		expect::is_true( result.m_graph->empty() );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void after_no_parallel()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
-				builder.begin_func< ::dummy_system< 2 > >( "system2" )
-					.add_traits( ge::traits::system{}, ge::traits::order_after< &::dummy_system< 1 > >{} )
-					.end_func();
+				add_system< &dummy_system< 1 > >( builder, "system1" );
+				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_after< &dummy_system< 1 > >{} );
 			} );
 
-		expect::is_eq( get_build_error_count( result ), 0ull );
-		expect::is_false( do_systems_run_in_parallel( result, { "system1", "system2" } ) );
-		expect::is_true( do_systems_in_this_order( result, { "system1", "system2" } ) );
+		expect_no_build_errors( result );
+		expect::is_true( do_systems_run_in_this_order( result, { "system1", "system2" } ) );
+		expect::is_false( do_systems_run_in_this_order( result, { "system2", "system1" } ) );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void before_no_parallel()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" ).add_traits( ge::traits::system{} ).end_func();
-				builder.begin_func< ::dummy_system< 2 > >( "system2" )
-					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 1 > >{} )
-					.end_func();
+				add_system< &dummy_system< 1 > >( builder, "system1" );
+				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_before< &dummy_system< 1 > >{} );
 			} );
 
-		expect::is_eq( get_build_error_count( result ), 0ull );
-		expect::is_false( do_systems_run_in_parallel( result, { "system1", "system2" } ) );
-		expect::is_true( do_systems_in_this_order( result, { "system2", "system1" } ) );
+		expect_no_build_errors( result );
+		expect::is_true( do_systems_run_in_this_order( result, { "system2", "system1" } ) );
+		expect::is_false( do_systems_run_in_this_order( result, { "system1", "system2" } ) );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void two_underconstrained_writers_gives_error()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
 			{
-				builder.begin_type< ::dummy_env< 1 > >( "env1" ).add_traits( ge::traits::environment{} ).end_type();
-				builder.begin_func< ::dummy_system< 1, ::dummy_env< 1 >& > >( "system1" )
-					.add_traits( ge::traits::system{} )
-					.end_func();
-				builder.begin_func< ::dummy_system< 2, ::dummy_env< 1 >& > >( "system2" )
-					.add_traits( ge::traits::system{} )
-					.end_func();
+				builder.begin_type< dummy_env< 1 > >( "env1" ).add_traits( ge::traits::environment{} ).end_type();
+				add_system< &dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
+				add_system< &dummy_system< 2, dummy_env< 1 >& > >( builder, "system2" );
 			} );
 
-		expect::is_eq( get_build_error_count( result ), 1ull );
-		expect_build_error( result, "underconstrained access to 'env1': no order specified between 'system1' and 'system2'" );
+		expect_single_build_error(
+			result,
+			"underconstrained access to 'env1': no order specified between 'system1' and 'system2'" );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void order_against_self_gives_error()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
-			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" )
-					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 1 > >{} )
-					.end_func();
-			} );
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
+			{ add_system< &dummy_system< 1 > >( builder, "system1", ge::traits::order_before< &dummy_system< 1 > >{} ); } );
 
-		expect::is_eq( get_build_error_count( result ), 1ull );
-		expect_build_error( result, "invalid ordering for 'system1': ordered against itself." );
+		expect_single_build_error( result, "invalid ordering for 'system1': ordered against itself." );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void order_against_non_system_gives_error()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
-			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" )
-					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 2 > >{} )
-					.end_func();
-			} );
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
+			{ add_system< &dummy_system< 1 > >( builder, "system1", ge::traits::order_before< &dummy_system< 2 > >{} ); } );
 
-		expect::is_eq( get_build_error_count( result ), 1ull );
-		expect_build_error(
+		expect_single_build_error(
 			result,
 			"invalid ordering for 'system1': ordered constraint against function that was not a system." );
 	}
@@ -239,23 +218,18 @@ namespace ordering_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void infinite_loop_gives_error()
 	{
-		result result = ::build_test_graph(
-			[]( ge::refl::builders::module_builder& builder )
+		const graph_result result = build_test_graph(
+			[]( module_builder& builder )
 			{
-				builder.begin_func< ::dummy_system< 1 > >( "system1" )
-					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 2 > >{} )
-					.end_func();
-				builder.begin_func< ::dummy_system< 2 > >( "system2" )
-					.add_traits( ge::traits::system{}, ge::traits::order_before< &::dummy_system< 1 > >{} )
-					.end_func();
+				add_system< &dummy_system< 1 > >( builder, "system1", ge::traits::order_before< &dummy_system< 2 > >{} );
+				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_before< &dummy_system< 1 > >{} );
 			} );
-		expect::is_eq( get_build_error_count( result ), 1ull );
-		expect_build_error(
+
+		expect_single_build_error(
 			result,
 			"invalid ordering: infinite loop:\n"
 			"  0 | 'system1'\n"
 			"  1 | 'system2'\n"
 			"  2 | 'system1'\n" );
 	}
-
 } // namespace ordering_tests

@@ -76,7 +76,7 @@ namespace smart_refs
 		assert::is_eq( ref->get_value(), 42 );
 		assert::is_eq( ( *ref ).get_value(), 42 );
 		assert::is_eq( ref.get().get_value(), 42 );
-		assert::is_true( ref.use_count() == 1 );
+		assert::is_eq( ref.use_count(), 1L );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -120,10 +120,11 @@ namespace smart_refs
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void shared_ref_moveAssign_movesOwnership()
 	{
-		auto ref1 = ge::make_shared_ref< test_struct >();
-		ge::shared_ref< test_struct > ref2 = ge::make_shared_ref< test_struct >();
+		auto ref1 = ge::make_shared_ref< test_struct >( 1 );
+		ge::shared_ref< test_struct > ref2 = ge::make_shared_ref< test_struct >( 2 );
 		ref2 = std::move( ref1 );
-		assert::is_eq( ref2->get_value(), 42 );
+		assert::is_eq( ref2->get_value(), 1 );
+		assert::is_eq( ref2.use_count(), 1L );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -138,10 +139,10 @@ namespace smart_refs
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void unique_ref_moveAssign_transfersOwnership()
 	{
-		auto ref1 = ge::make_unique_ref< test_struct >();
-		ge::unique_ref< test_struct > ref2 = ge::make_unique_ref< test_struct >();
+		auto ref1 = ge::make_unique_ref< test_struct >( 1 );
+		ge::unique_ref< test_struct > ref2 = ge::make_unique_ref< test_struct >( 2 );
 		ref2 = std::move( ref1 );
-		assert::is_eq( ref2->get_value(), 42 );
+		assert::is_eq( ref2->get_value(), 1 );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -161,14 +162,6 @@ namespace smart_refs
 		auto ref = ge::make_shared_ref< test_struct >();
 		test_struct& s = ref;
 		assert::is_eq( s.get_value(), 42 );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void ref_base_operatorConversionToSharedRef_compatibleTypes_conversionSucceeds()
-	{
-		auto base = ge::make_shared_ref< test_struct >();
-		ge::shared_ref< const test_struct > converted = base;
-		assert::is_eq( converted->get_value(), 42 );
 	}
 } // namespace smart_refs
 

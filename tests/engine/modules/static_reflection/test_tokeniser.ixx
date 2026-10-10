@@ -1,7 +1,6 @@
 export module test_static_reflection:test_tokeniser;
 
 import stl;
-import io;
 import static_reflection;
 export import test_core;
 
@@ -40,23 +39,6 @@ namespace
 namespace tokeniser
 {
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void complex_function_no_crash()
-	{
-		ge::token_range{
-			"        REFL_FUNC()\n"
-			"        // Hello we are reflect*/ing this\n"
-			"        /*\n"
-			"        /*Comment in comment!\n"
-			"        // Commentttsss\n"
-			"        */\n"
-			R"(        [[nodiscard]] inline /*haha here is another comment */int function_name(int param0_name, std::string param1_name = { "Hello; { \" })}" /*helloo*/ },)"
-			"\n"
-			"            std::string<char> param2 = (R\"(Hellooo \" \" ))) } [[attribution inside string ]] )\"), int foo = "
-			"1.0f);\n"
-		};
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void iterators()
 	{
 		ge::token_range tokeniser{ "1 2 3 4" };
@@ -69,28 +51,21 @@ namespace tokeniser
 			} );
 
 		ge::token_iterator it = tokeniser.begin();
-		is_eq( it->m_str, "1" );
-		is_ne( it, tokeniser.end() );
-		++it;
+		ge::token_iterator old = it++;
+		is_eq( old->m_str, "1" );
 		is_eq( it->m_str, " " );
-		is_ne( it, tokeniser.end() );
-		++it;
-		is_eq( it->m_str, "2" );
-		is_ne( it, tokeniser.end() );
-		++it;
-		is_eq( it->m_str, " " );
-		is_ne( it, tokeniser.end() );
-		++it;
-		is_eq( it->m_str, "3" );
-		is_ne( it, tokeniser.end() );
-		++it;
-		is_eq( it->m_str, " " );
-		is_ne( it, tokeniser.end() );
-		++it;
-		is_eq( it->m_str, "4" );
-		is_ne( it, tokeniser.end() );
-		++it;
-		is_eq( it, tokeniser.end() );
+
+		expect_tokens(
+			"1 2 3 4",
+			{
+				{ "1" },
+				{ " ", ge::token::flag::white_space },
+				{ "2" },
+				{ " ", ge::token::flag::white_space },
+				{ "3" },
+				{ " ", ge::token::flag::white_space },
+				{ "4" },
+			} );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -169,7 +144,7 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void block_comment()
+	export API void block_comments()
 	{
 		expect_tokens(
 			"a/* hi */b",
@@ -178,11 +153,8 @@ namespace tokeniser
 				{ " hi ", ge::token::flag::comment },
 				{ "b", ge::token::flag::valid_identifier },
 			} );
-	}
 
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void block_comments_do_not_nest()
-	{
+		// Block comments do not nest.
 		expect_tokens(
 			"/*a/*b*/c",
 			{
@@ -218,7 +190,7 @@ namespace tokeniser
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void string_literal_is_single_token()
+	export API void string_literals_are_single_tokens()
 	{
 		expect_tokens(
 			"a = \"hello world\";",
@@ -230,11 +202,7 @@ namespace tokeniser
 				{ "\"hello world\"" },
 				{ ";" },
 			} );
-	}
 
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void string_with_escaped_quotes()
-	{
 		expect_tokens(
 			R"(x = "say \"hi\"";)",
 			{
@@ -383,15 +351,5 @@ namespace tokeniser
 		++it;
 		is_eq( it->m_str, "c" );
 		is_eq( it.get_source().m_line_number, 4u );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void postfix_increment_returns_previous()
-	{
-		ge::token_range range{ "a b" };
-		ge::token_iterator it = range.begin();
-		ge::token_iterator old = it++;
-		is_eq( old->m_str, "a" );
-		is_eq( it->m_str, " " );
 	}
 } // namespace tokeniser

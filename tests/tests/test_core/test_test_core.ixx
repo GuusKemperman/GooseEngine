@@ -44,35 +44,27 @@ namespace asserts
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void is_null_raw()
+	export API void is_null_all()
 	{
 		int* null{};
 		int dummy{};
 		test_all( &is_null< int* >, std::make_tuple( null ), std::make_tuple( &dummy ) );
+
+		std::shared_ptr< int > null_smart{};
+		std::shared_ptr< int > not_null_smart = std::make_shared< int >();
+		test_all( &is_null< std::shared_ptr< int > >, std::make_tuple( null_smart ), std::make_tuple( not_null_smart ) );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void is_null_smart()
-	{
-		std::shared_ptr< int > null{};
-		std::shared_ptr< int > not_null = std::make_shared< int >();
-		test_all( &is_null< std::shared_ptr< int > >, std::make_tuple( null ), std::make_tuple( not_null ) );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void is_not_null_raw()
+	export API void is_not_null_all()
 	{
 		int* null{};
 		int dummy{};
 		test_all( &is_not_null< int* >, std::make_tuple( &dummy ), std::make_tuple( null ) );
-	}
 
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void is_not_null_smart()
-	{
-		std::shared_ptr< int > null{};
-		std::shared_ptr< int > not_null = std::make_shared< int >();
-		test_all( &is_not_null< std::shared_ptr< int > >, std::make_tuple( not_null ), std::make_tuple( null ) );
+		std::shared_ptr< int > null_smart{};
+		std::shared_ptr< int > not_null_smart = std::make_shared< int >();
+		test_all( &is_not_null< std::shared_ptr< int > >, std::make_tuple( not_null_smart ), std::make_tuple( null_smart ) );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
