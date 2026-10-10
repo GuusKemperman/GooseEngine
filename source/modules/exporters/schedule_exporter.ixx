@@ -258,7 +258,7 @@ namespace ge::exporter
 
 		for( const pending_system system : pending_systems )
 		{
-			graph.resize( system.m_group_idx + 1u );
+			graph.resize( std::max< size_t >( system.m_group_idx + 1u, graph.size() ) );
 			graph[ system.m_group_idx ].push_back( system.m_func );
 		}
 
@@ -266,17 +266,17 @@ namespace ge::exporter
 	}
 
 	// runtime
-	struct exported_scheduled_system
+	export struct exported_scheduled_system
 	{
 		// TODO don't directly store a function ptr in an exported pack, they are very much not stable
 		traits::system::invoke_t m_invoke{};
 		rel::ptr< void* > m_arguments_buffer{};
 	};
 
-	using exported_scheduled_group = rel::span< const exported_scheduled_system >;
-	using exported_schedule = rel::span< const exported_scheduled_group >;
+	export using exported_scheduled_group = rel::span< const exported_scheduled_system >;
+	export using exported_schedule = rel::span< const exported_scheduled_group >;
 
-	export API exported_schedule& export_schedule(
+	export API const exported_schedule& export_schedule(
 		pack_writer& writer,
 		execution_graph graph,
 		const environments_map& environments_map )
