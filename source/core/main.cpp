@@ -5,13 +5,16 @@ import modules;
 
 import windows;
 import exporters;
+import export_core;
 import runtime_reflection;
+import io;
 
 int main()
 {
 	// TODO Not really good to assume this
 	assert( std::filesystem::current_path().string().ends_with( "bin" ) );
 
+	ge::logger logger{};
 	ge::windows::modules::loader windows_loader{};
 	std::vector< ge::modules::module > modules
 		= ge::modules::load_modules_in_folder( windows_loader, std::filesystem::current_path() );
@@ -36,4 +39,25 @@ int main()
 
 		return std::move( reg_builder ).build();
 	}();
+
+	std::optional intermediate_graph = ge::exporter::build_graph( { reg->m_funcs }, logger );
+
+	if( !intermediate_graph )
+	{
+		return 1;
+	}
+
+	// TODO no hard code max size
+	static constexpr size_t pack_capacity = 1024 * 1024;
+	std::unique_ptr< std::byte[] > pack_buffer = std::make_unique< std::byte[] >( pack_capacity );
+	ge::exporter::pack_writer pack_writer{ { pack_buffer.get(), pack_capacity } };
+
+	ge::exporter::environments_map env_map = ge::exporter::export_environments( { reg->m_types }, pack_writer );
+
+	const ge::exporter::exported_schedule& graph = ge::exporter::export_schedule( pack_writer, *intermediate_graph, env_map );
+
+	while( true )
+	{
+		ge::exporter::execute_schedule( graph );
+	}
 }

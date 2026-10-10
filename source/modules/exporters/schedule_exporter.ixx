@@ -310,4 +310,16 @@ namespace ge::exporter
 
 		return schedule;
 	}
+
+	export API void execute_schedule( const exported_schedule& schedule )
+	{
+		for( const exported_scheduled_group& group : schedule )
+		{
+			std::for_each(
+				std::execution::par_unseq,
+				group.begin(),
+				group.end(),
+				[]( const auto& system ) { system.m_invoke( system.m_arguments_buffer.get() ); } );
+		}
+	}
 } // namespace ge::exporter

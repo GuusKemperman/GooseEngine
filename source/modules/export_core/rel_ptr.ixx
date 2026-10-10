@@ -194,14 +194,14 @@ namespace rel
 		{
 		}
 
-		constexpr ptr< T > begin() const
+		constexpr T* begin() const
 		{
-			return m_data;
+			return m_data.get();
 		}
 
-		constexpr ptr< T > end() const
+		constexpr T* end() const
 		{
-			return m_data + m_size;
+			return m_data.get() + m_size;
 		}
 
 		constexpr bool empty() const
@@ -232,9 +232,9 @@ namespace rel
 			return { .m_data = m_data + offset, .m_size = size - offset };
 		}
 
-		constexpr ptr< T > data() const
+		constexpr T* data() const
 		{
-			return m_data;
+			return m_data.get();
 		}
 
 	private:

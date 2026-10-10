@@ -26,4 +26,6 @@ add_dependencies(GooseEngine all_modules_target)
 
 target_link_libraries(GooseEngine core_lib)
 target_link_libraries(GooseEngine exporters)
+target_link_libraries(GooseEngine export_core)
 target_link_libraries(GooseEngine runtime_reflection)
+target_link_libraries(GooseEngine io)
