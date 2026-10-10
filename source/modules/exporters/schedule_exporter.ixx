@@ -10,7 +10,7 @@ import io;
 import utils;
 import core_traits;
 
-namespace ge::scheduling
+namespace ge::exporter
 {
 	// Each function  in a execution_group can be executed using parallel-for without any race conditions on environments/entities
 	export using execution_group = std::vector< std::reference_wrapper< const refl::func_data > >;
@@ -263,4 +263,4 @@ namespace ge::scheduling
 
 		return graph;
 	}
-} // namespace ge::scheduling
+} // namespace ge::exporter

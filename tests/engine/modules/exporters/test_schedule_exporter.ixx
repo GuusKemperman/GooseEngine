@@ -27,7 +27,7 @@ namespace
 	{
 		std::unique_ptr< ge::refl::registry_data > m_reg{};
 		ge::logger m_logger{};
-		std::optional< ge::scheduling::execution_graph > m_graph{};
+		std::optional< ge::exporter::execution_graph > m_graph{};
 	};
 
 	result build_test_graph( std::invocable< ge::refl::builders::module_builder& > auto&& func )
@@ -41,7 +41,7 @@ namespace
 		module_builder.end_module();
 
 		result result{ .m_reg = std::move( reg_builder ).build() };
-		result.m_graph = ge::scheduling::build_graph( { result.m_reg->m_funcs }, result.m_logger );
+		result.m_graph = ge::exporter::build_graph( { result.m_reg->m_funcs }, result.m_logger );
 		return std::move( result );
 	}
 
@@ -58,7 +58,7 @@ namespace
 			return false;
 		}
 
-		for( const ge::scheduling::execution_group& group : *result.m_graph )
+		for( const ge::exporter::execution_group& group : *result.m_graph )
 		{
 			std::int64_t num_in_group = std::ranges::count_if(
 				group,
@@ -80,7 +80,7 @@ namespace
 			return false;
 		}
 
-		for( const ge::scheduling::execution_group& group : *result.m_graph )
+		for( const ge::exporter::execution_group& group : *result.m_graph )
 		{
 			if( system_names.empty() )
 			{
