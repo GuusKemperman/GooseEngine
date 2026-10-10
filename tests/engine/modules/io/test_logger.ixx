@@ -131,3 +131,43 @@ namespace logger
 		is_true( cerr_output.contains( "Error to cerr" ) );
 	}
 } // namespace logger
+
+namespace error_handling
+{
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void exception_formats_message()
+	{
+		const std::string_view msg = "something broke";
+		ge::exception e{ nullptr, msg };
+
+		is_eq( std::string_view{ e.what() }, std::string_view{ "exception thrown: something broke" } );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void exception_logs_error_to_logger()
+	{
+		ge::logger logger{};
+		const std::string_view msg = "something broke";
+		const auto src = std::source_location::current();
+		ge::exception e{ &logger, msg, src };
+
+		const auto& messages = logger.get_logged_messages();
+		is_eq( messages.size(), 1ull );
+		is_eq( messages.back().m_severity, ge::severity::error );
+		is_eq( messages.back().m_logged_text, std::string{ "exception thrown: something broke" } );
+		is_eq( messages.back().m_src.line(), src.line() );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void exception_formats_arguments()
+	{
+#ifdef NDEBUG
+		// TODO Compilation failure
+		ge::logger logger{};
+		ge::exception e{ &logger, "value {} and {}", 5, std::string_view{ "text" } };
+
+		is_eq( std::string_view{ e.what() }, std::string_view{ "exception thrown: value 5 and text" } );
+		is_eq( logger.get_logged_messages().size(), 1ull );
+#endif
+	}
+} // namespace error_handling

@@ -60,17 +60,18 @@ namespace ge::traits
 				{
 					return [ & ]< size_t... Indices >( std::index_sequence< Indices... > )
 					{
-						std::vector< details::system_param > params{
+						std::vector< details::system_param > params {
 							[ & ]< typename ParamT, size_t Idx >()
 							{
-								static_assert( std::is_reference_v< ParamT >, "Only references are supported" );
+								static_assert( std::is_lvalue_reference_v< ParamT >, "Only const T& and T& are supported" );
 
 								using NonRef = std::remove_reference_t< ParamT >;
-								static_assert( ge::refl::undecorated< NonRef > );
+								using Undecorated = std::remove_const_t< NonRef >;
 
 								auto it = std::ranges::find_if(
 									context.m_reg.m_types,
-									[]( const refl::type_data& type ) { return type.m_id == refl::make_type_id< NonRef >(); } );
+									[]( const refl::type_data& type )
+									{ return type.m_id == refl::make_type_id< Undecorated >(); } );
 
 								assert( it != context.m_reg.m_types.end() && "Parameter type was either not reflected" );
 
@@ -101,7 +102,6 @@ namespace ge::traits
 																			  "Only references are supported" );
 																		  void* arg_address = args[ Idx ];
 																		  using NonRef = std::remove_reference_t< ParamT >;
-																		  static_assert( ge::refl::undecorated< NonRef > );
 
 																		  return *std::bit_cast< NonRef* >( arg_address );
 																	  }.template operator()< ParamsT, Indices >()... );

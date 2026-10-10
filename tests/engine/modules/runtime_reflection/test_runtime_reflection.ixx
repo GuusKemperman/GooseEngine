@@ -784,6 +784,50 @@ namespace value_tests
 		ge::refl::value owning = ge::refl::value::create_owning( fpoint{ 1, 2 } );
 		is_eq( owning.get_type_id(), ge::refl::make_type_id< fpoint >() );
 	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void is_a_matches_only_stored_type()
+	{
+		int x = 5;
+		ge::refl::value view = ge::refl::value::create_view( x );
+		is_true( view.is_a< int >() );
+		is_false( view.is_a< float >() );
+		is_false( view.is_a< fpoint >() );
+
+		ge::refl::value owning = ge::refl::value::create_owning( fpoint{ 1, 2 } );
+		is_true( owning.is_a< fpoint >() );
+		is_false( owning.is_a< int >() );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void find_value_of_type_returns_first_match()
+	{
+		std::vector< ge::refl::value > values{};
+		values.push_back( ge::refl::value::create_owning( 1.5f ) );
+		values.push_back( ge::refl::value::create_owning( 10 ) );
+		values.push_back( ge::refl::value::create_owning( 20 ) );
+
+		const int* found = ge::refl::find_value_of_type< int >( values );
+
+		is_eq( found, values[ 1 ].as_constant< int >() );
+		is_eq( *found, 10 );
+
+		const float* found_float = ge::refl::find_value_of_type< float >( values );
+		is_eq( found_float, values[ 0 ].as_constant< float >() );
+		is_eq( *found_float, 1.5f );
+	}
+
+	REFL_FUNC( ge::test_core::unit_test_trait{} )
+	export API void find_value_of_type_returns_null_when_absent()
+	{
+		std::vector< ge::refl::value > values{};
+		values.push_back( ge::refl::value::create_owning( 10 ) );
+
+		is_null( ge::refl::find_value_of_type< fpoint >( values ) );
+
+		std::vector< ge::refl::value > empty{};
+		is_null( ge::refl::find_value_of_type< int >( empty ) );
+	}
 } // namespace value_tests
 
 namespace building_tests
