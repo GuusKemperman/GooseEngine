@@ -23,11 +23,10 @@ namespace ge::exporter
 
 			while( true )
 			{
-				std::byte* address = &m_buffer[ size ];
-
+				std::byte* address = m_buffer.data() + size;
 				size_t remaining_bytes = size > m_buffer.size() ? 0 : m_buffer.size() - size;
 				void* void_address = address;
-				if( std::align( min_alignment, count, void_address, remaining_bytes ) != nullptr )
+				if( std::align( min_alignment, count, void_address, remaining_bytes ) == nullptr )
 				{
 					throw out_of_pack_capacity( "Unsufficient pack space allocated" );
 				}

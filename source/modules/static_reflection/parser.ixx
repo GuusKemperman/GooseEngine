@@ -826,10 +826,11 @@ bool ge::parser::receive_token( token_consumer consumer, token_iterator it )
 		}
 		else
 		{
-			report_failure( std::format(
-				"unexpected token after 'namespace {}': '{}'. Expected '{{' or '='.",
-				m_most_recently_parsed.m_namespace_name,
-				it->m_str ) );
+			report_failure(
+				std::format(
+					"unexpected token after 'namespace {}': '{}'. Expected '{{' or '='.",
+					m_most_recently_parsed.m_namespace_name,
+					it->m_str ) );
 		}
 
 		return true;

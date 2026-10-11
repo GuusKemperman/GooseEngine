@@ -60,7 +60,7 @@ namespace ge::traits
 				{
 					return [ & ]< size_t... Indices >( std::index_sequence< Indices... > )
 					{
-						std::vector< details::system_param > params {
+						std::vector< details::system_param > params{
 							[ & ]< typename ParamT, size_t Idx >()
 							{
 								static_assert( std::is_lvalue_reference_v< ParamT >, "Only const T& and T& are supported" );

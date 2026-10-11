@@ -13,6 +13,7 @@ namespace ge::exporter
 
 	export API environments_map export_environments( const environments_query& input, pack_writer& pack_writer )
 	{
+		// TODO optimize to minimize padding and/or optimize to minimize false sharing
 		environments_map map{};
 
 		for( auto [ type, trait ] : input )

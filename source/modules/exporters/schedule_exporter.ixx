@@ -7,7 +7,6 @@ export module exporters:schedule;
 import runtime_reflection;
 import stl;
 import io;
-import utils;
 import core_traits;
 import :environments;
 
@@ -193,7 +192,7 @@ namespace ge::exporter
 			{
 				for( const pending_system& before : potentially_scheduled_after.m_execute_after )
 				{
-					if( &before == &potentially_scheduled_before || self( self, before, potentially_scheduled_before ) )
+					if( &before == &potentially_scheduled_before || self( self, potentially_scheduled_before, before ) )
 					{
 						return true;
 					}
@@ -270,7 +269,7 @@ namespace ge::exporter
 	{
 		// TODO don't directly store a function ptr in an exported pack, they are very much not stable
 		traits::system::invoke_t m_invoke{};
-		rel::ptr< void* > m_arguments_buffer{};
+		rel::span< rel::ptr< void > > m_arguments{};
 	};
 
 	export using exported_scheduled_group = rel::span< const exported_scheduled_system >;
@@ -296,15 +295,15 @@ namespace ge::exporter
 				const traits::system& system_trait
 					= *refl::find_value_of_type< traits::system >( intermediate_system.get().m_traits );
 
-				std::span< void* > arguments_buffer = writer.emplace_array< void* >( system_trait.m_params.size() );
+				// TODO Optimization: there might be an existing arguments buffer we can re-use already
+				exported_system.m_arguments
+					= rel::span{ writer.emplace_array< rel::ptr< void > >( system_trait.m_params.size() ) };
+				exported_system.m_invoke = system_trait.m_invoke;
 
-				for( auto [ reflected_param, arg_ptr ] : std::views::zip( system_trait.m_params, arguments_buffer ) )
+				for( auto [ reflected_param, arg_ptr ] : std::views::zip( system_trait.m_params, exported_system.m_arguments ) )
 				{
 					arg_ptr = environments_map.at( reflected_param.m_type.get().m_id );
 				}
-
-				exported_system.m_arguments_buffer = rel::ptr< void* >{ arguments_buffer.data() };
-				exported_system.m_invoke = system_trait.m_invoke;
 			}
 		}
 
@@ -319,7 +318,19 @@ namespace ge::exporter
 				std::execution::par_unseq,
 				group.begin(),
 				group.end(),
-				[]( const auto& system ) { system.m_invoke( system.m_arguments_buffer.get() ); } );
+				[]( const exported_scheduled_system& system )
+				{
+					static constexpr size_t s_max_param_count = 32;
+					std::array< void*, s_max_param_count > args;
+
+					assert( system.m_arguments.size() <= s_max_param_count );
+					for( auto [ idx, ptr ] : system.m_arguments | std::views::enumerate )
+					{
+						args[ static_cast< size_t >( idx ) ] = ptr.get();
+					}
+
+					system.m_invoke( args.data() );
+				} );
 		}
 	}
 } // namespace ge::exporter

@@ -121,10 +121,11 @@ namespace converter
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void global_func_and_data()
 	{
-		std::string output = convert( "REFL_DATA()\n"
-									  "static int bar = 5;\n"
-									  "REFL_FUNC(ge::my_trait{})\n"
-									  "int foo();\n" );
+		std::string output = convert(
+			"REFL_DATA()\n"
+			"static int bar = 5;\n"
+			"REFL_FUNC(ge::my_trait{})\n"
+			"int foo();\n" );
 
 		// Globals are qualified with the root scope "::"; funcs are emitted before data.
 		contains_in_order(
@@ -144,20 +145,21 @@ namespace converter
 	export API void nested_type_in_namespace()
 	{
 		// Declared in reverse of the emit order, so the order asserts can't pass on source order alone.
-		std::string output = convert( "namespace outer\n"
-									  "{\n"
-									  "    REFL_FUNC()\n"
-									  "    void helper();\n"
-									  "\n"
-									  "    REFL_TYPE()\n"
-									  "    struct widget\n"
-									  "    {\n"
-									  "        REFL_DATA()\n"
-									  "        int field = 0;\n"
-									  "        REFL_FUNC()\n"
-									  "        void method();\n"
-									  "    };\n"
-									  "}\n" );
+		std::string output = convert(
+			"namespace outer\n"
+			"{\n"
+			"    REFL_FUNC()\n"
+			"    void helper();\n"
+			"\n"
+			"    REFL_TYPE()\n"
+			"    struct widget\n"
+			"    {\n"
+			"        REFL_DATA()\n"
+			"        int field = 0;\n"
+			"        REFL_FUNC()\n"
+			"        void method();\n"
+			"    };\n"
+			"}\n" );
 
 		// begin_type takes the type itself (no '&'); members are fully qualified
 		// and nested inside begin_type/end_type; types come before free funcs.
@@ -180,8 +182,9 @@ namespace converter
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void parse_error_emits_static_assert()
 	{
-		std::string output = convert( "REFL_DATA()\n"
-									  "int ? = 5;\n" );
+		std::string output = convert(
+			"REFL_DATA()\n"
+			"int ? = 5;\n" );
 
 		// The error path must replace the module boilerplate, not wrap it.
 		contains_in_order(

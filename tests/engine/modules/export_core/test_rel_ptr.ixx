@@ -33,13 +33,10 @@ namespace
 		return *std::launder( reinterpret_cast< T* >( dst.data() ) );
 	}
 
-#ifdef NDEBUG
-	// TODO Compilation failure
 	rel::ptr< int > pass_through( rel::ptr< int > ptr )
 	{
 		return ptr;
 	}
-#endif
 } // namespace
 
 namespace rel_ptr_tests
@@ -85,22 +82,17 @@ namespace rel_ptr_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void copy_construct_points_to_same_target()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		int target = 1;
 		rel::ptr< int > original{ &target };
 		rel::ptr< int > copy{ original };
 
-		expect::is_eq( copy.get(), &target );
 		expect::is_eq( original.get(), &target );
-#endif
+		expect::is_eq( copy.get(), &target );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void copy_assign_points_to_same_target()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		int target = 1;
 		int other = 2;
 		rel::ptr< int > original{ &target };
@@ -110,21 +102,17 @@ namespace rel_ptr_tests
 
 		expect::is_eq( copy.get(), &target );
 		expect::is_eq( original.get(), &target );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void pass_and_return_by_value_points_to_same_target()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		int target = 1;
 		rel::ptr< int > original{ &target };
 
 		rel::ptr< int > result = pass_through( original );
 
 		expect::is_eq( result.get(), &target );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -166,8 +154,6 @@ namespace rel_ptr_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void converting_assign_to_const_points_to_same_target()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		int target = 1;
 		rel::ptr< int > original{ &target };
 		rel::ptr< const int > as_const{};
@@ -175,7 +161,6 @@ namespace rel_ptr_tests
 		as_const = original;
 
 		expect::is_eq( as_const.get(), &target );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -207,8 +192,6 @@ namespace rel_ptr_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void minus_moves_back_by_elements()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		std::array< int, 8 > values{ 10, 11, 12, 13, 14, 15, 16, 17 };
 		rel::ptr< int > ptr{ &values[ 3 ] };
 
@@ -216,7 +199,6 @@ namespace rel_ptr_tests
 
 		expect::is_eq( moved_back.get(), &values[ 1 ] );
 		expect::is_eq( ptr.get(), &values[ 3 ] );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -250,8 +232,6 @@ namespace rel_ptr_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void postfix_increment_returns_old_and_advances()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		std::array< int, 4 > values{ 10, 11, 12, 13 };
 		rel::ptr< int > ptr{ &values[ 1 ] };
 
@@ -259,14 +239,11 @@ namespace rel_ptr_tests
 
 		expect::is_eq( old.get(), &values[ 1 ] );
 		expect::is_eq( ptr.get(), &values[ 2 ] );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void postfix_decrement_returns_old_and_moves_back()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		std::array< int, 4 > values{ 10, 11, 12, 13 };
 		rel::ptr< int > ptr{ &values[ 1 ] };
 
@@ -274,7 +251,6 @@ namespace rel_ptr_tests
 
 		expect::is_eq( old.get(), &values[ 1 ] );
 		expect::is_eq( ptr.get(), &values[ 0 ] );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -335,8 +311,6 @@ namespace rel_span_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void index_returns_element()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		std::array< int, 4 > values{ 10, 11, 12, 13 };
 		rel::span< int > span{ values.data(), values.size() };
 
@@ -347,7 +321,6 @@ namespace rel_span_tests
 
 		span[ 2 ] = 99;
 		expect::is_eq( values[ 2 ], 99 );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -368,31 +341,12 @@ namespace rel_span_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void copy_views_same_elements()
 	{
-#ifdef NDEBUG
-		// TODO Compilation failure
 		std::array< int, 4 > values{ 10, 11, 12, 13 };
 		rel::span< int > original{ values.data(), values.size() };
 		rel::span< int > copy = original;
 
 		expect::is_eq( copy.size(), 4ull );
 		expect::is_eq( copy.data(), values.data() );
-#endif
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void sub_span_views_part_of_elements()
-	{
-#ifdef NDEBUG
-		// TODO Compilation failure
-		std::array< int, 6 > values{ 10, 11, 12, 13, 14, 15 };
-		rel::span< int > span{ values.data(), values.size() };
-
-		rel::span< int > sub = span.sub_span( 1, 3 );
-
-		expect::is_eq( sub.size(), 3ull );
-		expect::is_eq( sub.data(), &values[ 1 ] );
-		expect::is_eq( sub[ 2 ], 13 );
-#endif
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )

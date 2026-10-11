@@ -37,6 +37,7 @@ namespace
 	struct alignas( 64 ) aligned_env
 	{
 		int m_value = 3;
+		std::byte m_padding[ 64 - sizeof( m_value ) ]{};
 	};
 
 	struct not_an_env
@@ -114,8 +115,8 @@ namespace
 			return *static_cast< T* >( m_env_map.at( ge::refl::make_type_id< T >() ) );
 		}
 
-		graph_result m_graph;
 		test_pack_buffer m_buffer{};
+		graph_result m_graph;
 		ge::exporter::pack_writer m_writer{ m_buffer.m_bytes };
 		ge::exporter::environments_map m_env_map{};
 		const ge::exporter::exported_schedule* m_schedule{};
@@ -263,10 +264,9 @@ namespace export_schedule_tests
 		expect::is_eq( schedule.size(), 1ull );
 		expect::is_eq( schedule.begin()->size(), 1ull );
 
-		void* const* arguments = schedule.begin()->begin()->m_arguments_buffer.get();
-		expect::is_true( result->m_buffer.contains( arguments, 2 * sizeof( void* ) ) );
-		expect::is_eq( arguments[ 0 ], &result->env< env_a >() );
-		expect::is_eq( arguments[ 1 ], &result->env< env_b >() );
+		const rel::span< rel::ptr< void > >& arguments = schedule.begin()->begin()->m_arguments;
+		expect::is_eq( arguments[ 0 ].get(), &result->env< env_a >() );
+		expect::is_eq( arguments[ 1 ].get(), &result->env< env_b >() );
 	}
 
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
@@ -386,16 +386,24 @@ namespace execute_schedule_tests
 		auto relocated = std::make_unique< test_pack_buffer >();
 		std::memcpy( relocated->m_bytes.data(), result->m_buffer.m_bytes.data(), result->m_writer.size() );
 
-		ge::exporter::execute_schedule( relocated->at_offset< const ge::exporter::exported_schedule >( schedule_offset ) );
-
-		// The relocated pack acted on its own environments
-		expect::is_eq( relocated->at_offset< env_a >( env_a_offset ).m_value, 7 );
-		expect::is_eq( relocated->at_offset< env_b >( env_b_offset ).m_value, 70 );
-		expect::is_eq( relocated->at_offset< counter_env >( counter_offset ).m_count, 1 );
-
-		// And left the original pack untouched
 		expect::is_eq( result->env< env_a >().m_value, 0 );
 		expect::is_eq( result->env< env_b >().m_value, 0 );
 		expect::is_eq( result->env< counter_env >().m_count, 0 );
+
+		expect::is_eq( relocated->at_offset< env_a >( env_a_offset ).m_value, 0 );
+		expect::is_eq( relocated->at_offset< env_b >( env_b_offset ).m_value, 0 );
+		expect::is_eq( relocated->at_offset< counter_env >( counter_offset ).m_count, 0 );
+
+		ge::exporter::execute_schedule( relocated->at_offset< const ge::exporter::exported_schedule >( schedule_offset ) );
+
+		// left the original pack untouched
+		expect::is_eq( result->env< env_a >().m_value, 0 );
+		expect::is_eq( result->env< env_b >().m_value, 0 );
+		expect::is_eq( result->env< counter_env >().m_count, 0 );
+
+		// relocated pack acted on its own environments
+		expect::is_eq( relocated->at_offset< env_a >( env_a_offset ).m_value, 7 );
+		expect::is_eq( relocated->at_offset< env_b >( env_b_offset ).m_value, 70 );
+		expect::is_eq( relocated->at_offset< counter_env >( counter_offset ).m_count, 1 );
 	}
 } // namespace execute_schedule_tests

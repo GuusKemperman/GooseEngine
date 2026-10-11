@@ -18,6 +18,7 @@ namespace
 	struct alignas( 32 ) aligned_env
 	{
 		std::uint32_t m_value = 0xC0FFEE;
+		std::byte m_padding[ 32 - sizeof( m_value ) ]{};
 	};
 
 	// Distinct bodies, so they can't be folded into one function
