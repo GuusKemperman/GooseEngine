@@ -110,7 +110,7 @@ namespace ge::traits
 			};
 		}
 
-		API void post_build( const refl::builders::post_build_context& context, const refl::func_data& )
+		inline void post_build( const refl::builders::post_build_context& context, const refl::func_data& )
 		{
 			m_params = m_populate_accesses( context );
 		}

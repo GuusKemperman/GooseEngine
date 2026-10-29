@@ -1,5 +1,6 @@
 add_subdirectory("exporters")
 add_subdirectory("export_core")
+add_subdirectory("graphics")
 add_subdirectory("io")
 add_subdirectory("runtime_reflection")
 add_subdirectory("static_reflection")
