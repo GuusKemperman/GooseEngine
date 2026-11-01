@@ -151,6 +151,9 @@ namespace
 			window.ghRC = wglCreateContext( window.ghDC );
 			wglMakeCurrent( window.ghDC, window.ghRC );
 
+			glRasterPos2f( -1, 1 );
+			glPixelZoom( ge::s_pixel_size, -ge::s_pixel_size );
+
 			resize( window );
 			break;
 		}
@@ -401,7 +404,7 @@ namespace ge
 		glClear( GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/ );
 
 		framebuffer.m_size = windows_window.size;
-		framebuffer.m_pixels.clear();
+		// framebuffer.m_pixels.clear();
 		framebuffer.m_pixels.resize( static_cast< size_t >( framebuffer.m_size.width * framebuffer.m_size.height ), {} );
 
 		glViewport( 0, 0, framebuffer.m_size.width, framebuffer.m_size.height );
