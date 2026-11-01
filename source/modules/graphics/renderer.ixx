@@ -1,11 +1,42 @@
 module;
 
+// i hate windows.h
 #define WIN32_LEAN_AND_MEAN
+#define NOGDICAPMASKS
+#define NOSYSMETRICS
+#define NOMENUS
+#define NOICONS
+#define NOSYSCOMMANDS
+#define NORASTEROPS
+#define OEMRESOURCE
+#define NOATOM
+#define NOCLIPBOARD
+#define NOCTLMGR
+#define NODRAWTEXT
+#define NOKERNEL
+#define NONLS
+#define NOMB
+#define NOMEMMGR
+#define NOMETAFILE
+#define NOMINMAX
+#define NOOPENFILE
+#define NOSCROLL
+#define NOSERVICE
+#define NOSOUND
+#define NOTEXTMETRIC
+#define NOWH
+#define NOCOMM
+#define NOKANJI
+#define NOHELP
+#define NOPROFILER
+#define NODEFERWINDOWPOS
+#define NOMCX
+
 #include <cassert>
 #include <windows.h>
 
-#undef min
-#undef max
+#define GET_X_LPARAM( lp ) ( ( int )( short )LOWORD( lp ) )
+#define GET_Y_LPARAM( lp ) ( ( int )( short )HIWORD( lp ) )
 
 #include <gl/GL.h>
 
@@ -57,7 +88,7 @@ namespace ge
 		export struct window
 		{
 			std::unique_ptr< platform_window_base > m_window{};
-			ivec2 size{};
+			ivec2 m_size{ .width = 1024, .height = 1024 };
 		};
 
 		REFL_TYPE( ge::traits::environment{} )
@@ -67,14 +98,11 @@ namespace ge
 			ivec2 m_size{};
 		};
 
-		// TODO proper input
-
-		//REFL_TYPE( ge::traits::environment{} )
-		//export struct inputs
-		//{
-		//	float m_x_axis{};
-		//	float m_y_axis{};
-		//};
+		REFL_TYPE( ge::traits::environment{} )
+		export struct pixel_size
+		{
+			float m_size{ 1.0f };
+		};
 	} // namespace env
 
 } // namespace ge
@@ -83,9 +111,24 @@ namespace
 {
 	// TODO proper input;
 	int horizontal_axis{};
+	ge::ivec2 mouse{};
+
+	struct windows_window;
+
+	struct windows_userdata
+	{
+		std::reference_wrapper< ge::env::window > m_window_env;
+		std::reference_wrapper< windows_window > m_windows_window;
+	};
 
 	struct windows_window : ge::platform_window_base
 	{
+		windows_window( ge::env::window& window_env )
+			: m_userdata( window_env, *this )
+		{
+		}
+
+		windows_userdata m_userdata;
 		HWND hWnd{};
 		HDC ghDC{};
 		HGLRC ghRC{};
@@ -122,13 +165,13 @@ namespace
 	{
 		RECT rect;
 		GetClientRect( get_windows_window( window ).hWnd, &rect );
-		window.size.width = static_cast< int >( rect.right );
-		window.size.height = static_cast< int >( rect.bottom );
+		window.m_size.width = static_cast< int >( rect.right );
+		window.m_size.height = static_cast< int >( rect.bottom );
 	}
 
-	ge::env::window& get_userdata( HWND hWnd )
+	windows_userdata& get_userdata( HWND hWnd )
 	{
-		return *reinterpret_cast< ge::env::window* >( GetWindowLongPtr( hWnd, GWLP_USERDATA ) );
+		return *reinterpret_cast< windows_userdata* >( GetWindowLongPtr( hWnd, GWLP_USERDATA ) );
 	}
 
 	/* main window procedure */
@@ -139,8 +182,10 @@ namespace
 		case WM_CREATE:
 		{
 			CREATESTRUCT* pCreate = reinterpret_cast< CREATESTRUCT* >( lParam );
-			ge::env::window& window = *reinterpret_cast< ge::env::window* >( pCreate->lpCreateParams );
-			SetWindowLongPtr( hWnd, GWLP_USERDATA, reinterpret_cast< LONG_PTR >( &window ) );
+			windows_userdata& userdata = *reinterpret_cast< windows_userdata* >( pCreate->lpCreateParams );
+			windows_window& windows_window = userdata.m_windows_window;
+
+			SetWindowLongPtr( hWnd, GWLP_USERDATA, reinterpret_cast< LONG_PTR >( &userdata ) );
 
 			windows_window.hWnd = hWnd;
 			windows_window.ghDC = GetDC( hWnd );
@@ -150,10 +195,10 @@ namespace
 			windows_window.ghRC = wglCreateContext( windows_window.ghDC );
 			wglMakeCurrent( windows_window.ghDC, windows_window.ghRC );
 
+			// Needed for flipping the screen vertically (together with glPixelZoom)
 			glRasterPos2f( -1, 1 );
-			glPixelZoom( ge::s_pixel_size, -ge::s_pixel_size );
 
-			resize( window );
+			resize( userdata.m_window_env );
 			break;
 		}
 		case WM_PAINT:
@@ -166,13 +211,13 @@ namespace
 
 		case WM_SIZE:
 		{
-			resize( get_userdata( hWnd ) );
+			resize( get_userdata( hWnd ).m_window_env );
 			break;
 		}
 		case WM_CLOSE:
 		case WM_DESTROY:
 		{
-			windows_window window = get_windows_window( get_userdata( hWnd ) );
+			windows_window& window = get_userdata( hWnd ).m_windows_window;
 
 			if( window.ghRC )
 			{
@@ -225,64 +270,24 @@ namespace
 			}
 			break;
 		}
+			//case WM_MOUSEMOVE:
+			//{
+
+			//	int x = GET_X_LPARAM( lParam );
+			//	int y = GET_Y_LPARAM( lParam );
+
+			//	mouse.x = static_cast< int >( static_cast< float >( x ) / ge::s_pixel_size );
+			//	mouse.y = static_cast< int >( static_cast< float >( y ) / ge::s_pixel_size );
+
+			//	std::cout << mouse.x << ", " << mouse.y << std::endl;
+			//	break;
+			//}
 
 		default:
 			return static_cast< LONG >( DefWindowProc( hWnd, uMsg, wParam, lParam ) );
 		}
 
 		return 1;
-	}
-
-	std::unique_ptr< windows_window > create_window( std::string_view app_name, int width, int height )
-	{
-		std::unique_ptr window = std::make_unique< windows_window >();
-
-		HINSTANCE hInstance = GetModuleHandle( nullptr ); // what WinMain gives you
-
-		WNDCLASS wndclass;
-
-		/* Register the frame class */
-		wndclass.style = 0;
-		wndclass.lpfnWndProc = ( WNDPROC )MainWndProc;
-		wndclass.cbClsExtra = 0;
-		wndclass.cbWndExtra = 0;
-		wndclass.hInstance = hInstance;
-		wndclass.hIcon = LoadIcon( hInstance, app_name.data() );
-		wndclass.hCursor = LoadCursor( NULL, IDC_ARROW );
-		wndclass.hbrBackground = ( HBRUSH )( COLOR_WINDOW + 1 );
-		wndclass.lpszMenuName = app_name.data();
-		wndclass.lpszClassName = app_name.data();
-
-		if( !RegisterClass( &wndclass ) )
-			return FALSE;
-
-		/* Create the frame */
-		window->hWnd = CreateWindow(
-			app_name.data(),
-			app_name.data(),
-			WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			width,
-			height,
-			NULL,
-			NULL,
-			hInstance,
-			window.get() );
-
-		assert( window->hWnd != nullptr );
-
-		ShowWindow( window->hWnd, SW_SHOW );
-		UpdateWindow( window->hWnd );
-
-		return window;
-	}
-
-	constexpr std::uint32_t ScaleColor( std::uint32_t c, std::uint32_t scale )
-	{
-		const std::uint32_t rb = ( ( ( c & 0xff00ff ) * scale ) >> 8 ) & 0x00ff00ff;
-		const std::uint32_t ag = ( ( ( c & 0xff00ff00 ) >> 8 ) * scale ) & 0xff00ff00;
-		return rb + ag;
 	}
 
 	constexpr auto sqr( auto x )
@@ -354,14 +359,60 @@ namespace ge
 	} // namespace draw2d
 
 	REFL_FUNC( ge::traits::system{} )
-	export API void initialize_window( env::window& window )
+	export API void initialize_window( env::window& window_env )
 	{
-		if( window.m_window != nullptr )
+		if( window_env.m_window != nullptr )
 		{
 			return;
 		}
 
-		window.m_window = create_window( "Goose Engine", 1024, 1024 );
+		windows_window& window = [ &window_env ]() -> windows_window&
+		{
+			window_env.m_window = std::make_unique< windows_window >( window_env );
+			return get_windows_window( window_env );
+		}();
+
+		HINSTANCE hInstance = GetModuleHandle( nullptr ); // what WinMain gives you
+
+		static constexpr std::string_view app_name = "Goose Engine";
+
+		{
+			WNDCLASS wndclass;
+
+			/* Register the frame class */
+			wndclass.style = 0;
+			wndclass.lpfnWndProc = ( WNDPROC )MainWndProc;
+			wndclass.cbClsExtra = 0;
+			wndclass.cbWndExtra = 0;
+			wndclass.hInstance = hInstance;
+			wndclass.hbrBackground = ( HBRUSH )( COLOR_WINDOW + 1 );
+			wndclass.hIcon = LoadIcon( hInstance, app_name.data() );
+			wndclass.hCursor = LoadCursor( NULL, IDC_ARROW );
+			wndclass.lpszMenuName = app_name.data();
+			wndclass.lpszClassName = app_name.data();
+
+			[[maybe_unused]] ATOM registeredClass = RegisterClass( &wndclass );
+			assert( registeredClass );
+		}
+
+		/* Create the frame */
+		window.hWnd = CreateWindow(
+			app_name.data(),
+			app_name.data(),
+			WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			window_env.m_size.x,
+			window_env.m_size.y,
+			NULL,
+			NULL,
+			hInstance,
+			&window.m_userdata );
+
+		assert( window.hWnd != nullptr );
+
+		ShowWindow( window.hWnd, SW_SHOW );
+		UpdateWindow( window.hWnd );
 	}
 
 	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::initialize_window >{} )
@@ -384,10 +435,11 @@ namespace ge
 	}
 
 	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::process_messages >{} )
-	export API void swap_buffers( const env::window& window, env::framebuffer& framebuffer )
+	export API void swap_buffers( const env::window& window, const env::pixel_size& pixel_size, env::framebuffer& framebuffer )
 	{
 		windows_window& windows_window = get_windows_window( window );
 
+		glPixelZoom( pixel_size.m_size, -pixel_size.m_size );
 		glDrawPixels(
 			framebuffer.m_size.width,
 			framebuffer.m_size.height,
@@ -400,10 +452,18 @@ namespace ge
 
 		// Don't clear, we assume the game will populate the entire screen (or clear themselves by writing to the full framebuffer)
 
-		framebuffer.m_size = window.size;
+		framebuffer.m_size = window.m_size;
 		framebuffer.m_pixels.resize( static_cast< size_t >( framebuffer.m_size.width * framebuffer.m_size.height ), {} );
 
 		glViewport( 0, 0, framebuffer.m_size.width, framebuffer.m_size.height );
 	}
 
+	REFL_FUNC(
+		ge::traits::system{},
+		ge::traits::order_before< ge::swap_buffers >{},
+		ge::traits::order_after< ge::process_messages >{} )
+	export API void draw_something( env::framebuffer& target )
+	{
+		draw2d::circle( target, { .pix = 0xffffffff }, mouse, 10 );
+	}
 } // namespace ge
