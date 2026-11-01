@@ -57,6 +57,7 @@ namespace ge
 		export struct window
 		{
 			std::unique_ptr< platform_window_base > m_window{};
+			ivec2 size{};
 		};
 
 		REFL_TYPE( ge::traits::environment{} )
@@ -88,8 +89,6 @@ namespace
 		HWND hWnd{};
 		HDC ghDC{};
 		HGLRC ghRC{};
-
-		ge::ivec2 size{};
 	};
 
 	windows_window& get_windows_window( const ge::env::window& window )
@@ -119,17 +118,17 @@ namespace
 		assert( succesfullySetPixelFormat );
 	}
 
-	void resize( windows_window& window )
+	void resize( ge::env::window& window )
 	{
 		RECT rect;
-		GetClientRect( window.hWnd, &rect );
+		GetClientRect( get_windows_window( window ).hWnd, &rect );
 		window.size.width = static_cast< int >( rect.right );
 		window.size.height = static_cast< int >( rect.bottom );
 	}
 
-	windows_window& get_userdata( HWND hWnd )
+	ge::env::window& get_userdata( HWND hWnd )
 	{
-		return *reinterpret_cast< windows_window* >( GetWindowLongPtr( hWnd, GWLP_USERDATA ) );
+		return *reinterpret_cast< ge::env::window* >( GetWindowLongPtr( hWnd, GWLP_USERDATA ) );
 	}
 
 	/* main window procedure */
@@ -140,16 +139,16 @@ namespace
 		case WM_CREATE:
 		{
 			CREATESTRUCT* pCreate = reinterpret_cast< CREATESTRUCT* >( lParam );
-			windows_window& window = *reinterpret_cast< windows_window* >( pCreate->lpCreateParams );
+			ge::env::window& window = *reinterpret_cast< ge::env::window* >( pCreate->lpCreateParams );
 			SetWindowLongPtr( hWnd, GWLP_USERDATA, reinterpret_cast< LONG_PTR >( &window ) );
 
-			window.hWnd = hWnd;
-			window.ghDC = GetDC( hWnd );
+			windows_window.hWnd = hWnd;
+			windows_window.ghDC = GetDC( hWnd );
 
-			ConfigurePixelFormat( window.ghDC );
+			ConfigurePixelFormat( windows_window.ghDC );
 
-			window.ghRC = wglCreateContext( window.ghDC );
-			wglMakeCurrent( window.ghDC, window.ghRC );
+			windows_window.ghRC = wglCreateContext( windows_window.ghDC );
+			wglMakeCurrent( windows_window.ghDC, windows_window.ghRC );
 
 			glRasterPos2f( -1, 1 );
 			glPixelZoom( ge::s_pixel_size, -ge::s_pixel_size );
@@ -167,14 +166,13 @@ namespace
 
 		case WM_SIZE:
 		{
-			windows_window& window = get_userdata( hWnd );
-			resize( window );
+			resize( get_userdata( hWnd ) );
 			break;
 		}
 		case WM_CLOSE:
 		case WM_DESTROY:
 		{
-			windows_window& window = *reinterpret_cast< windows_window* >( GetWindowLongPtr( hWnd, GWLP_USERDATA ) );
+			windows_window window = get_windows_window( get_userdata( hWnd ) );
 
 			if( window.ghRC )
 			{
@@ -400,11 +398,9 @@ namespace ge
 		glFlush();
 		SwapBuffers( windows_window.ghDC );
 
-		// Clean up for next frame
-		glClear( GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/ );
+		// Don't clear, we assume the game will populate the entire screen (or clear themselves by writing to the full framebuffer)
 
-		framebuffer.m_size = windows_window.size;
-		// framebuffer.m_pixels.clear();
+		framebuffer.m_size = window.size;
 		framebuffer.m_pixels.resize( static_cast< size_t >( framebuffer.m_size.width * framebuffer.m_size.height ), {} );
 
 		glViewport( 0, 0, framebuffer.m_size.width, framebuffer.m_size.height );
