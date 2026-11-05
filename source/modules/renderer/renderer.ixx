@@ -9,17 +9,15 @@ import math;
 
 namespace ge
 {
-	// TODO these function is only here because we dont support having a sequence_range 'rendering'
-
+	// Currently we don't do anything here, but this can be used to order other systems against
 	REFL_FUNC( ge::traits::system{} )
-	export API void start_of_rendering( env::framebuffer& target )
+	export API void end_of_rendering( env::framebuffer& )
 	{
-		draw_circle( target, { .pix = 0xff0ff0ff }, {}, 20 );
 	}
 
-	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::start_of_rendering >{} )
-	export API void end_of_rendering( env::framebuffer& target )
+	REFL_FUNC( ge::traits::system{}, ge::traits::order_before< ge::end_of_rendering >{} )
+	export API void example_rendering_thing( env::framebuffer& target )
 	{
-		draw_circle( target, { .pix = 0xffffffff }, {}, 10 );
+		draw_circle( target, { .pix = 0xff0ff0ff }, { .x = 200, .y = 200 }, 20 );
 	}
 } // namespace ge
