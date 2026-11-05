@@ -40,46 +40,19 @@ module;
 
 #include <gl/GL.h>
 
-export module renderer;
+export module window;
 
 export import core_traits;
+export import renderer;
+
 import stl;
+import math;
 
 namespace ge
 {
-	export struct ivec2
-	{
-		union
-		{
-			int x{};
-			int width;
-		};
-
-		union
-		{
-			int y{};
-			int height;
-		};
-	};
-
 	export struct platform_window_base
 	{
 		virtual ~platform_window_base() = default;
-	};
-
-	export struct pixel
-	{
-		union
-		{
-			struct
-			{
-				std::uint8_t r;
-				std::uint8_t g;
-				std::uint8_t b;
-				std::uint8_t a;
-			} channels;
-			std::uint32_t pix{};
-		};
 	};
 
 	namespace env
@@ -92,14 +65,7 @@ namespace ge
 		};
 
 		REFL_TYPE( ge::traits::environment{} )
-		export struct framebuffer
-		{
-			std::vector< pixel > m_pixels{};
-			ivec2 m_size{};
-		};
-
-		REFL_TYPE( ge::traits::environment{} )
-		export struct pixel_size
+		export struct window_pixel_scale
 		{
 			float m_size{ 1.0f };
 		};
@@ -109,14 +75,11 @@ namespace ge
 
 namespace
 {
-	// TODO proper input;
-	int horizontal_axis{};
-	ge::ivec2 mouse{};
-
 	struct windows_window;
 
 	struct windows_userdata
 	{
+		// TODO remove the reference to ge::env::window, it allows thread-unsafe access
 		std::reference_wrapper< ge::env::window > m_window_env;
 		std::reference_wrapper< windows_window > m_windows_window;
 	};
@@ -241,123 +204,16 @@ namespace
 
 			break;
 		}
-
-		case WM_KEYDOWN:
-		{
-			switch( wParam )
-			{
-			case VK_LEFT:
-				horizontal_axis = -1;
-				break;
-			case VK_RIGHT:
-				horizontal_axis = 1;
-				break;
-			default:
-				break;
-			}
-			break;
-		}
-		case WM_KEYUP:
-		{
-			switch( wParam )
-			{
-			case VK_LEFT:
-			case VK_RIGHT:
-				horizontal_axis = 0;
-				break;
-			default:
-				break;
-			}
-			break;
-		}
-			//case WM_MOUSEMOVE:
-			//{
-
-			//	int x = GET_X_LPARAM( lParam );
-			//	int y = GET_Y_LPARAM( lParam );
-
-			//	mouse.x = static_cast< int >( static_cast< float >( x ) / ge::s_pixel_size );
-			//	mouse.y = static_cast< int >( static_cast< float >( y ) / ge::s_pixel_size );
-
-			//	std::cout << mouse.x << ", " << mouse.y << std::endl;
-			//	break;
-			//}
-
 		default:
 			return static_cast< LONG >( DefWindowProc( hWnd, uMsg, wParam, lParam ) );
 		}
 
 		return 1;
 	}
-
-	constexpr auto sqr( auto x )
-	{
-		return x * x;
-	}
-
 } // namespace
 
 namespace ge
 {
-	namespace draw2d
-	{
-		export API void circle( env::framebuffer& target, pixel col, ivec2 pos, int radius )
-		{
-			int endX = std::min( pos.x + radius, target.m_size.width ), endY = std::min( pos.y + radius, target.m_size.height );
-
-			int outerRadiusSqrd = sqr( radius );
-
-			for( int y = std::max( pos.y - radius, 0 ); y < endY; y++ )
-			{
-				for( int x = std::max( pos.x - radius, 0 ); x < endX; x++ )
-				{
-					int dx = pos.x - x, dy = pos.y - y;
-					int distSqrd = sqr( dx ) + sqr( dy );
-					if( distSqrd <= outerRadiusSqrd )
-					{
-						pixel& dst = target.m_pixels[ static_cast< size_t >( x + y * target.m_size.width ) ];
-						dst = col;
-					}
-				}
-			}
-		}
-
-		export API void circle( env::framebuffer& target, pixel col, ivec2 pos, int radius, int lineThickness )
-		{
-			int endX = std::min( pos.x + radius, target.m_size.width ), endY = std::min( pos.y + radius, target.m_size.height );
-
-			int outerRadiusSqrd = radius * radius, innerRadiusSqrd = sqr( radius - lineThickness );
-
-			for( int y = std::max( pos.y - radius, 0 ); y < endY; y++ )
-			{
-				for( int x = std::max( pos.x - radius, 0 ); x < endX; x++ )
-				{
-					int dx = pos.x - x, dy = pos.y - y;
-					int distSqrd = dx * dx + dy * dy;
-					if( distSqrd <= outerRadiusSqrd && distSqrd >= innerRadiusSqrd )
-					{
-						pixel& dst = target.m_pixels[ static_cast< size_t >( x + y * target.m_size.width ) ];
-						dst = col;
-					}
-				}
-			}
-		}
-
-		export API void rectangle( env::framebuffer& target, pixel col, ivec2 topLeft, ivec2 bottomRight )
-		{
-			int endX = std::min( bottomRight.x, target.m_size.width ), endY = std::min( bottomRight.y, target.m_size.height );
-
-			for( int y = std::max( topLeft.y, 0 ); y < endY; y++ )
-			{
-				for( int x = std::max( topLeft.x, 0 ); x < endX; x++ )
-				{
-					pixel& dst = target.m_pixels[ static_cast< size_t >( x + y * target.m_size.width ) ];
-					dst = col;
-				}
-			}
-		}
-	} // namespace draw2d
-
 	REFL_FUNC( ge::traits::system{} )
 	export API void initialize_window( env::window& window_env )
 	{
@@ -434,8 +290,8 @@ namespace ge
 		}
 	}
 
-	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::process_messages >{} )
-	export API void swap_buffers( const env::window& window, const env::pixel_size& pixel_size, env::framebuffer& framebuffer )
+	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::process_messages >{}, ge::traits::order_after< ge::end_of_rendering >{} )
+	export API void swap_buffers( const env::window& window, const env::window_pixel_scale& pixel_size, env::framebuffer& framebuffer )
 	{
 		windows_window& windows_window = get_windows_window( window );
 
@@ -456,14 +312,5 @@ namespace ge
 		framebuffer.m_pixels.resize( static_cast< size_t >( framebuffer.m_size.width * framebuffer.m_size.height ), {} );
 
 		glViewport( 0, 0, framebuffer.m_size.width, framebuffer.m_size.height );
-	}
-
-	REFL_FUNC(
-		ge::traits::system{},
-		ge::traits::order_before< ge::swap_buffers >{},
-		ge::traits::order_after< ge::process_messages >{} )
-	export API void draw_something( env::framebuffer& target )
-	{
-		draw2d::circle( target, { .pix = 0xffffffff }, mouse, 10 );
 	}
 } // namespace ge
