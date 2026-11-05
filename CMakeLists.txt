@@ -52,7 +52,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 function(add_module module_name)
-    add_library(${module_name} SHARED)
+    add_library(${module_name} STATIC)
 
     # Include by default since it's so widely used
     target_link_libraries("${module_name}" PRIVATE "stl")
