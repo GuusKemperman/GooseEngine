@@ -96,8 +96,8 @@ namespace ordering_tests
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
 			{
-				add_system< &dummy_system< 1 > >( builder, "system1" );
-				add_system< &dummy_system< 2 > >( builder, "system2" );
+				add_system< dummy_system< 1 > >( builder, "system1" );
+				add_system< dummy_system< 2 > >( builder, "system2" );
 			} );
 
 		expect_no_build_errors( result );
@@ -119,8 +119,8 @@ namespace ordering_tests
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
 			{
-				add_system< &dummy_system< 1 > >( builder, "system1" );
-				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_after< &dummy_system< 1 > >{} );
+				add_system< dummy_system< 1 > >( builder, "system1" );
+				add_system< dummy_system< 2 > >( builder, "system2", ge::traits::order_after< dummy_system< 1 > >{} );
 			} );
 
 		expect_no_build_errors( result );
@@ -134,8 +134,8 @@ namespace ordering_tests
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
 			{
-				add_system< &dummy_system< 1 > >( builder, "system1" );
-				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_before< &dummy_system< 1 > >{} );
+				add_system< dummy_system< 1 > >( builder, "system1" );
+				add_system< dummy_system< 2 > >( builder, "system2", ge::traits::order_before< dummy_system< 1 > >{} );
 			} );
 
 		expect_no_build_errors( result );
@@ -150,8 +150,8 @@ namespace ordering_tests
 			[]( module_builder& builder )
 			{
 				add_env< dummy_env< 1 > >( builder, "env1" );
-				add_system< &dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
-				add_system< &dummy_system< 2, dummy_env< 1 >& > >( builder, "system2" );
+				add_system< dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
+				add_system< dummy_system< 2, dummy_env< 1 >& > >( builder, "system2" );
 			} );
 
 		expect_single_build_error(
@@ -164,7 +164,7 @@ namespace ordering_tests
 	{
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
-			{ add_system< &dummy_system< 1 > >( builder, "system1", ge::traits::order_before< &dummy_system< 1 > >{} ); } );
+			{ add_system< dummy_system< 1 > >( builder, "system1", ge::traits::order_before< dummy_system< 1 > >{} ); } );
 
 		expect_single_build_error( result, "invalid ordering for 'system1': ordered against itself." );
 	}
@@ -174,7 +174,7 @@ namespace ordering_tests
 	{
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
-			{ add_system< &dummy_system< 1 > >( builder, "system1", ge::traits::order_before< &dummy_system< 2 > >{} ); } );
+			{ add_system< dummy_system< 1 > >( builder, "system1", ge::traits::order_before< dummy_system< 2 > >{} ); } );
 
 		expect_single_build_error(
 			result,
@@ -187,8 +187,8 @@ namespace ordering_tests
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
 			{
-				add_system< &dummy_system< 1 > >( builder, "system1", ge::traits::order_before< &dummy_system< 2 > >{} );
-				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_before< &dummy_system< 1 > >{} );
+				add_system< dummy_system< 1 > >( builder, "system1", ge::traits::order_before< dummy_system< 2 > >{} );
+				add_system< dummy_system< 2 > >( builder, "system2", ge::traits::order_before< dummy_system< 1 > >{} );
 			} );
 
 		expect_single_build_error(
@@ -206,8 +206,8 @@ namespace ordering_tests
 			[]( module_builder& builder )
 			{
 				add_env< dummy_env< 1 > >( builder, "env1" );
-				add_system< &dummy_system< 1, const dummy_env< 1 >& > >( builder, "system1" );
-				add_system< &dummy_system< 2, const dummy_env< 1 >& > >( builder, "system2" );
+				add_system< dummy_system< 1, const dummy_env< 1 >& > >( builder, "system1" );
+				add_system< dummy_system< 2, const dummy_env< 1 >& > >( builder, "system2" );
 			} );
 
 		expect_no_build_errors( result );
@@ -221,8 +221,8 @@ namespace ordering_tests
 			[]( module_builder& builder )
 			{
 				add_env< dummy_env< 1 > >( builder, "env1" );
-				add_system< &dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
-				add_system< &dummy_system< 2, const dummy_env< 1 >& > >( builder, "system2" );
+				add_system< dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
+				add_system< dummy_system< 2, const dummy_env< 1 >& > >( builder, "system2" );
 			} );
 
 		expect_single_build_error(
@@ -237,11 +237,11 @@ namespace ordering_tests
 			[]( module_builder& builder )
 			{
 				add_env< dummy_env< 1 > >( builder, "env1" );
-				add_system< &dummy_system< 2, const dummy_env< 1 >& > >(
+				add_system< dummy_system< 2, const dummy_env< 1 >& > >(
 					builder,
 					"system2",
-					ge::traits::order_after< &dummy_system< 1, dummy_env< 1 >& > >{} );
-				add_system< &dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
+					ge::traits::order_after< dummy_system< 1, dummy_env< 1 >& > >{} );
+				add_system< dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
 			} );
 
 		expect_no_build_errors( result );
@@ -255,11 +255,11 @@ namespace ordering_tests
 			[]( module_builder& builder )
 			{
 				add_env< dummy_env< 1 > >( builder, "env1" );
-				add_system< &dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
-				add_system< &dummy_system< 2, dummy_env< 1 >& > >(
+				add_system< dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
+				add_system< dummy_system< 2, dummy_env< 1 >& > >(
 					builder,
 					"system2",
-					ge::traits::order_before< &dummy_system< 1, dummy_env< 1 >& > >{} );
+					ge::traits::order_before< dummy_system< 1, dummy_env< 1 >& > >{} );
 			} );
 
 		expect_no_build_errors( result );
@@ -273,13 +273,13 @@ namespace ordering_tests
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
 			{
-				add_system< &dummy_system< 3 > >( builder, "system3" );
-				add_system< &dummy_system< 2 > >(
+				add_system< dummy_system< 3 > >( builder, "system3" );
+				add_system< dummy_system< 2 > >(
 					builder,
 					"system2",
-					ge::traits::order_after< &dummy_system< 1 > >{},
-					ge::traits::order_before< &dummy_system< 3 > >{} );
-				add_system< &dummy_system< 1 > >( builder, "system1" );
+					ge::traits::order_after< dummy_system< 1 > >{},
+					ge::traits::order_before< dummy_system< 3 > >{} );
+				add_system< dummy_system< 1 > >( builder, "system1" );
 			} );
 
 		expect_no_build_errors( result );
@@ -295,15 +295,15 @@ namespace ordering_tests
 			[]( module_builder& builder )
 			{
 				add_env< dummy_env< 1 > >( builder, "env1" );
-				add_system< &dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
-				add_system< &dummy_system< 2 > >(
+				add_system< dummy_system< 1, dummy_env< 1 >& > >( builder, "system1" );
+				add_system< dummy_system< 2 > >(
 					builder,
 					"system2",
-					ge::traits::order_after< &dummy_system< 1, dummy_env< 1 >& > >{} );
-				add_system< &dummy_system< 3, dummy_env< 1 >& > >(
+					ge::traits::order_after< dummy_system< 1, dummy_env< 1 >& > >{} );
+				add_system< dummy_system< 3, dummy_env< 1 >& > >(
 					builder,
 					"system3",
-					ge::traits::order_after< &dummy_system< 2 > >{} );
+					ge::traits::order_after< dummy_system< 2 > >{} );
 			} );
 
 		expect_no_build_errors( result );
@@ -316,14 +316,14 @@ namespace ordering_tests
 		const graph_result result = build_test_graph(
 			[]( module_builder& builder )
 			{
-				add_system< &dummy_system< 4 > >(
+				add_system< dummy_system< 4 > >(
 					builder,
 					"system4",
-					ge::traits::order_after< &dummy_system< 2 > >{},
-					ge::traits::order_after< &dummy_system< 3 > >{} );
-				add_system< &dummy_system< 3 > >( builder, "system3", ge::traits::order_after< &dummy_system< 1 > >{} );
-				add_system< &dummy_system< 2 > >( builder, "system2", ge::traits::order_after< &dummy_system< 1 > >{} );
-				add_system< &dummy_system< 1 > >( builder, "system1" );
+					ge::traits::order_after< dummy_system< 2 > >{},
+					ge::traits::order_after< dummy_system< 3 > >{} );
+				add_system< dummy_system< 3 > >( builder, "system3", ge::traits::order_after< dummy_system< 1 > >{} );
+				add_system< dummy_system< 2 > >( builder, "system2", ge::traits::order_after< dummy_system< 1 > >{} );
+				add_system< dummy_system< 1 > >( builder, "system1" );
 			} );
 
 		expect_no_build_errors( result );

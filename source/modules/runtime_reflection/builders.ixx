@@ -24,11 +24,11 @@ namespace ge::refl::builders
 	export template< undecorated T, std::derived_from< builder_base > Prev >
 	class endable_type_builder;
 
-	export template< auto FuncPtr >
+	export template< auto& FuncPtr >
 		requires is_func< FuncPtr >
 	class func_builder;
 
-	export template< auto FuncPtr, std::derived_from< builder_base > Prev >
+	export template< auto& FuncPtr, std::derived_from< builder_base > Prev >
 		requires is_func< FuncPtr >
 	class endable_func_builder;
 
@@ -95,7 +95,7 @@ namespace ge::refl::builders
 	class func_part
 	{
 	public:
-		template< auto FuncPtr >
+		template< auto& FuncPtr >
 			requires is_func< FuncPtr >
 		auto begin_func( this auto&& self, std::string_view name )
 		{
@@ -375,7 +375,7 @@ namespace ge::refl::builders
 			return std::forward< decltype( self ) >( self );
 		}
 
-		template< auto Setter >
+		template< auto& Setter >
 			requires std::is_invocable_v< decltype( Setter ), outer_t&, data_t >
 		decltype( auto ) setter( this auto&& self )
 		{
@@ -395,7 +395,7 @@ namespace ge::refl::builders
 			return std::forward< decltype( self ) >( self );
 		}
 
-		template< auto Getter >
+		template< auto& Getter >
 			requires std::is_invocable_r_v< const data_t&, decltype( Getter ), const outer_t& >
 					 || std::is_invocable_r_v< data_t, decltype( Getter ), const outer_t& >
 		decltype( auto ) getter( this auto&& self )
@@ -473,7 +473,7 @@ namespace ge::refl::builders
 		Prev& m_prev;
 	};
 
-	template< auto FuncPtr >
+	template< auto& FuncPtr >
 		requires is_func< FuncPtr >
 	class func_builder
 		: public builder_base
@@ -491,7 +491,7 @@ namespace ge::refl::builders
 		func_data& m_target;
 	};
 
-	template< auto FuncPtr, std::derived_from< builder_base > Prev >
+	template< auto& FuncPtr, std::derived_from< builder_base > Prev >
 		requires is_func< FuncPtr >
 	class endable_func_builder : public func_builder< FuncPtr >
 	{

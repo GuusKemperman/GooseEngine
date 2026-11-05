@@ -23,7 +23,12 @@ namespace ge::refl
 	export struct type_id
 	{
 		constexpr auto operator<=>( const type_id& ) const = default;
+		std::uint32_t m_id{};
+	};
 
+	export struct func_id
+	{
+		constexpr auto operator<=>( const func_id& ) const = default;
 		std::uint32_t m_id{};
 	};
 
@@ -62,7 +67,7 @@ namespace ge::refl
 	};
 
 	template< typename Ret, typename... Params >
-	struct func_sig< Ret ( * )( Params... ) >
+	struct func_sig< Ret ( & )( Params... ) >
 	{
 		using type = func_sig< Ret( Params... ) >;
 	};
@@ -85,17 +90,18 @@ namespace ge::refl
 		using type = func_sig< Ret( Class&&, Params... ) >;
 	};
 
-	template< typename Ret, typename... Params >
-	struct func_sig< Ret ( & )( Params... ) >
-	{
-		using type = func_sig< Ret( Params... ) >;
-	};
-
 	export template< typename T >
 	using func_sig_t = func_sig< T >::type;
 
-	export template< auto FuncPtr >
+	export template< auto& FuncPtr >
 	concept is_func = requires { typename func_sig< decltype( FuncPtr ) >; };
+
+	export template< auto& FuncPtr >
+	consteval func_id make_func_id()
+		requires is_func< FuncPtr >
+	{
+		return { hash( __FUNCSIG__ ) };
+	}
 
 	export template< typename >
 	struct data_ptr

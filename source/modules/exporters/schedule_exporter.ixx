@@ -45,13 +45,11 @@ namespace ge::exporter
 
 		for( pending_system& pending : pending_systems )
 		{
-			auto sequence_point_to_func = [ &pending, &pending_systems, &logger, &num_errors ](
-											  const traits::details::sequence_point point ) -> pending_system*
+			auto find_func = [ &pending, &pending_systems, &logger, &num_errors ]( const refl::func_id id ) -> pending_system*
 			{
 				auto it = std::ranges::find_if(
 					pending_systems,
-					[ & ]( const pending_system& other ) -> bool
-					{ return other.m_system_trait.get().m_func_sequence_point == point; } );
+					[ & ]( const pending_system& other ) -> bool { return other.m_system_trait.get().m_id == id; } );
 
 				if( it == pending_systems.end() )
 				{
@@ -84,32 +82,22 @@ namespace ge::exporter
 				const traits::details::ordering_base* order_request = trait.as_constant< traits::details::ordering_base >();
 				assert( order_request != nullptr );
 
-				pending_system* ordered_against = sequence_point_to_func( order_request->m_point );
+				pending_system* ordered_against = find_func( order_request->m_other_func );
 
 				if( ordered_against == nullptr )
 				{
-					// sequence_point_to_func reported the error for us
+					// find_func reported the error for us
 					continue;
 				}
 
 				switch( order_request->m_type )
 				{
 				case traits::details::ordering_base::before:
-				{
-					if( pending_system* system_that_runs_after_us = sequence_point_to_func( order_request->m_point ) )
-					{
-						system_that_runs_after_us->m_execute_after.emplace_back( pending );
-					}
+					ordered_against->m_execute_after.emplace_back( pending );
 					break;
-				}
 				case traits::details::ordering_base::after:
-				{
-					if( pending_system* system_that_runs_before_us = sequence_point_to_func( order_request->m_point ) )
-					{
-						pending.m_execute_after.emplace_back( *system_that_runs_before_us );
-					}
+					pending.m_execute_after.emplace_back( *ordered_against );
 					break;
-				}
 				default:
 					std::unreachable();
 				}

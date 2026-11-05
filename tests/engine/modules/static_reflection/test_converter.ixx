@@ -132,7 +132,7 @@ namespace converter
 			output,
 			{
 				"builder.begin_module(\"test_module\")",
-				".begin_func<&::foo>(\"foo\")",
+				".begin_func<::foo>(\"foo\")",
 				".add_traits(ge::my_trait{})",
 				".end_func()",
 				".begin_data<&::bar>(\"bar\")",
@@ -167,12 +167,12 @@ namespace converter
 			output,
 			{
 				".begin_type<::outer::widget>(\"widget\")",
-				".begin_func<&::outer::widget::method>(\"method\")",
+				".begin_func<::outer::widget::method>(\"method\")",
 				".end_func()",
 				".begin_data<&::outer::widget::field>(\"field\")",
 				".end_data()",
 				".end_type()",
-				".begin_func<&::outer::helper>(\"helper\")",
+				".begin_func<::outer::helper>(\"helper\")",
 			} );
 
 		// Empty REFL_*() traits emit no add_traits call.
@@ -211,8 +211,8 @@ namespace converter
 			output,
 			{
 				"builder.begin_module(\"multi_module\")",
-				".begin_func<&::from_first>(\"from_first\")",
-				".begin_func<&::from_second>(\"from_second\")",
+				".begin_func<::from_first>(\"from_first\")",
+				".begin_func<::from_second>(\"from_second\")",
 				".end_module();",
 			} );
 

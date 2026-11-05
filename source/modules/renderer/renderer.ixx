@@ -16,7 +16,7 @@ namespace ge
 	{
 		draw_circle( target, { .pix = 0xff0ff0ff }, {}, 20 );
 	}
-	
+
 	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::start_of_rendering >{} )
 	export API void end_of_rendering( env::framebuffer& target )
 	{

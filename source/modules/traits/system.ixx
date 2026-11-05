@@ -20,27 +20,11 @@ namespace ge::traits
 			} m_access{};
 			std::reference_wrapper< const refl::type_data > m_type;
 		};
-
-		export struct sequence_point
-		{
-			[[maybe_unused]] sequence_point() = default;
-
-			template< typename... Params >
-			constexpr sequence_point( void ( *other_system )( Params... ) )
-				: m_data( std::bit_cast< void* >( other_system ) )
-			{
-				static_assert( sizeof( void ( * )() ) == sizeof( void* ) );
-			}
-
-			constexpr auto operator<=>( const sequence_point& ) const = default;
-
-			void* m_data{};
-		};
 	} // namespace details
 
 	export struct system : refl::func_trait
 	{
-		details::sequence_point m_func_sequence_point{};
+		refl::func_id m_id{};
 
 		std::vector< details::system_param > m_params{};
 
@@ -49,10 +33,10 @@ namespace ge::traits
 		using invoke_t = void ( * )( void** );
 		invoke_t m_invoke{};
 
-		template< auto Func >
+		template< auto& Func >
 		void on_apply( const refl::builders::func_builder< Func >& )
 		{
-			m_func_sequence_point = details::sequence_point{ Func };
+			m_id = refl::make_func_id< Func >();
 
 			m_populate_accesses = +[]( const refl::builders::post_build_context& context )
 			{
@@ -120,7 +104,7 @@ namespace ge::traits
 	{
 		export struct ordering_base : refl::func_trait
 		{
-			sequence_point m_point{};
+			refl::func_id m_other_func{};
 
 			enum type : bool
 			{
@@ -130,20 +114,20 @@ namespace ge::traits
 		};
 	} // namespace details
 
-	export template< auto OtherSystem, details::ordering_base::type Type >
+	export template< auto& OtherSystem, details::ordering_base::type Type >
 		requires ge::refl::is_func< OtherSystem >
 	struct ordering : refl::func_trait
 	{
-		template< auto Func >
+		template< auto& Func >
 		void on_apply( refl::builders::func_builder< Func >& func )
 		{
-			func.add_traits( details::ordering_base{ .m_point = details::sequence_point{ OtherSystem }, .m_type = Type } );
+			func.add_traits( details::ordering_base{ .m_other_func = refl::make_func_id< OtherSystem >(), .m_type = Type } );
 		}
 	};
 
-	export template< auto OtherSystem >
+	export template< auto& OtherSystem >
 	using order_before = ordering< OtherSystem, details::ordering_base::type::before >;
 
-	export template< auto OtherSystem >
+	export template< auto& OtherSystem >
 	using order_after = ordering< OtherSystem, details::ordering_base::type::after >;
 } // namespace ge::traits

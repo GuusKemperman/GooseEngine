@@ -223,9 +223,9 @@ namespace export_schedule_tests
 				add_env< env_a >( builder, "env_a" );
 				add_env< env_b >( builder, "env_b" );
 				add_env< counter_env >( builder, "counter_env" );
-				add_system< &copy_a_to_b >( builder, "copy_a_to_b", ge::traits::order_after< &set_a >{} );
-				add_system< &set_a >( builder, "set_a" );
-				add_system< &increment >( builder, "increment" );
+				add_system< copy_a_to_b >( builder, "copy_a_to_b", ge::traits::order_after< set_a >{} );
+				add_system< set_a >( builder, "set_a" );
+				add_system< increment >( builder, "increment" );
 			} );
 
 		const ge::exporter::exported_schedule& schedule = *result->m_schedule;
@@ -256,7 +256,7 @@ namespace export_schedule_tests
 			{
 				add_env< env_a >( builder, "env_a" );
 				add_env< env_b >( builder, "env_b" );
-				add_system< &copy_a_to_b >( builder, "copy_a_to_b" );
+				add_system< copy_a_to_b >( builder, "copy_a_to_b" );
 			} );
 
 		const ge::exporter::exported_schedule& schedule = *result->m_schedule;
@@ -291,7 +291,7 @@ namespace execute_schedule_tests
 			[]( module_builder& builder )
 			{
 				add_env< counter_env >( builder, "counter_env" );
-				add_system< &increment >( builder, "increment" );
+				add_system< increment >( builder, "increment" );
 			} );
 
 		ge::exporter::execute_schedule( *result->m_schedule );
@@ -310,9 +310,9 @@ namespace execute_schedule_tests
 				add_env< env_a >( builder, "env_a" );
 				add_env< env_b >( builder, "env_b" );
 				add_env< counter_env >( builder, "counter_env" );
-				add_system< &set_a >( builder, "set_a" );
-				add_system< &add_three_to_b >( builder, "add_three_to_b" );
-				add_system< &increment >( builder, "increment" );
+				add_system< set_a >( builder, "set_a" );
+				add_system< add_three_to_b >( builder, "add_three_to_b" );
+				add_system< increment >( builder, "increment" );
 			} );
 
 		expect::is_eq( result->m_schedule->size(), 1ull );
@@ -333,8 +333,8 @@ namespace execute_schedule_tests
 			{
 				add_env< env_a >( builder, "env_a" );
 				add_env< env_b >( builder, "env_b" );
-				add_system< &copy_a_to_b >( builder, "copy_a_to_b", ge::traits::order_after< &set_a >{} );
-				add_system< &set_a >( builder, "set_a" );
+				add_system< copy_a_to_b >( builder, "copy_a_to_b", ge::traits::order_after< set_a >{} );
+				add_system< set_a >( builder, "set_a" );
 			} );
 
 		ge::exporter::execute_schedule( *result->m_schedule );
@@ -352,9 +352,9 @@ namespace execute_schedule_tests
 			[]( module_builder& builder )
 			{
 				add_env< env_a >( builder, "env_a" );
-				add_system< &set_to_idx< 3 > >( builder, "set_to_3", ge::traits::order_after< &set_to_idx< 2 > >{} );
-				add_system< &set_to_idx< 1 > >( builder, "set_to_1" );
-				add_system< &set_to_idx< 2 > >( builder, "set_to_2", ge::traits::order_after< &set_to_idx< 1 > >{} );
+				add_system< set_to_idx< 3 > >( builder, "set_to_3", ge::traits::order_after< set_to_idx< 2 > >{} );
+				add_system< set_to_idx< 1 > >( builder, "set_to_1" );
+				add_system< set_to_idx< 2 > >( builder, "set_to_2", ge::traits::order_after< set_to_idx< 1 > >{} );
 			} );
 
 		expect::is_eq( result->m_schedule->size(), 3ull );
@@ -373,9 +373,9 @@ namespace execute_schedule_tests
 				add_env< env_a >( builder, "env_a" );
 				add_env< env_b >( builder, "env_b" );
 				add_env< counter_env >( builder, "counter_env" );
-				add_system< &copy_a_to_b >( builder, "copy_a_to_b", ge::traits::order_after< &set_a >{} );
-				add_system< &set_a >( builder, "set_a" );
-				add_system< &increment >( builder, "increment" );
+				add_system< copy_a_to_b >( builder, "copy_a_to_b", ge::traits::order_after< set_a >{} );
+				add_system< set_a >( builder, "set_a" );
+				add_system< increment >( builder, "increment" );
 			} );
 
 		const size_t schedule_offset = result->m_buffer.offset_of( result->m_schedule );

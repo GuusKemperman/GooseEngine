@@ -187,7 +187,7 @@ namespace
 			++rec->on_apply_type;
 		}
 
-		template< auto FuncPtr >
+		template< auto& FuncPtr >
 		void on_apply( const ge::refl::builders::func_builder< FuncPtr >& )
 		{
 			note_apply();
@@ -324,7 +324,6 @@ namespace compile_time_tests
 {
 	using namespace ge::refl;
 
-	static_assert( std::is_same_v< func_sig_t< int ( * )( int, int ) >, func_sig< int( int, int ) > > );
 	static_assert( std::is_same_v< func_sig_t< int ( & )( int ) >, func_sig< int( int ) > > );
 	static_assert( std::is_same_v< func_sig_t< void() >, func_sig< void() > > );
 	static_assert( std::is_same_v< func_sig_t< int( int, double, char ) >, func_sig< int( int, double, char ) > > );
@@ -369,11 +368,11 @@ namespace query_tests
 		const registry_ptr reg = build_registry(
 			[]( module_builder& m )
 			{
-				m.begin_func< &fixture_func_0 >( "f0" )
+				m.begin_func< fixture_func_0 >( "f0" )
 					.end_func()
-					.begin_func< &fixture_func_1 >( "f1" )
+					.begin_func< fixture_func_1 >( "f1" )
 					.end_func()
-					.begin_func< &fixture_func_2 >( "f2" )
+					.begin_func< fixture_func_2 >( "f2" )
 					.end_func();
 			} );
 
@@ -395,12 +394,12 @@ namespace query_tests
 		const registry_ptr reg = build_registry(
 			[]( module_builder& m )
 			{
-				m.begin_func< &fixture_func_0 >( "f0" )
+				m.begin_func< fixture_func_0 >( "f0" )
 					.add_traits( tag_a{ .m_id = 0 } )
 					.end_func()
-					.begin_func< &fixture_func_1 >( "f1" )
+					.begin_func< fixture_func_1 >( "f1" )
 					.end_func()
-					.begin_func< &fixture_func_2 >( "f2" )
+					.begin_func< fixture_func_2 >( "f2" )
 					.add_traits( tag_a{ .m_id = 2 } )
 					.end_func();
 			} );
@@ -418,7 +417,7 @@ namespace query_tests
 	export API void with_no_match_yields_empty()
 	{
 		const registry_ptr reg = build_registry(
-			[]( module_builder& m ) { m.begin_func< &fixture_func_0 >( "f0" ).add_traits( tag_a{ .m_id = 1 } ).end_func(); } );
+			[]( module_builder& m ) { m.begin_func< fixture_func_0 >( "f0" ).add_traits( tag_a{ .m_id = 1 } ).end_func(); } );
 
 		expect_empty( ge::refl::func_query::with< tag_unused >{ reg->m_funcs } );
 	}
@@ -427,7 +426,7 @@ namespace query_tests
 	export API void read_binds_reference_to_stored_trait()
 	{
 		const registry_ptr reg = build_registry(
-			[]( module_builder& m ) { m.begin_func< &fixture_func_0 >( "f" ).add_traits( tag_a{ .m_id = 42 } ).end_func(); } );
+			[]( module_builder& m ) { m.begin_func< fixture_func_0 >( "f" ).add_traits( tag_a{ .m_id = 42 } ).end_func(); } );
 
 		const auto [ func, bound ] = expect_single( ge::refl::func_query::read< tag_a >{ reg->m_funcs } );
 		is_eq( func.m_name, "f" );
@@ -442,7 +441,7 @@ namespace query_tests
 	{
 		const registry_ptr reg
 			= build_registry( []( module_builder& m )
-							  { m.begin_func< &fixture_func_0 >( "f" ).add_traits( tag_b{ .m_label = "only b" } ).end_func(); } );
+							  { m.begin_func< fixture_func_0 >( "f" ).add_traits( tag_b{ .m_label = "only b" } ).end_func(); } );
 
 		// matches() is evaluated before the element is constructed, so a non-matching
 		// func never reaches read_element's unchecked find_if dereference.
@@ -454,7 +453,7 @@ namespace query_tests
 	{
 		const registry_ptr reg = build_registry(
 			[]( module_builder& m )
-			{ m.begin_func< &fixture_func_0 >( "f" ).add_traits( tag_a{ .m_id = 1 }, tag_a{ .m_id = 2 } ).end_func(); } );
+			{ m.begin_func< fixture_func_0 >( "f" ).add_traits( tag_a{ .m_id = 1 }, tag_a{ .m_id = 2 } ).end_func(); } );
 
 		const auto [ func, bound ] = expect_single( ge::refl::func_query::read< tag_a >{ reg->m_funcs } );
 		is_eq( func.m_traits.size(), 2ull );
@@ -468,13 +467,13 @@ namespace query_tests
 		const registry_ptr reg = build_registry(
 			[]( module_builder& m )
 			{
-				m.begin_func< &fixture_func_0 >( "f0" )
+				m.begin_func< fixture_func_0 >( "f0" )
 					.add_traits( tag_b{ .m_label = "zero" }, tag_a{ .m_id = 0 } )
 					.end_func()
-					.begin_func< &fixture_func_1 >( "f1" )
+					.begin_func< fixture_func_1 >( "f1" )
 					.add_traits( tag_b{ .m_label = "one" } )
 					.end_func()
-					.begin_func< &fixture_func_2 >( "f2" )
+					.begin_func< fixture_func_2 >( "f2" )
 					.add_traits( tag_a{ .m_id = 2 }, tag_b{ .m_label = "two" } )
 					.end_func();
 			} );
@@ -497,13 +496,13 @@ namespace query_tests
 		const registry_ptr reg = build_registry(
 			[]( module_builder& m )
 			{
-				m.begin_func< &fixture_func_0 >( "only_a" )
+				m.begin_func< fixture_func_0 >( "only_a" )
 					.add_traits( tag_a{ .m_id = 1 } )
 					.end_func()
-					.begin_func< &fixture_func_1 >( "only_b" )
+					.begin_func< fixture_func_1 >( "only_b" )
 					.add_traits( tag_b{ .m_label = "b" } )
 					.end_func()
-					.begin_func< &fixture_func_2 >( "both" )
+					.begin_func< fixture_func_2 >( "both" )
 					.add_traits( tag_a{ .m_id = 4 }, tag_b{ .m_label = "label" } )
 					.end_func();
 			} );
@@ -532,7 +531,7 @@ namespace query_tests
 		// "TODO this should probably be an is_a?" - update this test when is_a matching lands.
 		const registry_ptr reg
 			= build_registry( []( module_builder& m )
-							  { m.begin_func< &fixture_func_0 >( "derived_only" ).add_traits( tag_derived_a{} ).end_func(); } );
+							  { m.begin_func< fixture_func_0 >( "derived_only" ).add_traits( tag_derived_a{} ).end_func(); } );
 
 		expect_empty( ge::refl::func_query::with< tag_a >{ reg->m_funcs } );
 		expect_empty( ge::refl::func_query::read< tag_a >{ reg->m_funcs } );
@@ -872,7 +871,7 @@ namespace building_tests
 		builder.begin_module( "mod_a" )
 			.begin_type< type_1 >( "a_type" )
 			.end_type()
-			.begin_func< &fixture_func_0 >( "a_func" )
+			.begin_func< fixture_func_0 >( "a_func" )
 			.end_func()
 			.end_module()
 			.begin_module( "mod_b" )
@@ -923,10 +922,10 @@ namespace building_tests
 			[]( module_builder& m )
 			{
 				m.begin_type< type_1 >( "t" )
-					.begin_func< &fixture_func_0 >( "member_func" )
+					.begin_func< fixture_func_0 >( "member_func" )
 					.end_func()
 					.end_type()
-					.begin_func< &fixture_func_1 >( "free_func" )
+					.begin_func< fixture_func_1 >( "free_func" )
 					.end_func();
 			} );
 
@@ -945,7 +944,7 @@ namespace function_tests
 	export API void func_registered_with_name_and_no_traits()
 	{
 		const registry_ptr reg
-			= build_registry( []( module_builder& m ) { m.begin_func< &fixture_func_0 >( "ret42" ).end_func(); } );
+			= build_registry( []( module_builder& m ) { m.begin_func< fixture_func_0 >( "ret42" ).end_func(); } );
 
 		is_eq( reg->m_funcs.m_size, 1ull );
 		is_eq( reg->m_funcs.begin()->m_name, "ret42" );
@@ -958,10 +957,10 @@ namespace function_tests
 		const registry_ptr reg = build_registry(
 			[]( module_builder& m )
 			{
-				m.begin_func< &free_square >( "square" )
+				m.begin_func< free_square >( "square" )
 					.add_traits( ge::refl::invocable_trait< int( int ) >{} )
 					.end_func()
-					.begin_func< &fixture_func_0 >( "plain" )
+					.begin_func< fixture_func_0 >( "plain" )
 					.end_func();
 			} );
 
@@ -1025,7 +1024,7 @@ namespace trait_tests
 					.add_traits( int_type_trait{ .payload = 2 } )
 					.add_traits( int_type_trait{ .payload = 3 } )
 					.end_type()
-					.begin_func< &fixture_func_0 >( "f" )
+					.begin_func< fixture_func_0 >( "f" )
 					.add_traits( tag_a{ .m_id = 4 } )
 					.end_func();
 			} );
@@ -1090,7 +1089,7 @@ namespace trait_hook_tests
 				m.begin_type< type_1 >( "particular_name" )
 					.add_traits( hooked_trait{ &rec } )
 					.end_type()
-					.begin_func< &fixture_func_0 >( "specific_func" )
+					.begin_func< fixture_func_0 >( "specific_func" )
 					.add_traits( hooked_trait{ &rec } )
 					.end_func()
 					.begin_type< int >( "int" )
@@ -1261,7 +1260,7 @@ namespace data_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void custom_getter_value_return_is_owning()
 	{
-		const registry_ptr reg = build_entity_hp( []( hp_builder& hp ) { hp.getter< &free_double_hp >(); } );
+		const registry_ptr reg = build_entity_hp( []( hp_builder& hp ) { hp.getter< free_double_hp >(); } );
 
 		const ge::refl::data_data& d = *reg->m_datas.begin();
 
@@ -1274,7 +1273,7 @@ namespace data_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void custom_getter_cref_return_is_view()
 	{
-		const registry_ptr reg = build_entity_hp( []( hp_builder& hp ) { hp.getter< &free_get_hp_cref >(); } );
+		const registry_ptr reg = build_entity_hp( []( hp_builder& hp ) { hp.getter< free_get_hp_cref >(); } );
 
 		const ge::refl::data_data& d = *reg->m_datas.begin();
 
@@ -1289,7 +1288,7 @@ namespace data_tests
 	REFL_FUNC( ge::test_core::unit_test_trait{} )
 	export API void custom_setter_replaces_default()
 	{
-		const registry_ptr reg = build_entity_hp( []( hp_builder& hp ) { hp.setter< &free_clamp_hp >(); } );
+		const registry_ptr reg = build_entity_hp( []( hp_builder& hp ) { hp.setter< free_clamp_hp >(); } );
 
 		const ge::refl::data_data& d = *reg->m_datas.begin();
 

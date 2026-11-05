@@ -39,7 +39,7 @@ namespace exporter_test_helpers
 		builder.begin_type< T >( name ).add_traits( ge::traits::environment{} ).end_type();
 	}
 
-	template< auto Func >
+	template< auto& Func >
 	void add_system( module_builder& builder, std::string_view name, auto&&... extra_traits )
 	{
 		builder.begin_func< Func >( name )

@@ -15,7 +15,7 @@ namespace ge::refl
 	{
 		Ret ( *m_invoke )( Params... );
 
-		template< auto Func >
+		template< auto& Func >
 		void on_apply( const builders::func_builder< Func >& )
 		{
 			m_invoke = Func;

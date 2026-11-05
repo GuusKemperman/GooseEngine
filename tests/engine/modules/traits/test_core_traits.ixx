@@ -75,12 +75,12 @@ namespace
 	{
 		builder.begin_type< env< 0 > >( "env0" ).add_traits( ge::traits::environment{} ).end_type();
 		builder.begin_type< env< 1 > >( "env1" ).add_traits( ge::traits::environment{} ).end_type();
-		builder.begin_func< &triple_a_into_b >( "triple_a_into_b" ).add_traits( ge::traits::system{} ).end_func();
+		builder.begin_func< triple_a_into_b >( "triple_a_into_b" ).add_traits( ge::traits::system{} ).end_func();
 	}
 
 	void add_system0( module_builder& builder )
 	{
-		builder.begin_func< &dummy_system< 0 > >( "system0" ).add_traits( ge::traits::system{} ).end_func();
+		builder.begin_func< dummy_system< 0 > >( "system0" ).add_traits( ge::traits::system{} ).end_func();
 	}
 } // namespace
 
@@ -168,67 +168,8 @@ namespace system_trait_tests
 
 		const auto& trait = find_trait< ge::traits::system >( find_func( *reg, "system0" ).m_traits );
 
-		expect::is_eq( trait.m_func_sequence_point, ge::traits::details::sequence_point{ &dummy_system< 0 > } );
-		expect::is_ne( trait.m_func_sequence_point, ge::traits::details::sequence_point{ &dummy_system< 1 > } );
+		expect::is_eq( trait.m_id, ge::refl::make_func_id< dummy_system< 0 > >() );
+		expect::is_ne( trait.m_id, ge::refl::make_func_id< dummy_system< 1 > >() );
 	}
 } // namespace system_trait_tests
 
-namespace sequence_point_tests
-{
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void default_is_null()
-	{
-		ge::traits::details::sequence_point point{};
-
-		expect::is_null( point.m_data );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void same_function_is_equal_different_function_is_not()
-	{
-		ge::traits::details::sequence_point first{ &dummy_system< 0 > };
-		ge::traits::details::sequence_point first_again{ &dummy_system< 0 > };
-		ge::traits::details::sequence_point second{ &dummy_system< 1 > };
-
-		expect::is_eq( first, first_again );
-		expect::is_ne( first, second );
-		expect::is_ne( first, ge::traits::details::sequence_point{} );
-	}
-} // namespace sequence_point_tests
-
-namespace ordering_trait_tests
-{
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void order_before_adds_ordering_base()
-	{
-		std::unique_ptr< ge::refl::registry_data > reg = build_registry(
-			[]( module_builder& builder )
-			{
-				builder.begin_func< &dummy_system< 0 > >( "system0" )
-					.add_traits( ge::traits::system{}, ge::traits::order_before< &dummy_system< 1 > >{} )
-					.end_func();
-			} );
-
-		const auto& ordering = find_trait< ge::traits::details::ordering_base >( find_func( *reg, "system0" ).m_traits );
-
-		expect::is_eq( ordering.m_type, ge::traits::details::ordering_base::before );
-		expect::is_eq( ordering.m_point, ge::traits::details::sequence_point{ &dummy_system< 1 > } );
-	}
-
-	REFL_FUNC( ge::test_core::unit_test_trait{} )
-	export API void order_after_adds_ordering_base()
-	{
-		std::unique_ptr< ge::refl::registry_data > reg = build_registry(
-			[]( module_builder& builder )
-			{
-				builder.begin_func< &dummy_system< 0 > >( "system0" )
-					.add_traits( ge::traits::system{}, ge::traits::order_after< &dummy_system< 2 > >{} )
-					.end_func();
-			} );
-
-		const auto& ordering = find_trait< ge::traits::details::ordering_base >( find_func( *reg, "system0" ).m_traits );
-
-		expect::is_eq( ordering.m_type, ge::traits::details::ordering_base::after );
-		expect::is_eq( ordering.m_point, ge::traits::details::sequence_point{ &dummy_system< 2 > } );
-	}
-} // namespace ordering_trait_tests

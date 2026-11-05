@@ -29,4 +29,4 @@ namespace ge
 			ivec2 m_size{};
 		};
 	} // namespace env
-}
+} // namespace ge

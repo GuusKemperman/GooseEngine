@@ -135,7 +135,7 @@ namespace
 		void convert_func( const ge::parsed_func& func )
 		{
 			// TODO handle overloads
-			write_line_fmt( ".begin_func<&{0}{1}>(\"{1}\")", current_scope, func.m_name );
+			write_line_fmt( ".begin_func<{0}{1}>(\"{1}\")", current_scope, func.m_name );
 			indent++;
 
 			write_traits( func.m_traits );

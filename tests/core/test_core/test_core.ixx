@@ -7,7 +7,7 @@ namespace ge::test_core
 {
 	export struct unit_test_trait : refl::func_trait
 	{
-		template< auto Func >
+		template< auto& Func >
 		static void on_apply( const refl::builders::func_builder< Func >& builder )
 		{
 			builder.add_traits( ge::refl::invocable_trait< void() >{} );

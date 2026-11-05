@@ -290,8 +290,14 @@ namespace ge
 		}
 	}
 
-	REFL_FUNC( ge::traits::system{}, ge::traits::order_after< ge::process_messages >{}, ge::traits::order_after< ge::end_of_rendering >{} )
-	export API void swap_buffers( const env::window& window, const env::window_pixel_scale& pixel_size, env::framebuffer& framebuffer )
+	REFL_FUNC(
+		ge::traits::system{},
+		ge::traits::order_after< ge::process_messages >{},
+		ge::traits::order_after< ge::end_of_rendering >{} )
+	export API void swap_buffers(
+		const env::window& window,
+		const env::window_pixel_scale& pixel_size,
+		env::framebuffer& framebuffer )
 	{
 		windows_window& windows_window = get_windows_window( window );
 

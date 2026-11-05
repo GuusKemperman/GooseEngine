@@ -63,4 +63,4 @@ namespace ge
 		}
 	}
 
-}
+} // namespace ge

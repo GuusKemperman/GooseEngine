@@ -4,9 +4,8 @@ namespace ge
 {
 	export struct ivec2
 	{
-
 		// TODO more complete implementation, this is a bit sad
-		API ivec2& operator+=(ivec2 v)
+		API ivec2& operator+=( ivec2 v )
 		{
 			x += v.x;
 			y += v.y;
@@ -30,4 +29,4 @@ namespace ge
 	{
 		return x * x;
 	}
-}
+} // namespace ge

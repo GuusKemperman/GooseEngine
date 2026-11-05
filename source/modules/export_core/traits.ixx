@@ -6,7 +6,7 @@ namespace ge::traits
 {
 	export struct exporter : refl::func_trait
 	{
-		template< auto Func >
+		template< auto& Func >
 		void on_apply( const refl::builders::func_builder< Func >& )
 		{
 		}
